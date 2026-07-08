@@ -255,7 +255,7 @@ export const prerender = false;
                                                                     class="p-1.5 border border-gray-200 hover:border-black rounded-md hover:bg-white text-gray-400 hover:text-black transition-all"
                                                                     title="Copy 12-Digit Reference to Search Bank App"
                                                                 >
-                                                                    <svg x-show="copiedOrderId !== order.id" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                                                                    <svg x-show="copiedOrderId !== order.id" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
                                                                     <svg x-show="copiedOrderId === order.id" style="display: none;" class="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
                                                                 </button>
                                                             </template>
@@ -472,7 +472,6 @@ export const prerender = false;
             };
 
             state.deleteProduct = async function(id) {
-                // Using modern confirmation popup trigger representation
                 const confirmation = confirm('Are you sure you want to permanently delete this product?');
                 if (!confirmation) return;
 
@@ -493,6 +492,12 @@ export const prerender = false;
             state.login = async function() {
                 const { data, error } = await supabase.auth.signInWithPassword({ email: this.authForm.email, password: this.authForm.password });
                 if (!error) { 
+                    // STAGE 1 SECURE LOCKDOWN: Ensure standard users are instantly denied
+                    if (data.user.email !== 'perfumesaju@gmail.com') {
+                        await supabase.auth.signOut();
+                        this.showNotification('Access Denied: Email is not an authorized administrator.', 'error');
+                        return;
+                    }
                     this.user = data.user; 
                     this.showNotification('Access Granted. Welcome Abid!');
                     await this.fetchDashboardData(); 
@@ -507,8 +512,21 @@ export const prerender = false;
             };
 
             const { data: { session } } = await supabase.auth.getSession();
-            state.user = session?.user || null;
-            if (state.user) await state.fetchDashboardData();
+            
+            // STAGE 2 SECURE LOCKDOWN: Enforce session validation for persistent admin users
+            if (session?.user) {
+                if (session.user.email !== 'perfumesaju@gmail.com') {
+                    await supabase.auth.signOut();
+                    state.user = null;
+                    state.showNotification('Session Terminated: Unauthorized Admin email.', 'error');
+                } else {
+                    state.user = session.user;
+                    await state.fetchDashboardData();
+                }
+            } else {
+                state.user = null;
+            }
+            
             state.isLoading = false;
         };
 

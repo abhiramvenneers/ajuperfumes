@@ -98,14 +98,13 @@ import Layout from '../layouts/Layout.astro';
                 const form = document.getElementById('checkoutForm');
                 const formData = new FormData(form);
                 
-                // FIX: Directly fetch the active session from Supabase to guarantee we don't lose the user ID!
                 const { data: { session } } = await window.supabase.auth.getSession();
                 const activeUser = session?.user || null;
 
                 const firstName = (formData.get('firstName') || formData.get('first_name') || '').trim();
                 const lastName = (formData.get('lastName') || formData.get('last_name') || '').trim();
                 
-                // Append Transaction Details to Shipping Address for bulletproof tracking without changing schemas
+                // Append Transaction Details to Shipping Address for bulletproof tracking
                 let paymentTracker = '';
                 if (this.paymentMethod === 'upi') {
                     if (!this.utrNumber || this.utrNumber.trim().length < 12) {
@@ -115,7 +114,24 @@ import Layout from '../layouts/Layout.astro';
                     }
                     paymentTracker = ` [PAID VIA UPI | UTR: ${this.utrNumber}]`;
                 } else {
-                    paymentTracker = ` [PAID VIA CARD | Card ending in ${this.cardNumber.slice(-4)}]`;
+                    // STAGE 3 SECURE VALIDATION: Ensure card credentials are safe and structured before slice operations
+                    const cleanCard = this.cardNumber.replace(/\s+/g, '');
+                    if (!cleanCard || cleanCard.length < 15) {
+                        this.errorMessage = 'Please enter a valid Card Number of at least 15 to 16 digits.';
+                        this.isVerifyingPayment = false;
+                        return;
+                    }
+                    if (!this.cardExpiry || !this.cardExpiry.includes('/')) {
+                        this.errorMessage = 'Please enter a valid card expiry date in MM/YY format.';
+                        this.isVerifyingPayment = false;
+                        return;
+                    }
+                    if (!this.cardCvc || this.cardCvc.length < 3) {
+                        this.errorMessage = 'Please enter a valid 3 or 4 digit CVC security code.';
+                        this.isVerifyingPayment = false;
+                        return;
+                    }
+                    paymentTracker = ` [PAID VIA CARD | Card ending in ${cleanCard.slice(-4)}]`;
                 }
 
                 const orderData = {
@@ -372,7 +388,7 @@ import Layout from '../layouts/Layout.astro';
                         <p class="text-xs text-gray-500 mt-1 font-light">Complete transaction of <strong class="text-black font-semibold" x-text="'₹' + $store.cart.total.toLocaleString()"></strong></p>
                     </div>
 
-                    <!-- Direct Transfer Info Card (Updated layout using correct business/personal details) -->
+                    <!-- Direct Transfer Info Card -->
                     <div class="mb-6 p-4 border border-slate-100 bg-[#fbfbfb] rounded-sm text-center">
                         <p class="text-[9px] text-slate-400 uppercase tracking-widest font-bold mb-2">Manual GPay Payment Option</p>
                         <p class="text-xs text-slate-700 leading-relaxed font-light">

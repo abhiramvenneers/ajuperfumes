@@ -64,20 +64,52 @@ export async function POST({ request }) {
             total_amount: orderData.total_amount,
             items: orderData.items, 
             status: 'placed',
-            user_id: orderData.user_id || null // Added user_id link
+            user_id: orderData.user_id || null
         }]).select();
         
         if (error) {
             console.error("Supabase Checkout Insert Error:", error);
             return new Response(JSON.stringify({ error: error.message }), { status: 500 });
         }
+
+        // 2. STAGE 4 AUTOMATED STOCK DECREMENT: Iterate over items and update current quantity levels safely
+        if (orderData.items && Array.isArray(orderData.items)) {
+            for (const item of orderData.items) {
+                // Fetch the current product quantity count
+                const { data: currentProduct, error: fetchError } = await supabase
+                    .from('perfumes')
+                    .select('stock_quantity')
+                    .eq('id', item.id)
+                    .single();
+
+                if (fetchError || !currentProduct) {
+                    console.error(`Error querying stock for perfume ID ${item.id}:`, fetchError?.message);
+                    continue;
+                }
+
+                // Protect against negative stock amounts
+                const decrementedStock = Math.max(0, currentProduct.stock_quantity - (item.quantity || 1));
+
+                // Update database
+                const { error: updateError } = await supabase
+                    .from('perfumes')
+                    .update({ stock_quantity: decrementedStock })
+                    .eq('id', item.id);
+
+                if (updateError) {
+                    console.error(`Error subtracting stock for perfume ID ${item.id}:`, updateError.message);
+                } else {
+                    console.log(`Stock successfully decremented. Item #${item.id} new inventory level: ${decrementedStock}`);
+                }
+            }
+        }
         
-        // 2. Fallback safely in case Supabase RLS policies block the .select() return
+        // 3. Fallback safely in case Supabase RLS policies block the .select() return
         const newOrder = (data && data.length > 0) 
             ? data[0] 
             : { customer_email: orderData.customer_email, customer_name: orderData.customer_name, id: 'Pending' };
             
-        // 3. Send the email and wait for it
+        // 4. Send the email and wait for it
         await sendEmailNotification(newOrder.customer_email, newOrder.customer_name, newOrder.id);
         
         return new Response(JSON.stringify({ success: true }), { status: 200 });
