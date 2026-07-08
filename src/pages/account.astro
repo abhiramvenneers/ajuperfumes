@@ -3,303 +3,308 @@ import Layout from '../layouts/Layout.astro';
 ---
 
 <Layout title="My Account | Aju Perfumes">
-    <div 
-        class="max-w-[1200px] mx-auto px-6 lg:px-12 pb-32 pt-16 md:pt-24"
-        x-data="{
-            orders: [],
-            isLoading: true,
-            expandedOrderId: null,
-            apiError: '',
-            showDebug: false,
-            
-            // Address State
-            isEditingAddress: false,
-            isSavingAddress: false,
-            profile: {
-                firstName: '',
-                lastName: '',
-                address: '',
-                city: '',
-                pincode: ''
-            },
-
-            // Guest Lookup State
-            lookupId: '',
-            lookupEmail: '',
-            lookupError: '',
-            lookupSuccessOrder: null,
-            isLookingUp: false,
-            
-            async fetchUserOrders() {
-                this.isLoading = true;
-                this.apiError = '';
+    <!-- Premium client-side component registry -->
+    <script is:inline>
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('accountPortal', () => ({
+                orders: [],
+                isLoading: true,
+                expandedOrderId: null,
+                apiError: '',
+                showDebug: false,
                 
-                // Wait specifically for the Supabase client to be ready on the window
-                const checkSession = setInterval(async () => {
-                    if (window.supabase) {
+                // Address State
+                isEditingAddress: false,
+                isSavingAddress: false,
+                profile: {
+                    firstName: '',
+                    lastName: '',
+                    address: '',
+                    city: '',
+                    pincode: ''
+                },
+
+                // Guest Lookup State
+                lookupId: '',
+                lookupEmail: '',
+                lookupError: '',
+                lookupSuccessOrder: null,
+                isLookingUp: false,
+                
+                async fetchUserOrders() {
+                    this.isLoading = true;
+                    this.apiError = '';
+                    
+                    const checkSession = setInterval(async () => {
+                        if (window.supabase) {
+                            clearInterval(checkSession);
+                            
+                            const { data: { session } } = await window.supabase.auth.getSession();
+                            
+                            if (session && session.user) {
+                                // Load existing address from user metadata
+                                this.profile.firstName = session.user.user_metadata?.firstName || '';
+                                this.profile.lastName = session.user.user_metadata?.lastName || '';
+                                this.profile.address = session.user.user_metadata?.address || '';
+                                this.profile.city = session.user.user_metadata?.city || '';
+                                this.profile.pincode = session.user.user_metadata?.pincode || '';
+
+                                try {
+                                    // SMART AUTO-LINK FEATURE: Link historical guest orders to this logged-in account
+                                    await window.supabase
+                                        .from('orders')
+                                        .update({ user_id: session.user.id })
+                                        .eq('customer_email', session.user.email)
+                                        .is('user_id', null);
+
+                                    // Fetch orders
+                                    const { data, error } = await window.supabase
+                                        .from('orders')
+                                        .select('*')
+                                        .eq('user_id', session.user.id)
+                                        .order('created_at', { ascending: false });
+                                        
+                                    if (error) throw error;
+                                    this.orders = data || [];
+                                    
+                                    if (this.orders.length > 0) {
+                                        this.expandedOrderId = this.orders[0].id;
+                                    }
+                                } catch (err) {
+                                    console.error('Error fetching orders:', err);
+                                    this.apiError = err.message || 'Row Level Security policy validation failed.';
+                                } finally {
+                                    this.isLoading = false;
+                                }
+                            } else {
+                                window.location.href = '/login';
+                            }
+                        }
+                    }, 50);
+
+                    setTimeout(() => {
                         clearInterval(checkSession);
+                        if (this.isLoading) {
+                            this.isLoading = false;
+                            if (!window.Alpine?.store('auth')?.user) {
+                                window.location.href = '/login';
+                            }
+                        }
+                    }, 4000);
+                },
+                
+                async saveAddress() {
+                    this.isSavingAddress = true;
+                    try {
+                        const { error } = await window.supabase.auth.updateUser({
+                            data: {
+                                firstName: this.profile.firstName,
+                                lastName: this.profile.lastName,
+                                address: this.profile.address,
+                                city: this.profile.city,
+                                pincode: this.profile.pincode
+                            }
+                        });
+                        
+                        if (error) throw error;
+                        this.isEditingAddress = false;
                         
                         const { data: { session } } = await window.supabase.auth.getSession();
+                        if (session) window.Alpine.store('auth').user = session.user;
                         
-                        if (session && session.user) {
-                            
-                            // Load existing address from user metadata
-                            this.profile.firstName = session.user.user_metadata?.firstName || '';
-                            this.profile.lastName = session.user.user_metadata?.lastName || '';
-                            this.profile.address = session.user.user_metadata?.address || '';
-                            this.profile.city = session.user.user_metadata?.city || '';
-                            this.profile.pincode = session.user.user_metadata?.pincode || '';
+                        window.Alpine.store('notifications').add('Address saved successfully');
+                    } catch (err) {
+                        alert('Failed to save address: ' + err.message);
+                    } finally {
+                        this.isSavingAddress = false;
+                    }
+                },
 
-                            try {
-                                // SMART AUTO-LINK FEATURE: Link historical guest orders to this logged-in account
-                                await window.supabase
-                                    .from('orders')
-                                    .update({ user_id: session.user.id })
-                                    .eq('customer_email', session.user.email)
-                                    .is('user_id', null);
+                // Instant Invoice Search Engine
+                async lookupInvoice() {
+                    this.lookupError = '';
+                    this.lookupSuccessOrder = null;
+                    this.isLookingUp = true;
 
-                                // Fetch orders
-                                const { data, error } = await window.supabase
-                                    .from('orders')
-                                    .select('*')
-                                    .eq('user_id', session.user.id)
-                                    .order('created_at', { ascending: false });
-                                    
-                                if (error) throw error;
-                                this.orders = data || [];
-                                
-                                if (this.orders.length > 0) {
-                                    this.expandedOrderId = this.orders[0].id;
-                                }
-                            } catch (err) {
-                                console.error('Error fetching orders:', err);
-                                this.apiError = err.message || 'Row Level Security policy validation failed.';
-                            } finally {
-                                this.isLoading = false;
-                            }
+                    if (!this.lookupId || !this.lookupEmail) {
+                        this.lookupError = 'Please enter both Order ID and Email Address.';
+                        this.isLookingUp = false;
+                        return;
+                    }
+
+                    try {
+                        const { data, error } = await window.supabase
+                            .from('orders')
+                            .select('*')
+                            .eq('id', this.lookupId.trim())
+                            .eq('customer_email', this.lookupEmail.trim().toLowerCase())
+                            .maybeSingle();
+
+                        if (error) throw error;
+
+                        if (!data) {
+                            this.lookupError = 'No matching order found. Please check your credentials and try again.';
                         } else {
-                            window.location.href = '/login';
+                            this.lookupSuccessOrder = data;
+                            window.Alpine.store('notifications').add('Order Located successfully!');
                         }
+                    } catch (err) {
+                        this.lookupError = err.message;
+                    } finally {
+                        this.isLookingUp = false;
                     }
-                }, 50);
+                },
 
-                setTimeout(() => {
-                    clearInterval(checkSession);
-                    if (this.isLoading) {
-                        this.isLoading = false;
-                        if (!window.Alpine?.store('auth')?.user) {
-                            window.location.href = '/login';
-                        }
-                    }
-                }, 4000);
-            },
-            
-            async saveAddress() {
-                this.isSavingAddress = true;
-                try {
-                    const { error } = await window.supabase.auth.updateUser({
-                        data: {
-                            firstName: this.profile.firstName,
-                            lastName: this.profile.lastName,
-                            address: this.profile.address,
-                            city: this.profile.city,
-                            pincode: this.profile.pincode
-                        }
+                toggleOrder(orderId) {
+                    this.expandedOrderId = this.expandedOrderId === orderId ? null : orderId;
+                },
+
+                printInvoice(order) {
+                    const printWindow = window.open('', '_blank');
+                    const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+                    
+                    const itemsHtml = items.map(item => `
+                        <tr style="border-bottom: 1px solid #eee;">
+                            <td style="padding: 12px 0; font-family: sans-serif; font-size: 13px; color: #111;">${item.name} (${item.volume || '50ml'})</td>
+                            <td style="padding: 12px 0; text-align: center; font-family: sans-serif; font-size: 13px; color: #555;">${item.quantity || 1}</td>
+                            <td style="padding: 12px 0; text-align: right; font-family: sans-serif; font-size: 13px; color: #111; font-weight: 500;">₹${((item.price || 0) * (item.quantity || 1)).toLocaleString()}</td>
+                        </tr>
+                    `).join('');
+
+                    const orderDate = new Date(order.created_at).toLocaleDateString('en-IN', {
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric'
                     });
-                    
-                    if (error) throw error;
-                    this.isEditingAddress = false;
-                    
-                    const { data: { session } } = await window.supabase.auth.getSession();
-                    if (session) window.Alpine.store('auth').user = session.user;
-                    
-                    window.Alpine.store('notifications').add('Address saved successfully');
-                } catch (err) {
-                    alert('Failed to save address: ' + err.message);
-                } finally {
-                    this.isSavingAddress = false;
-                }
-            },
 
-            // Instant Invoice Search Engine
-            async lookupInvoice() {
-                this.lookupError = '';
-                this.lookupSuccessOrder = null;
-                this.isLookingUp = true;
-
-                if (!this.lookupId || !this.lookupEmail) {
-                    this.lookupError = 'Please enter both Order ID and Email Address.';
-                    this.isLookingUp = false;
-                    return;
-                }
-
-                try {
-                    const { data, error } = await window.supabase
-                        .from('orders')
-                        .select('*')
-                        .eq('id', this.lookupId.trim())
-                        .eq('customer_email', this.lookupEmail.trim().toLowerCase())
-                        .maybeSingle();
-
-                    if (error) throw error;
-
-                    if (!data) {
-                        this.lookupError = 'No matching order found. Please check your credentials and try again.';
-                    } else {
-                        this.lookupSuccessOrder = data;
-                        window.Alpine.store('notifications').add('Order Located successfully!');
-                    }
-                } catch (err) {
-                    this.lookupError = err.message;
-                } finally {
-                    this.isLookingUp = false;
-                }
-            },
-
-            toggleOrder(orderId) {
-                this.expandedOrderId = this.expandedOrderId === orderId ? null : orderId;
-            },
-
-            printInvoice(order) {
-                const printWindow = window.open('', '_blank');
-                const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
-                
-                const itemsHtml = items.map(item => `
-                    <tr style="border-bottom: 1px solid #eee;">
-                        <td style="padding: 12px 0; font-family: sans-serif; font-size: 13px; color: #111;">\${item.name} (\${item.volume || '50ml'})</td>
-                        <td style="padding: 12px 0; text-align: center; font-family: sans-serif; font-size: 13px; color: #555;">\${item.quantity || 1}</td>
-                        <td style="padding: 12px 0; text-align: right; font-family: sans-serif; font-size: 13px; color: #111; font-weight: 500;">₹\${((item.price || 0) * (item.quantity || 1)).toLocaleString()}</td>
-                    </tr>
-                `).join('');
-
-                const orderDate = new Date(order.created_at).toLocaleDateString('en-IN', {
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric'
-                });
-
-                printWindow.document.write(`
-                    <html>
-                    <head>
-                        <title>Aju_Invoice_#${order.id}</title>
-                        <style>
-                            @page { size: A4; margin: 20mm; }
-                            body { font-family: 'Georgia', serif; color: #111; margin: 0; padding: 0; background-color: #fff; }
-                            .invoice-card { max-width: 800px; margin: 0 auto; padding: 20px; }
-                            .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #111; padding-bottom: 30px; margin-bottom: 40px; }
-                            .logo { font-size: 28px; font-weight: bold; letter-spacing: 0.2em; text-transform: uppercase; margin: 0; }
-                            .invoice-title { font-size: 14px; text-transform: uppercase; letter-spacing: 0.15em; color: #777; font-weight: bold; margin-top: 5px; }
-                            .meta-details { text-align: right; font-family: sans-serif; font-size: 12px; line-height: 1.6; color: #555; }
-                            .section-title { font-family: sans-serif; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.15em; color: #777; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 8px; }
-                            .grid-info { display: grid; grid-template-cols: 1fr 1fr; gap: 40px; margin-bottom: 40px; }
-                            .address-box p { margin: 4px 0; font-family: sans-serif; font-size: 12px; color: #333; line-height: 1.5; }
-                            .address-box strong { font-family: Georgia, serif; font-size: 13px; color: #111; display: block; margin-bottom: 6px; }
-                            table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
-                            th { font-family: sans-serif; font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.1em; color: #777; border-bottom: 1px solid #111; padding-bottom: 10px; text-align: left; }
-                            .totals-table { width: 45%; margin-left: auto; font-family: sans-serif; font-size: 13px; }
-                            .totals-table td { padding: 8px 0; }
-                            .totals-table tr.grand-total { font-family: Georgia, serif; font-size: 18px; font-weight: bold; border-top: 1px solid #111; }
-                            .totals-table tr.grand-total td { padding-top: 15px; }
-                            .footer { border-top: 1px solid #eee; padding-top: 20px; margin-top: 60px; text-align: center; font-family: sans-serif; font-size: 11px; color: #aaa; letter-spacing: 0.05em; }
-                        </style>
-                    </head>
-                    <body>
-                        <div class="invoice-card">
-                            <div class="header" style="display: flex; justify-content: space-between;">
-                                <div>
-                                    <h1 class="logo">AJU</h1>
-                                    <div class="invoice-title">Official Invoice</div>
+                    printWindow.document.write(`
+                        <html>
+                        <head>
+                            <title>Aju_Invoice_#${order.id}</title>
+                            <style>
+                                @page { size: A4; margin: 20mm; }
+                                body { font-family: 'Georgia', serif; color: #111; margin: 0; padding: 0; background-color: #fff; }
+                                .invoice-card { max-width: 800px; margin: 0 auto; padding: 20px; }
+                                .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #111; padding-bottom: 30px; margin-bottom: 40px; }
+                                .logo { font-size: 28px; font-weight: bold; letter-spacing: 0.2em; text-transform: uppercase; margin: 0; }
+                                .invoice-title { font-size: 14px; text-transform: uppercase; letter-spacing: 0.15em; color: #777; font-weight: bold; margin-top: 5px; }
+                                .meta-details { text-align: right; font-family: sans-serif; font-size: 12px; line-height: 1.6; color: #555; }
+                                .section-title { font-family: sans-serif; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.15em; color: #777; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 8px; }
+                                .grid-info { display: grid; grid-template-cols: 1fr 1fr; gap: 40px; margin-bottom: 40px; }
+                                .address-box p { margin: 4px 0; font-family: sans-serif; font-size: 12px; color: #333; line-height: 1.5; }
+                                .address-box strong { font-family: Georgia, serif; font-size: 13px; color: #111; display: block; margin-bottom: 6px; }
+                                table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
+                                th { font-family: sans-serif; font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.1em; color: #777; border-bottom: 1px solid #111; padding-bottom: 10px; text-align: left; }
+                                .totals-table { width: 45%; margin-left: auto; font-family: sans-serif; font-size: 13px; }
+                                .totals-table td { padding: 8px 0; }
+                                .totals-table tr.grand-total { font-family: Georgia, serif; font-size: 18px; font-weight: bold; border-top: 1px solid #111; }
+                                .totals-table tr.grand-total td { padding-top: 15px; }
+                                .footer { border-top: 1px solid #eee; padding-top: 20px; margin-top: 60px; text-align: center; font-family: sans-serif; font-size: 11px; color: #aaa; letter-spacing: 0.05em; }
+                            </style>
+                        </head>
+                        <body>
+                            <div class="invoice-card">
+                                <div class="header" style="display: flex; justify-content: space-between;">
+                                    <div>
+                                        <h1 class="logo">AJU</h1>
+                                        <div class="invoice-title">Official Invoice</div>
+                                    </div>
+                                    <div class="meta-details">
+                                        <p style="margin: 0; font-weight: bold; color: #111;">Order Ref: #000${order.id}</p>
+                                        <p style="margin: 3px 0 0 0;">Date: ${orderDate}</p>
+                                        <p style="margin: 3px 0 0 0;">Payment: Verified Transaction</p>
+                                    </div>
                                 </div>
-                                <div class="meta-details">
-                                    <p style="margin: 0; font-weight: bold; color: #111;">Order Ref: #000${order.id}</p>
-                                    <p style="margin: 3px 0 0 0;">Date: ${orderDate}</p>
-                                    <p style="margin: 3px 0 0 0;">Payment: Verified Transaction</p>
-                                </div>
-                            </div>
 
-                            <div class="grid-info" style="display: flex; justify-content: space-between; margin-bottom: 40px;">
-                                <div class="address-box" style="flex: 1; margin-right: 40px;">
-                                    <div class="section-title">Billing & Shipping Details</div>
-                                    <strong>${order.customer_name}</strong>
-                                    <p>${order.customer_email}</p>
-                                    <p>${order.shipping_address.split(' [PAID')[0]}</p>
+                                <div class="grid-info" style="display: flex; justify-content: space-between; margin-bottom: 40px;">
+                                    <div class="address-box" style="flex: 1; margin-right: 40px;">
+                                        <div class="section-title">Billing & Shipping Details</div>
+                                        <strong>${order.customer_name}</strong>
+                                        <p>${order.customer_email}</p>
+                                        <p>${order.shipping_address.split(' [PAID')[0]}</p>
+                                    </div>
+                                    <div class="address-box" style="flex: 1; text-align: right;">
+                                        <div class="section-title" style="text-align: right;">Merchant House</div>
+                                        <strong>Aju Perfumes</strong>
+                                        <p>perfumesaju@gmail.com</p>
+                                        <p>Kerala, India</p>
+                                        <p>Contact: +91 8075304432</p>
+                                    </div>
                                 </div>
-                                <div class="address-box" style="flex: 1; text-align: right;">
-                                    <div class="section-title" style="text-align: right;">Merchant House</div>
-                                    <strong>Aju Perfumes</strong>
-                                    <p>perfumesaju@gmail.com</p>
-                                    <p>Kerala, India</p>
-                                    <p>Contact: +91 8075304432</p>
-                                </div>
-                            </div>
 
-                            <div class="section-title">Purchased Fragrances</div>
-                            <table style="width: 100%;">
-                                <thead>
+                                <div class="section-title">Purchased Fragrances</div>
+                                <table style="width: 100%;">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 60%;">Fragrance Details</th>
+                                            <th style="width: 15%; text-align: center;">Qty</th>
+                                            <th style="width: 25%; text-align: right;">Amount</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${itemsHtml}
+                                    </tbody>
+                                </table>
+
+                                <table class="totals-table" style="width: 45%; margin-left: auto; border-collapse: collapse;">
                                     <tr>
-                                        <th style="width: 60%;">Fragrance Details</th>
-                                        <th style="width: 15%; text-align: center;">Qty</th>
-                                        <th style="width: 25%; text-align: right;">Amount</th>
+                                        <td style="color: #777; padding: 6px 0;">Subtotal</td>
+                                        <td style="text-align: right; font-weight: 500;">₹${order.total_amount.toLocaleString()}</td>
                                     </tr>
-                                </thead>
-                                <tbody>
-                                    ${itemsHtml}
-                                </tbody>
-                            </table>
+                                    <tr>
+                                        <td style="color: #777; padding: 6px 0;">Shipping & Concierge</td>
+                                        <td style="text-align: right; color: #22c55e; font-weight: bold; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;">Complimentary</td>
+                                    </tr>
+                                    <tr class="grand-total" style="border-top: 1px solid #111; font-weight: bold;">
+                                        <td style="color: #111; font-weight: normal; padding-top: 15px; font-size: 16px;">Total Amount</td>
+                                        <td style="text-align: right; color: #111; padding-top: 15px; font-size: 16px;">₹${order.total_amount.toLocaleString()}</td>
+                                    </tr>
+                                </table>
 
-                            <table class="totals-table" style="width: 45%; margin-left: auto; border-collapse: collapse;">
-                                <tr>
-                                    <td style="color: #777; padding: 6px 0;">Subtotal</td>
-                                    <td style="text-align: right; font-weight: 500;">₹${order.total_amount.toLocaleString()}</td>
-                                </tr>
-                                <tr>
-                                    <td style="color: #777; padding: 6px 0;">Shipping & Concierge</td>
-                                    <td style="text-align: right; color: #22c55e; font-weight: bold; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;">Complimentary</td>
-                                </tr>
-                                <tr class="grand-total" style="border-top: 1px solid #111; font-weight: bold;">
-                                    <td style="color: #111; font-weight: normal; padding-top: 15px; font-size: 16px;">Total Amount</td>
-                                    <td style="text-align: right; color: #111; padding-top: 15px; font-size: 16px;">₹${order.total_amount.toLocaleString()}</td>
-                                </tr>
-                            </table>
-
-                            <div class="footer">
-                                Thank you for your appreciation of Aju fine craftsmanship.
+                                <div class="footer">
+                                    Thank you for your appreciation of Aju fine craftsmanship.
+                                </div>
                             </div>
-                        </div>
-                        <script>
-                            window.onload = function() {
-                                window.print();
-                                setTimeout(() => { window.close(); }, 500);
-                            };
-                        <\/script>
-                    </body>
-                    </html>
-                `);
-                printWindow.document.close();
-            },
+                            <script>
+                                window.onload = function() {
+                                    window.print();
+                                    setTimeout(() => { window.close(); }, 500);
+                                };
+                            <\/script>
+                        </body>
+                        </html>
+                    `);
+                    printWindow.document.close();
+                },
 
-            get totalSpent() {
-                return this.orders.reduce((sum, order) => sum + Number(order.total_amount || 0), 0);
-            },
+                get totalSpent() {
+                    return this.orders.reduce((sum, order) => sum + Number(order.total_amount || 0), 0);
+                },
 
-            get memberTier() {
-                const total = this.totalSpent;
-                if (total >= 15000) return { name: 'Vanguard Elite', color: 'text-purple-600 bg-purple-50 border-purple-100' };
-                if (total >= 8000) return { name: 'Signature Gold', color: 'text-amber-600 bg-amber-50 border-amber-100' };
-                if (total >= 3000) return { name: 'Privé Silver', color: 'text-slate-600 bg-slate-50 border-slate-100' };
-                return { name: 'House Collector', color: 'text-gray-600 bg-gray-50 border-gray-100' };
-            },
-            
-            formatDate(rawDate) {
-                const date = new Date(rawDate);
-                return date.toLocaleDateString('en-IN', {
-                    day: 'numeric',
-                    month: 'short',
-                    year: 'numeric'
-                });
-            }
-        }"
-        x-init="fetchUserOrders()"
+                get memberTier() {
+                    const total = this.totalSpent;
+                    if (total >= 15000) return { name: 'Vanguard Elite', color: 'text-purple-600 bg-purple-50 border-purple-100' };
+                    if (total >= 8000) return { name: 'Signature Gold', color: 'text-amber-600 bg-amber-50 border-amber-100' };
+                    if (total >= 3000) return { name: 'Privé Silver', color: 'text-slate-600 bg-slate-50 border-slate-100' };
+                    return { name: 'House Collector', color: 'text-gray-600 bg-gray-50 border-gray-100' };
+                },
+                
+                formatDate(rawDate) {
+                    const date = new Date(rawDate);
+                    return date.toLocaleDateString('en-IN', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric'
+                    });
+                }
+            })));
+        });
+    </script>
+    
+    <!-- Clean, non-interfering UI mount -->
+    <div 
+        class="max-w-[1200px] mx-auto px-6 lg:px-12 pb-32 pt-16 md:pt-24"
+        x-data="accountPortal"
     >
         
         <!-- Loading Screen -->
