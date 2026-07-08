@@ -1,11 +1,182 @@
 ---
-import Welcome from '../components/Welcome.astro';
 import Layout from '../layouts/Layout.astro';
+import { supabase } from '../lib/supabase.js';
 
-// Welcome to Astro! Wondering what to do next? Check out the Astro documentation at https://docs.astro.build
-// Don't want to use any of this? Delete everything in this file, the `assets`, `components`, and `layouts` directories, and start fresh.
+const { data: products, error } = await supabase
+  .from('perfumes')
+  .select('*')
+  .order('id');
+
+if (error) console.error('Error fetching perfumes:', error.message);
+
+// Generate a safe string of categories using single quotes (e.g., 'classic', 'premium') 
+// We completely avoid JSON.stringify to prevent double-quote HTML conflicts.
+const categoryList = (products || []).map(p => `'${(p.category || 'Classic').trim().toLowerCase()}'`).join(', ');
+const sectionXData = `{ filter: 'All', categories: [${categoryList}] }`;
 ---
 
-<Layout>
-	<Welcome />
+<Layout title="Aju Perfumes | The Art of Fine Fragrance">
+    
+    <!-- Immersive Hero Section -->
+    <section class="relative h-[90vh] flex items-center justify-center overflow-hidden bg-[#0a0a0a]">
+        <!-- Gradient Mesh Background for Luxury Vibe -->
+        <div class="absolute inset-0">
+            <div class="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-gray-800 blur-[120px] opacity-30"></div>
+            <div class="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-gray-700 blur-[120px] opacity-20"></div>
+        </div>
+        
+        <div class="relative z-10 text-center px-6 max-w-5xl mx-auto flex flex-col items-center">
+            <span class="text-white/60 uppercase tracking-[0.4em] text-[10px] font-bold mb-8 border border-white/20 px-6 py-2 rounded-full backdrop-blur-sm">New Arrivals</span>
+            
+            <h1 class="text-5xl sm:text-7xl lg:text-[6rem] text-white font-serif mb-8 leading-[1.1] font-medium tracking-tight">
+                The Art of <br>
+                <span class="italic font-light text-gray-300">Fine Fragrance</span>
+            </h1>
+            
+            <p class="text-base sm:text-lg text-gray-400 mb-12 font-light max-w-xl leading-relaxed mx-auto">
+                Immerse yourself in our meticulously curated collection of premium scents, designed to leave an unforgettable, lingering impression.
+            </p>
+            
+            <a href="#shop" class="bg-white text-black px-12 py-5 uppercase text-[11px] font-bold tracking-[0.25em] hover:bg-gray-200 transition-all duration-500 rounded-sm shadow-[0_0_40px_rgba(255,255,255,0.15)] hover:shadow-[0_0_60px_rgba(255,255,255,0.25)]">
+                Explore Collection
+            </a>
+        </div>
+    </section>
+
+    <!-- Refined Product Grid Section -->
+    <section id="shop" class="py-24 sm:py-32 px-4 sm:px-6 lg:px-12 max-w-[1400px] mx-auto" 
+             x-data={sectionXData} 
+             x-init="
+                const updateFilter = () => {
+                    const hash = window.location.hash.substring(1).toLowerCase();
+                    if (hash === 'premium') {
+                        filter = 'Premium';
+                    } else if (hash === 'classic') {
+                        filter = 'Classic';
+                    } else {
+                        filter = 'All'; // Default back to All if hash is empty or #shop
+                    }
+                };
+                updateFilter();
+                window.addEventListener('hashchange', updateFilter);
+             ">
+        
+        <div class="flex flex-col md:flex-row justify-between items-center md:items-end mb-12 sm:mb-20 border-b border-gray-200 pb-8 gap-6 sm:gap-8">
+            <h2 class="text-3xl sm:text-4xl md:text-5xl font-serif font-medium tracking-tight text-gray-900 text-center md:text-left">Signature Scents</h2>
+            
+            <!-- Elegant Tabs -->
+            <div class="flex gap-6 sm:gap-12">
+                <button @click="filter = 'All'; window.location.hash = 'shop'" 
+                        :class="filter === 'All' ? 'text-black border-b border-black' : 'text-gray-400 border-transparent hover:text-black'" 
+                        class="pb-1 uppercase text-[10px] sm:text-[11px] font-bold tracking-[0.2em] transition-colors">
+                    All
+                </button>
+                <button @click="filter = 'Premium'; window.location.hash = 'premium'" 
+                        :class="filter === 'Premium' ? 'text-black border-b border-black' : 'text-gray-400 border-transparent hover:text-black'" 
+                        class="pb-1 uppercase text-[10px] sm:text-[11px] font-bold tracking-[0.2em] transition-colors">
+                    Premium
+                </button>
+                <button @click="filter = 'Classic'; window.location.hash = 'classic'" 
+                        :class="filter === 'Classic' ? 'text-black border-b border-black' : 'text-gray-400 border-transparent hover:text-black'" 
+                        class="pb-1 uppercase text-[10px] sm:text-[11px] font-bold tracking-[0.2em] transition-colors">
+                    Classic
+                </button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-4 sm:gap-x-12 gap-y-12 sm:gap-y-24">
+            
+            {(products || []).map((product) => {
+                // Strictly normalize the category so it perfectly matches 'Premium' or 'Classic'
+                const rawCategory = product.category || 'Classic';
+                const category = rawCategory.toString().trim().charAt(0).toUpperCase() + rawCategory.toString().trim().slice(1).toLowerCase();
+                
+                // Get single image URL (safely pick the first one if they accidentally added commas)
+                const imageUrl = product.image_url ? product.image_url.split(',')[0].trim() : null;
+                
+                // --- SAFE ALPINE BINDINGS ---
+                // We construct strings using single quotes so they don't break Astro's double-quoted HTML attributes
+                const xShow = `filter === 'All' || filter === '${category}'`;
+                
+                // Escape any single quotes in the product name (e.g., Men's Perfume -> Men\'s Perfume)
+                const safeName = product.name.replace(/'/g, "\\'");
+                
+                // Construct the cart payload manually to avoid JSON double quotes.
+                // Omitting 'isCartOpen = true' so it only triggers the toast notification.
+                const onCartAdd = `$store.cart.add({ id: ${product.id}, name: '${safeName}', price: ${product.price}, volume: '${product.volume}' })`;
+                
+                return (
+                    <div 
+                        class="group flex flex-col cursor-pointer"
+                        x-show={xShow}
+                        x-transition:enter="transition-opacity duration-700 ease-out"
+                        x-transition:enter-start="opacity-0 translate-y-4"
+                        x-transition:enter-end="opacity-100 translate-y-0"
+                    >
+                        {/* Static Image Container */}
+                        <div class="aspect-[3/4] w-full bg-[#f4f4f4] relative mb-4 sm:mb-8 overflow-hidden flex items-center justify-center transition-colors duration-500 group-hover:bg-[#ebebeb]">
+                            
+                            {imageUrl ? (
+                                <>
+                                    <img 
+                                        src={imageUrl} 
+                                        alt={product.name} 
+                                        class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                                        onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+                                    />
+                                    <span class="hidden text-gray-400 font-serif italic text-xl sm:text-3xl px-4 text-center transition-transform duration-700 group-hover:scale-105">
+                                        {product.name.split(' ')[0]}
+                                    </span>
+                                </>
+                            ) : (
+                                <span class="text-gray-400 font-serif italic text-xl sm:text-3xl px-4 text-center transition-transform duration-700 group-hover:scale-105">
+                                    {product.name.split(' ')[0]}
+                                </span>
+                            )}
+                            
+                            {/* Slide-up Add to Cart */}
+                            <div class="hidden lg:block absolute inset-x-0 bottom-0 p-6 translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] z-30">
+                                <button 
+                                    @click.stop={onCartAdd}
+                                    class="w-full bg-white text-black py-4 uppercase text-[10px] font-bold tracking-[0.2em] hover:bg-black hover:text-white transition-colors duration-300 shadow-xl"
+                                >
+                                    Add to Bag — ₹{product.price.toLocaleString()}
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Minimalist Typography */}
+                        <div class="text-center px-1 sm:px-2">
+                            <h3 class="font-serif text-base sm:text-xl font-medium text-gray-900 mb-1 sm:mb-2 leading-tight">
+                                {product.name}
+                            </h3>
+                            <div class="flex items-center justify-center gap-1 sm:gap-2 text-[8px] sm:text-[9px] text-gray-500 uppercase tracking-[0.2em] mb-2 sm:mb-4 font-bold">
+                                <span>{category}</span>
+                                <span>•</span>
+                                <span>{product.volume}</span>
+                            </div>
+                            <p class="text-xs sm:text-sm text-gray-500 font-light leading-relaxed line-clamp-2 mb-4 sm:mb-6 max-w-[280px] mx-auto hidden sm:block">
+                                {product.notes}
+                            </p>
+                            
+                            {/* Mobile fallback button */}
+                            <button 
+                                @click.stop={onCartAdd}
+                                class="lg:hidden w-full border border-gray-200 text-gray-900 py-2.5 sm:py-3 uppercase text-[9px] sm:text-[10px] font-bold tracking-[0.2em] hover:bg-gray-50"
+                            >
+                                Add to Bag
+                            </button>
+                        </div>
+                    </div>
+                );
+            })}
+            
+            {/* Empty State for Filters */}
+            <div x-show="!categories.some(cat => filter === 'All' || cat === filter.toLowerCase())" style="display: none;" class="col-span-full py-12 text-center text-gray-400 font-serif italic text-lg">
+                No fragrances found in this collection.
+            </div>
+
+        </div>
+    </section>
+
 </Layout>

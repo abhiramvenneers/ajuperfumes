@@ -1,0 +1,475 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Secure Checkout | Aju Perfumes">
+    <div 
+        class="max-w-[1400px] mx-auto px-6 lg:px-12 pb-32 pt-12 md:pt-20" 
+        x-data="{ 
+            isProcessing: false, 
+            isSuccess: false,
+            errorMessage: '',
+            
+            // Payment States
+            paymentMethod: 'upi',
+            isPaymentModalOpen: false,
+            utrNumber: '',
+            isVerifyingPayment: false,
+            
+            // ==========================================
+            // CONFIGURATION: OWNER'S PAYMENT DETAILS
+            // ==========================================
+            upiId: 'abidchemberi24-1@oksbi', 
+            ownerPhoneNumber: '+91 8075304432',
+            ownerName: 'Abid Chemberi',
+            // ==========================================
+
+            // Simulated Card State
+            cardNumber: '',
+            cardExpiry: '',
+            cardCvc: '',
+
+            profile: {
+                firstName: '',
+                lastName: '',
+                email: '',
+                address: '',
+                city: '',
+                pincode: ''
+            },
+            
+            async init() {
+                // Fetch current session immediately to pre-fill address and secure user_id
+                const checkSession = setInterval(async () => {
+                    if (window.supabase) {
+                        clearInterval(checkSession);
+                        const { data: { session } } = await window.supabase.auth.getSession();
+                        if (session && session.user) {
+                            const meta = session.user.user_metadata || {};
+                            this.profile.firstName = meta.firstName || '';
+                            this.profile.lastName = meta.lastName || '';
+                            this.profile.email = session.user.email || '';
+                            this.profile.address = meta.address || '';
+                            this.profile.city = meta.city || '';
+                            this.profile.pincode = meta.pincode || '';
+                        }
+                    }
+                }, 50);
+                
+                setTimeout(() => clearInterval(checkSession), 4000);
+            },
+
+            // Dynamic UPI string generation using Google Pay mobile number format
+            get upiString() {
+                const name = encodeURIComponent('Aju Perfumes');
+                const amount = this.$store.cart.total;
+                const note = encodeURIComponent('Aju Perfumes Fragrance Order');
+                return `upi://pay?pa=${this.upiId}&pn=${name}&am=${amount}&cu=INR&tn=${note}`;
+            },
+
+            get qrCodeUrl() {
+                return `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(this.upiString)}`;
+            },
+            
+            // Step 1: Open Payment Verification Portal
+            async initiateCheckout() {
+                const form = document.getElementById('checkoutForm');
+                
+                if (!form.checkValidity()) {
+                    form.reportValidity();
+                    return;
+                }
+                
+                if (this.$store.cart.items.length === 0) {
+                    this.errorMessage = 'Your shopping bag is empty.';
+                    return;
+                }
+
+                // If UPI or Card selected, open the dedicated premium payment sheet
+                this.isPaymentModalOpen = true;
+            },
+
+            // Step 2: Process the final verified order inside Supabase
+            async finalizeOrder() {
+                this.isVerifyingPayment = true;
+                this.errorMessage = '';
+
+                // Form validation reference
+                const form = document.getElementById('checkoutForm');
+                const formData = new FormData(form);
+                
+                // FIX: Directly fetch the active session from Supabase to guarantee we don't lose the user ID!
+                const { data: { session } } = await window.supabase.auth.getSession();
+                const activeUser = session?.user || null;
+
+                const firstName = (formData.get('firstName') || formData.get('first_name') || '').trim();
+                const lastName = (formData.get('lastName') || formData.get('last_name') || '').trim();
+                
+                // Append Transaction Details to Shipping Address for bulletproof tracking without changing schemas
+                let paymentTracker = '';
+                if (this.paymentMethod === 'upi') {
+                    if (!this.utrNumber || this.utrNumber.trim().length < 12) {
+                        this.errorMessage = 'Please enter a valid 12-digit UPI UTR/Reference number.';
+                        this.isVerifyingPayment = false;
+                        return;
+                    }
+                    paymentTracker = ` [PAID VIA UPI | UTR: ${this.utrNumber}]`;
+                } else {
+                    paymentTracker = ` [PAID VIA CARD | Card ending in ${this.cardNumber.slice(-4)}]`;
+                }
+
+                const orderData = {
+                    customer_name: `${firstName} ${lastName}`,
+                    customer_email: (formData.get('email') || '').trim(),
+                    shipping_address: `${formData.get('address')}, ${formData.get('city')} - ${formData.get('pincode')}${paymentTracker}`,
+                    total_amount: this.$store.cart.total,
+                    items: this.$store.cart.items,
+                    user_id: activeUser ? activeUser.id : null
+                };
+
+                try {
+                    // Update user's default address in Supabase silently if logged in
+                    if (activeUser && window.supabase) {
+                        await window.supabase.auth.updateUser({
+                            data: {
+                                firstName,
+                                lastName,
+                                address: formData.get('address'),
+                                city: formData.get('city'),
+                                pincode: formData.get('pincode')
+                            }
+                        });
+                    }
+
+                    const res = await fetch('/api/checkout', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(orderData)
+                    });
+
+                    const result = await res.json();
+
+                    if (!res.ok) {
+                        throw new Error(result.error || 'Failed to complete order checkout');
+                    }
+                    
+                    // Cleanup and transition
+                    this.isPaymentModalOpen = false;
+                    this.isVerifyingPayment = false;
+                    this.isSuccess = true;
+                    
+                    localStorage.removeItem('cartItems');
+                    this.$store.cart.items = [];
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    
+                } catch (err) {
+                    this.errorMessage = err.message;
+                    this.isVerifyingPayment = false;
+                    this.isPaymentModalOpen = false;
+                }
+            }
+        }"
+        x-init="init()"
+    >
+        <!-- Page Header -->
+        <div class="text-center mb-16 md:mb-24">
+            <h1 class="text-4xl md:text-5xl font-serif font-medium tracking-tight text-gray-900 mb-4">Secure Checkout</h1>
+            <p class="text-sm text-gray-500 font-light tracking-wide uppercase">Complete your purchase</p>
+        </div>
+
+        <!-- Success Message -->
+        <div x-show="isSuccess" class="max-w-2xl mx-auto text-center py-20" style="display: none;" x-transition:enter="transition ease-out duration-700 transform" x-transition:enter-start="opacity-0 translate-y-8" x-transition:enter-end="opacity-100 translate-y-0">
+            <div class="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-8">
+                <svg class="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 13l4 4L19 7"></path></svg>
+            </div>
+            <h2 class="text-3xl font-serif font-medium mb-4 text-gray-900">Order Confirmed</h2>
+            <p class="text-gray-500 mb-12 font-light text-lg">Thank you for choosing Aju Perfumes. Your signature scent is being prepared.</p>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <a href="/account" class="inline-block bg-black text-white px-10 py-4 uppercase text-[11px] font-bold tracking-[0.2em] hover:bg-gray-800 transition-colors shadow-xl">Track Order</a>
+                <a href="/" class="inline-block border border-gray-200 text-gray-900 px-10 py-4 uppercase text-[11px] font-bold tracking-[0.2em] hover:bg-gray-50 transition-colors">Continue Shopping</a>
+            </div>
+        </div>
+
+        <!-- Checkout Form Layout -->
+        <div x-show="!isSuccess" class="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-24 items-start">
+            
+            <!-- Form Side (Left) -->
+            <div class="lg:col-span-7">
+                <!-- Dynamic Error Notification Box -->
+                <div x-show="errorMessage" 
+                     x-transition
+                     class="mb-8 p-4 bg-red-50 border border-red-100 text-red-700 text-xs font-semibold rounded-sm flex items-start gap-3"
+                     style="display: none;"
+                >
+                    <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                    <div>
+                        <p class="font-bold uppercase tracking-wider mb-1">Checkout Suspended</p>
+                        <p class="font-normal" x-text="errorMessage"></p>
+                    </div>
+                </div>
+
+                <form id="checkoutForm" @submit.prevent="initiateCheckout" class="space-y-12">
+                    
+                    <!-- Contact Section -->
+                    <section>
+                        <h2 class="text-sm font-bold text-gray-900 uppercase tracking-[0.2em] mb-6 pb-4 border-b border-gray-200">Contact Information</h2>
+                        <div class="space-y-6">
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Email Address *</label>
+                                <input 
+                                    type="email" 
+                                    name="email" 
+                                    x-model="profile.email"
+                                    required 
+                                    class="w-full p-4 text-sm bg-gray-50/50 border border-gray-200 rounded-sm focus:outline-none transition-colors"
+                                >
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Shipping Section -->
+                    <section>
+                        <h2 class="text-sm font-bold text-gray-900 uppercase tracking-[0.2em] mb-6 pb-4 border-b border-gray-200 flex justify-between items-end">
+                            Shipping Details
+                            <span x-show="$store.auth.user && profile.address" class="text-[9px] text-gray-400 normal-case tracking-normal font-medium italic" style="display: none;">Details loaded from profile</span>
+                        </h2>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">First Name *</label>
+                                <input type="text" name="firstName" x-model="profile.firstName" required class="w-full p-4 text-sm bg-gray-50/50 border border-gray-200 rounded-sm focus:border-black focus:outline-none transition-colors">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Last Name *</label>
+                                <input type="text" name="lastName" x-model="profile.lastName" required class="w-full p-4 text-sm bg-gray-50/50 border border-gray-200 rounded-sm focus:border-black focus:outline-none transition-colors">
+                            </div>
+                            <div class="sm:col-span-2">
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Street Address *</label>
+                                <input type="text" name="address" x-model="profile.address" required class="w-full p-4 text-sm bg-gray-50/50 border border-gray-200 rounded-sm focus:border-black focus:outline-none transition-colors">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">City *</label>
+                                <input type="text" name="city" x-model="profile.city" required class="w-full p-4 text-sm bg-gray-50/50 border border-gray-200 rounded-sm focus:border-black focus:outline-none transition-colors">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Pincode / Postal Code *</label>
+                                <input type="text" name="pincode" x-model="profile.pincode" required class="w-full p-4 text-sm bg-gray-50/50 border border-gray-200 rounded-sm focus:border-black focus:outline-none transition-colors">
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Payment Section -->
+                    <section>
+                        <h2 class="text-sm font-bold text-gray-900 uppercase tracking-[0.2em] mb-6 pb-4 border-b border-gray-200">Payment</h2>
+                        <div class="space-y-4">
+                            <!-- UPI Option -->
+                            <label class="flex items-start gap-4 cursor-pointer p-6 border border-gray-200 bg-white rounded-sm hover:border-black transition-colors">
+                                <input type="radio" name="payment" value="upi" x-model="paymentMethod" checked class="w-4 h-4 mt-0.5 accent-black">
+                                <div class="flex-1">
+                                    <span class="flex justify-between items-center w-full font-medium text-gray-900 text-sm">
+                                        UPI (Google Pay, PhonePe, Paytm, Any UPI App)
+                                        <span class="text-[9px] bg-green-50 text-green-700 px-2 py-0.5 font-bold uppercase rounded-full">0% Fee</span>
+                                    </span>
+                                    <span class="block text-xs text-gray-500 mt-1 font-light">Pay instantly with your favorite UPI application via dynamic QR code.</span>
+                                </div>
+                            </label>
+
+                            <!-- Card Option -->
+                            <label class="flex items-start gap-4 cursor-pointer p-6 border border-gray-200 bg-white rounded-sm hover:border-black transition-colors">
+                                <input type="radio" name="payment" value="card" x-model="paymentMethod" class="w-4 h-4 mt-0.5 accent-black">
+                                <div class="flex-1">
+                                    <span class="flex justify-between items-center w-full font-medium text-gray-900 text-sm">
+                                        Credit / Debit Card
+                                        <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
+                                    </span>
+                                    <span class="block text-xs text-gray-500 mt-1 font-light">Pay securely with Visa, Mastercard, RuPay, or Amex.</span>
+                                </div>
+                            </label>
+                        </div>
+                    </section>
+
+                    <button 
+                        type="submit" 
+                        class="w-full bg-black text-white py-5 uppercase text-[11px] font-bold tracking-[0.2em] hover:bg-gray-800 transition-colors shadow-xl"
+                    >
+                        Proceed to Payment
+                    </button>
+                </form>
+            </div>
+
+            <!-- Order Summary Side (Right) -->
+            <div class="lg:col-span-5 relative">
+                <!-- Sticky Container -->
+                <div class="bg-[#fcfcfc] p-8 lg:p-10 border border-gray-100 rounded-sm sticky top-28">
+                    <h2 class="text-sm font-bold text-gray-900 uppercase tracking-[0.2em] mb-8 pb-4 border-b border-gray-200">Order Summary</h2>
+                    
+                    <!-- Cart Items List -->
+                    <div class="space-y-6 mb-8 max-h-[40vh] overflow-y-auto no-scrollbar pr-2">
+                        <template x-for="item in $store.cart.items" :key="item.id">
+                            <div class="flex gap-4 group">
+                                <div class="w-16 h-20 bg-gray-100 flex items-center justify-center relative overflow-hidden flex-shrink-0">
+                                    <span class="z-10 text-gray-400 font-serif italic text-[10px] text-center px-1" x-text="item.name.split(' ')[0]"></span>
+                                </div>
+                                <div class="flex-1 flex flex-col justify-center">
+                                    <div class="flex justify-between items-start">
+                                        <p class="font-serif font-medium text-gray-900" x-text="item.name"></p>
+                                        <span class="font-sans font-medium text-sm text-gray-900" x-text="'₹' + (item.price * item.quantity).toLocaleString()"></span>
+                                    </div>
+                                    <p class="text-gray-500 text-[10px] uppercase tracking-widest mt-1 font-bold" x-text="item.volume + ' • Qty: ' + item.quantity"></p>
+                                </div>
+                            </div>
+                        </template>
+                        
+                        <div x-show="$store.cart.items.length === 0" style="display: none;" class="text-center py-6">
+                            <p class="text-gray-500 font-light text-sm">Your bag is empty.</p>
+                        </div>
+                    </div>
+
+                    <!-- Totals -->
+                    <div class="border-t border-gray-200 pt-6 space-y-4">
+                        <div class="flex justify-between text-sm font-light text-gray-600">
+                            <span>Subtotal</span>
+                            <span x-text="'₹' + $store.cart.total.toLocaleString()">₹0.00</span>
+                        </div>
+                        <div class="flex justify-between text-sm font-light text-gray-600">
+                            <span>Shipping</span>
+                            <span class="uppercase text-[10px] tracking-widest font-bold">Complimentary</span>
+                        </div>
+                        <div class="flex justify-between font-serif font-medium text-2xl pt-6 border-t border-gray-200 text-gray-900 mt-2">
+                            <span>Total</span>
+                            <span x-text="'₹' + $store.cart.total.toLocaleString()">₹0.00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ==================== PREMIUM PAYMENT SHEET MODAL ==================== -->
+        <div 
+            x-show="isPaymentModalOpen" 
+            class="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            style="display: none;"
+            x-transition
+        >
+            <div 
+                class="bg-white w-full max-w-lg p-8 sm:p-10 border border-gray-100 shadow-2xl relative max-h-[90vh] overflow-y-auto no-scrollbar"
+                @click.away="if(!isVerifyingPayment) isPaymentModalOpen = false"
+            >
+                <button 
+                    type="button"
+                    @click="isPaymentModalOpen = false" 
+                    :disabled="isVerifyingPayment"
+                    class="absolute top-6 right-6 text-gray-400 hover:text-black transition-colors disabled:opacity-50"
+                >
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+
+                <!-- DYNAMIC PORTAL CONTENT: UPI GATEWAY -->
+                <div x-show="paymentMethod === 'upi'">
+                    <div class="text-center mb-6">
+                        <span class="text-[9px] text-gray-400 uppercase tracking-widest font-bold block mb-2">Payment Portal</span>
+                        <h3 class="text-2xl font-serif text-gray-950">Aju Instant UPI</h3>
+                        <p class="text-xs text-gray-500 mt-1 font-light">Complete transaction of <strong class="text-black font-semibold" x-text="'₹' + $store.cart.total.toLocaleString()"></strong></p>
+                    </div>
+
+                    <!-- Direct Transfer Info Card (Updated layout using correct business/personal details) -->
+                    <div class="mb-6 p-4 border border-slate-100 bg-[#fbfbfb] rounded-sm text-center">
+                        <p class="text-[9px] text-slate-400 uppercase tracking-widest font-bold mb-2">Manual GPay Payment Option</p>
+                        <p class="text-xs text-slate-700 leading-relaxed font-light">
+                            If your scanner returns a registration error, simply transfer exactly <strong class="text-black font-medium" x-text="'₹' + $store.cart.total.toLocaleString()"></strong> manually to:
+                        </p>
+                        <div class="my-3 py-2 px-4 bg-white border border-slate-200/60 inline-flex items-center gap-3 rounded-sm select-all">
+                            <span class="text-sm font-semibold tracking-wider text-black font-mono">8075304432</span>
+                            <span class="text-[9px] bg-indigo-50 text-indigo-700 font-bold px-2 py-0.5 rounded-full uppercase">Google Pay</span>
+                        </div>
+                        <p class="text-[9px] text-slate-400 mt-1" x-text="'Account Holder Name: ' + ownerName"></p>
+                    </div>
+
+                    <!-- Scan & Pay Area -->
+                    <div class="bg-gray-50 border border-gray-100 p-6 rounded-sm text-center mb-8 flex flex-col items-center">
+                        <img :src="qrCodeUrl" alt="Payment QR Code" class="w-48 h-48 border border-gray-200 bg-white p-2 rounded-sm mb-4">
+                        <p class="text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-4">Scan QR code using Google Pay or any UPI App</p>
+                        
+                        <!-- Mobile Direct Pay Buttons (UPI Intent launcher) -->
+                        <div class="flex gap-2 w-full justify-center md:hidden">
+                            <a :href="upiString" class="flex-1 bg-black text-white text-[10px] font-bold uppercase tracking-wider py-3 px-2 rounded-sm text-center">
+                                Launch GPay / UPI App
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Step 2 Verification -->
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Enter 12-Digit UPI Ref / UTR Number *</label>
+                            <input 
+                                type="text" 
+                                x-model="utrNumber"
+                                placeholder="e.g. 308512345678"
+                                maxlength="12"
+                                required
+                                class="w-full p-4 text-center tracking-widest text-sm font-mono bg-gray-50 border border-gray-200 rounded-sm focus:outline-none"
+                            >
+                            <span class="block text-[9px] text-gray-400 mt-1.5 leading-relaxed text-center font-light">Find this in your payment history inside Google Pay, Paytm, or PhonePe after transaction completion.</span>
+                        </div>
+
+                        <button 
+                            type="button"
+                            @click="finalizeOrder()"
+                            :disabled="isVerifyingPayment || utrNumber.length < 12"
+                            class="w-full bg-black text-white py-4 uppercase text-[10px] font-bold tracking-[0.2em] hover:bg-gray-800 transition-colors disabled:opacity-40 flex items-center justify-center gap-3 shadow-lg"
+                        >
+                            <span x-show="!isVerifyingPayment">Submit & Verify Transaction</span>
+                            <span x-show="isVerifyingPayment" style="display: none;" class="flex items-center gap-2">
+                                <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                Verifying Transaction...
+                            </span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- DYNAMIC PORTAL CONTENT: CREDIT CARD SIMULATION -->
+                <div x-show="paymentMethod === 'card'" style="display: none;">
+                    <div class="text-center mb-8">
+                        <span class="text-[9px] text-gray-400 uppercase tracking-widest font-bold block mb-2">Card Gateway</span>
+                        <h3 class="text-2xl font-serif text-gray-950">Debit or Credit Card</h3>
+                        <p class="text-xs text-gray-500 mt-1 font-light">Amount to pay: <strong class="text-black font-semibold" x-text="'₹' + $store.cart.total.toLocaleString()"></strong></p>
+                    </div>
+
+                    <!-- Mock Card Form -->
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Card Number</label>
+                            <input type="text" x-model="cardNumber" placeholder="4111 2222 3333 4444" maxlength="19" class="w-full p-4 text-sm bg-gray-50 border border-gray-200 focus:outline-none">
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Expiry Date</label>
+                                <input type="text" x-model="cardExpiry" placeholder="MM/YY" maxlength="5" class="w-full p-4 text-sm bg-gray-50 border border-gray-200 focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">CVC / CVV</label>
+                                <input type="password" x-model="cardCvc" placeholder="123" maxlength="3" class="w-full p-4 text-sm bg-gray-50 border border-gray-200 focus:outline-none">
+                            </div>
+                        </div>
+
+                        <button 
+                            type="button"
+                            @click="finalizeOrder()"
+                            :disabled="isVerifyingPayment"
+                            class="w-full bg-black text-white py-4 uppercase text-[10px] font-bold tracking-[0.2em] hover:bg-gray-800 transition-colors disabled:opacity-40 flex items-center justify-center gap-3 shadow-lg mt-4"
+                        >
+                            <span x-show="!isVerifyingPayment" x-text="'Pay ₹' + $store.cart.total.toLocaleString()"></span>
+                            <span x-show="isVerifyingPayment" style="display: none;" class="flex items-center gap-2">
+                                <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                Authorizing Card...
+                            </span>
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+</Layout>
