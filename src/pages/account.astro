@@ -32,7 +32,6 @@ import Layout from '../layouts/Layout.astro';
                     if (window.supabase) {
                         clearInterval(checkSession);
                         
-                        // Directly fetch the session from Supabase to bypass any UI delay race-conditions
                         const { data: { session } } = await window.supabase.auth.getSession();
                         
                         if (session && session.user) {
@@ -45,6 +44,14 @@ import Layout from '../layouts/Layout.astro';
                             this.profile.pincode = session.user.user_metadata?.pincode || '';
 
                             try {
+                                // SMART AUTO-LINK FEATURE: Link historical guest orders to this logged-in account
+                                await window.supabase
+                                    .from('orders')
+                                    .update({ user_id: session.user.id })
+                                    .eq('customer_email', session.user.email)
+                                    .is('user_id', null);
+
+                                // Fetch orders
                                 const { data, error } = await window.supabase
                                     .from('orders')
                                     .select('*')
@@ -54,24 +61,21 @@ import Layout from '../layouts/Layout.astro';
                                 if (error) throw error;
                                 this.orders = data || [];
                                 
-                                // Automatically expand the first order by default to look premium
                                 if (this.orders.length > 0) {
                                     this.expandedOrderId = this.orders[0].id;
                                 }
                             } catch (err) {
                                 console.error('Error fetching orders:', err);
-                                this.apiError = err.message || 'Row Level Security (RLS) policy block';
+                                this.apiError = err.message || 'Row Level Security policy validation failed.';
                             } finally {
                                 this.isLoading = false;
                             }
                         } else {
-                            // Definitively not logged in - Redirect straight to login page!
                             window.location.href = '/login';
                         }
                     }
-                }, 50); // Check every 50ms
+                }, 50);
 
-                // Safe fallback to prevent endless loading animations
                 setTimeout(() => {
                     clearInterval(checkSession);
                     if (this.isLoading) {
@@ -97,10 +101,8 @@ import Layout from '../layouts/Layout.astro';
                     });
                     
                     if (error) throw error;
-                    
                     this.isEditingAddress = false;
                     
-                    // Update local alpine store to reflect immediately globally
                     const { data: { session } } = await window.supabase.auth.getSession();
                     if (session) window.Alpine.store('auth').user = session.user;
                     
@@ -116,15 +118,15 @@ import Layout from '../layouts/Layout.astro';
                 this.expandedOrderId = this.expandedOrderId === orderId ? null : orderId;
             },
 
-            // Item 4.2 Luxury Feature: PDF Receipt / Invoice generator
             printInvoice(order) {
                 const printWindow = window.open('', '_blank');
+                const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
                 
-                const itemsHtml = order.items.map(item => `
+                const itemsHtml = items.map(item => `
                     <tr style="border-bottom: 1px solid #eee;">
-                        <td style="padding: 12px 0; font-family: sans-serif; font-size: 13px; color: #111;">${item.name} (${item.volume})</td>
-                        <td style="padding: 12px 0; text-align: center; font-family: sans-serif; font-size: 13px; color: #555;">${item.quantity}</td>
-                        <td style="padding: 12px 0; text-align: right; font-family: sans-serif; font-size: 13px; color: #111; font-weight: 500;">₹${(item.price * item.quantity).toLocaleString()}</td>
+                        <td style="padding: 12px 0; font-family: sans-serif; font-size: 13px; color: #111;">\${item.name} (\${item.volume || '50ml'})</td>
+                        <td style="padding: 12px 0; text-align: center; font-family: sans-serif; font-size: 13px; color: #555;">\${item.quantity || 1}</td>
+                        <td style="padding: 12px 0; text-align: right; font-family: sans-serif; font-size: 13px; color: #111; font-weight: 500;">₹\${((item.price || 0) * (item.quantity || 1)).toLocaleString()}</td>
                     </tr>
                 `).join('');
 
@@ -258,7 +260,7 @@ import Layout from '../layouts/Layout.astro';
         x-init="fetchUserOrders()"
     >
         
-        <!-- Elegant Loading Screen while checking credentials -->
+        <!-- Loading Screen -->
         <div x-show="isLoading" class="min-h-[60vh] flex flex-col items-center justify-center text-center">
             <svg class="animate-spin h-8 w-8 text-black mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -369,7 +371,6 @@ import Layout from '../layouts/Layout.astro';
                                         </div>
                                     </div>
                                     
-                                    <!-- Interactive Accordion Indicator -->
                                     <div class="flex items-center justify-end">
                                         <svg class="w-5 h-5 text-gray-400 group-hover:text-black transform transition-transform duration-300" :class="expandedOrderId === order.id ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 9l-7 7-7-7"></path>
@@ -390,12 +391,12 @@ import Layout from '../layouts/Layout.astro';
                                 >
                                     <div class="flex justify-between items-center mb-4">
                                         <h3 class="text-[9px] text-gray-400 uppercase tracking-widest font-bold">Items Ordered</h3>
-                                        <!-- PDF Receipt / Invoice Trigger -->
+                                        <!-- PDF Receipt / Invoice Trigger (Highly Prominent) -->
                                         <button 
                                             @click.stop="printInvoice(order)"
-                                            class="inline-flex items-center gap-2 text-[9px] font-bold uppercase tracking-widest text-black border border-neutral-200 hover:border-black hover:bg-neutral-50 px-4 py-2 rounded-md transition-all shadow-sm"
+                                            class="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-black border border-neutral-300 hover:border-black hover:bg-neutral-50 px-5 py-2.5 rounded-md transition-all shadow-sm"
                                         >
-                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                            <svg class="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
                                             Download Invoice (PDF)
                                         </button>
                                     </div>
@@ -522,8 +523,4 @@ import Layout from '../layouts/Layout.astro';
         </div>
 
     </div>
-</Layout>git add .
-git commit -m "Implement cloud cart syncing, luxury invoice generator, and secure orders RLS policies"
-git push origin main
-
-Your Vercel site will automatically receive this commit, recompile your pages, and update **ajuperfumes.com** with **zero downtime**! Let me know as soon as you've pushed this!
+</Layout>
