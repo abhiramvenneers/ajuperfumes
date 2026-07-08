@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@astrojs/alpinejs": "^1.0.0",
+    "@astrojs/vercel": "^11.0.2",
     "@supabase/supabase-js": "^2.110.0",
     "@tailwindcss/vite": "^4.3.2",
     "@types/alpinejs": "^3.13.11",
