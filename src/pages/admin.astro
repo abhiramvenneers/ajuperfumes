@@ -21,185 +21,148 @@ export const prerender = false;
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 antialiased selection:bg-black selection:text-white">
-    <div x-data="{
-        isLoading: true,
-        user: null,
-        activeTab: 'orders',
-        isMobileMenuOpen: false,
-        orders: [],
-        products: [],
-        authForm: { email: '', password: '' },
-        productForm: { id: null, name: '', price: '', stock_quantity: '', volume: '50ml', notes: '', category: 'Classic', image_url: '' },
-        isProductModalOpen: false,
 
-        // Notification system
-        notification: { show: false, message: '', type: 'success' },
-        showNotification(msg, type = 'success') {
-            this.notification.message = msg;
-            this.notification.type = type;
-            this.notification.show = true;
-            setTimeout(() => { this.notification.show = false; }, 3000);
-        },
+    <!-- Build-safe state block to prevent Astro from ripping script tags -->
+    <script is:inline>
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('adminPortal', () => ({
+                isLoading: true,
+                user: null,
+                activeTab: 'orders',
+                isMobileMenuOpen: false,
+                orders: [],
+                products: [],
+                authForm: { email: '', password: '' },
+                productForm: { id: null, name: '', price: '', stock_quantity: '', volume: '50ml', notes: '', category: 'Classic', image_url: '' },
+                isProductModalOpen: false,
 
-        copiedOrderId: null,
+                notification: { show: false, message: '', type: 'success' },
+                showNotification(msg, type = 'success') {
+                    this.notification.message = msg;
+                    this.notification.type = type;
+                    this.notification.show = true;
+                    setTimeout(() => { this.notification.show = false; }, 3000);
+                },
 
-        getCleanAddress(fullAddress) {
-            if (!fullAddress) return '';
-            return fullAddress.split(' [PAID')[0];
-        },
+                copiedOrderId: null,
 
-        getPaymentInfo(fullAddress) {
-            if (!fullAddress) return null;
-            const match = fullAddress.match(/\[PAID VIA (UPI|CARD) \| (UTR: \d+|Card ending in \d+)\]/i);
-            if (match) {
-                const innerText = match[0].slice(1, -1);
-                const parts = innerText.split(' | ');
-                return {
-                    method: parts[0].replace('PAID VIA ', ''),
-                    detail: parts[1]
-                };
-            }
-            return null;
-        },
+                getCleanAddress(fullAddress) {
+                    if (!fullAddress) return '';
+                    return fullAddress.split(' [PAID')[0];
+                },
 
-        copyUTR(utrRaw, orderId) {
-            const utrNum = utrRaw.replace('UTR: ', '').trim();
-            const textarea = document.createElement('textarea');
-            textarea.value = utrNum;
-            document.body.appendChild(textarea);
-            textarea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textarea);
-
-            this.copiedOrderId = orderId;
-            this.showNotification('UTR Copied to Clipboard!');
-            setTimeout(() => { this.copiedOrderId = null; }, 2000);
-        },
-
-        // Admin-Side Invoice Generator (A4 optimized print view)
-        printInvoice(order) {
-            const printWindow = window.open('', '_blank');
-            const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
-            
-            const itemsHtml = items.map(item => `
-                <tr style="border-bottom: 1px solid #eee;">
-                    <td style="padding: 12px 0; font-family: sans-serif; font-size: 13px; color: #111;">\${item.name} (\${item.volume || '50ml'})</td>
-                    <td style="padding: 12px 0; text-align: center; font-family: sans-serif; font-size: 13px; color: #555;">\${item.quantity || 1}</td>
-                    <td style="padding: 12px 0; text-align: right; font-family: sans-serif; font-size: 13px; color: #111; font-weight: 500;">₹\${((item.price || 0) * (item.quantity || 1)).toLocaleString()}</td>
-                </tr>
-            `).join('');
-
-            const orderDate = new Date(order.created_at).toLocaleDateString('en-IN', {
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric'
-            });
-
-            printWindow.document.write(\`
-                <html>
-                <head>
-                    <title>Aju_Invoice_#\${order.id}</title>
-                    <style>
-                        @page { size: A4; margin: 20mm; }
-                        body { font-family: 'Georgia', serif; color: #111; margin: 0; padding: 0; background-color: #fff; }
-                        .invoice-card { max-width: 800px; margin: 0 auto; padding: 20px; }
-                        .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #111; padding-bottom: 30px; margin-bottom: 40px; }
-                        .logo { font-size: 28px; font-weight: bold; letter-spacing: 0.2em; text-transform: uppercase; margin: 0; }
-                        .invoice-title { font-size: 14px; text-transform: uppercase; letter-spacing: 0.15em; color: #777; font-weight: bold; margin-top: 5px; }
-                        .meta-details { text-align: right; font-family: sans-serif; font-size: 12px; line-height: 1.6; color: #555; }
-                        .section-title { font-family: sans-serif; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.15em; color: #777; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 8px; }
-                        .grid-info { display: grid; grid-template-cols: 1fr 1fr; gap: 40px; margin-bottom: 40px; }
-                        .address-box p { margin: 4px 0; font-family: sans-serif; font-size: 12px; color: #333; line-height: 1.5; }
-                        .address-box strong { font-family: Georgia, serif; font-size: 13px; color: #111; display: block; margin-bottom: 6px; }
-                        table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
-                        th { font-family: sans-serif; font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.1em; color: #777; border-bottom: 1px solid #111; padding-bottom: 10px; text-align: left; }
-                        .totals-table { width: 45%; margin-left: auto; font-family: sans-serif; font-size: 13px; }
-                        .totals-table td { padding: 8px 0; }
-                        .totals-table tr.grand-total { font-family: Georgia, serif; font-size: 18px; font-weight: bold; border-top: 1px solid #111; }
-                        .totals-table tr.grand-total td { padding-top: 15px; }
-                        .footer { border-top: 1px solid #eee; padding-top: 20px; margin-top: 60px; text-align: center; font-family: sans-serif; font-size: 11px; color: #aaa; letter-spacing: 0.05em; }
-                    </style>
-                </head>
-                <body>
-                    <div class="invoice-card">
-                        <div class="header" style="display: flex; justify-content: space-between;">
-                            <div>
-                                <h1 class="logo">AJU</h1>
-                                <div class="invoice-title">Official Merchant Invoice</div>
-                            </div>
-                            <div class="meta-details">
-                                <p style="margin: 0; font-weight: bold; color: #111;">Order Ref: #000\${order.id}</p>
-                                <p style="margin: 3px 0 0 0;">Date: \${orderDate}</p>
-                                <p style="margin: 3px 0 0 0;">Payment: Verified Transaction</p>
-                            </div>
-                        </div>
-
-                        <div class="grid-info" style="display: flex; justify-content: space-between; margin-bottom: 40px;">
-                            <div class="address-box" style="flex: 1; margin-right: 40px;">
-                                <div class="section-title">Billing & Shipping Details</div>
-                                <strong>\${order.customer_name}</strong>
-                                <p>\${order.customer_email}</p>
-                                <p>\${order.shipping_address.split(' [PAID')[0]}</p>
-                            </div>
-                            <div class="address-box" style="flex: 1; text-align: right;">
-                                <div class="section-title" style="text-align: right;">Merchant House</div>
-                                <strong>Aju Perfumes</strong>
-                                <p>perfumesaju@gmail.com</p>
-                                <p>Kerala, India</p>
-                                <p>Contact: +91 8075304432</p>
-                            </div>
-                        </div>
-
-                        <div class="section-title">Purchased Fragrances</div>
-                        <table style="width: 100%;">
-                            <thead>
-                                <tr>
-                                    <th style="width: 60%;">Fragrance Details</th>
-                                    <th style="width: 15%; text-align: center;">Qty</th>
-                                    <th style="width: 25%; text-align: right;">Amount</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                \${itemsHtml}
-                            </tbody>
-                        </table>
-
-                        <table class="totals-table" style="width: 45%; margin-left: auto; border-collapse: collapse;">
-                            <tr>
-                                <td style="color: #777; padding: 6px 0;">Subtotal</td>
-                                <td style="text-align: right; font-weight: 500;">₹\${order.total_amount.toLocaleString()}</td>
-                            </tr>
-                            <tr>
-                                <td style="color: #777; padding: 6px 0;">Shipping & Concierge</td>
-                                <td style="text-align: right; color: #22c55e; font-weight: bold; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;">Complimentary</td>
-                            </tr>
-                            <tr class="grand-total" style="border-top: 1px solid #111; font-weight: bold;">
-                                <td style="color: #111; font-weight: normal; padding-top: 15px; font-size: 16px;">Total Amount</td>
-                                <td style="text-align: right; color: #111; padding-top: 15px; font-size: 16px;">₹\${order.total_amount.toLocaleString()}</td>
-                            </tr>
-                        </table>
-
-                        <div class="footer">
-                            Thank you for your appreciation of Aju fine craftsmanship.
-                        </div>
-                    </div>
-                    <script>
-                        window.onload = function() {
-                            window.print();
-                            setTimeout(() => { window.close(); }, 500);
+                getPaymentInfo(fullAddress) {
+                    if (!fullAddress) return null;
+                    const match = fullAddress.match(/\[PAID VIA (UPI|CARD) \| (UTR: \d+|Card ending in \d+)\]/i);
+                    if (match) {
+                        const innerText = match[0].slice(1, -1);
+                        const parts = innerText.split(' | ');
+                        return {
+                            method: parts[0].replace('PAID VIA ', ''),
+                            detail: parts[1]
                         };
-                    <\/script>
-                </body>
-                </html>
-            \`);
-            printWindow.document.close();
-        },
+                    }
+                    return null;
+                },
 
-        init() {
-            window.adminState = this;
-            if (window.initAdminAuth) window.initAdminAuth();
-        }
-    }" class="min-h-screen flex flex-col md:flex-row relative" x-init="init()">
+                copyUTR(utrRaw, orderId) {
+                    const utrNum = utrRaw.replace('UTR: ', '').trim();
+                    const textarea = document.createElement('textarea');
+                    textarea.value = utrNum;
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textarea);
+
+                    this.copiedOrderId = orderId;
+                    this.showNotification('UTR Copied to Clipboard!');
+                    setTimeout(() => { this.copiedOrderId = null; }, 2000);
+                },
+
+                // BUILD-SAFE INVOICE ENGINE
+                printInvoice(order) {
+                    const printWindow = window.open('', '_blank');
+                    const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+                    
+                    let itemsHtml = '';
+                    items.forEach(item => {
+                        const qty = item.quantity || 1;
+                        const price = item.price || 0;
+                        const total = (price * qty).toLocaleString('en-IN');
+                        itemsHtml += '<tr style="border-bottom: 1px solid #eee;">' +
+                            '<td style="padding: 12px 0; font-family: sans-serif; font-size: 13px; color: #111;">' + (item.name || '') + ' (' + (item.volume || '50ml') + ')</td>' +
+                            '<td style="padding: 12px 0; text-align: center; font-family: sans-serif; font-size: 13px; color: #555;">' + qty + '</td>' +
+                            '<td style="padding: 12px 0; text-align: right; font-family: sans-serif; font-size: 13px; color: #111; font-weight: 500;">₹' + total + '</td>' +
+                        '</tr>';
+                    });
+
+                    const orderDate = new Date(order.created_at).toLocaleDateString('en-IN', {
+                        day: 'numeric', month: 'long', year: 'numeric'
+                    });
+
+                    const safeAddress = order.shipping_address ? order.shipping_address.split(' [PAID')[0] : '';
+                    const totalAmt = Number(order.total_amount || 0).toLocaleString('en-IN');
+
+                    const html = [
+                        '<!DOCTYPE html>',
+                        '<html><head><title>Aju_Invoice_#' + order.id + '</title>',
+                        '<sty' + 'le>',
+                        '@page { size: A4; margin: 20mm; }',
+                        'body { font-family: "Georgia", serif; color: #111; margin: 0; padding: 0; background-color: #fff; }',
+                        '.invoice-card { max-width: 800px; margin: 0 auto; padding: 20px; }',
+                        '.header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #111; padding-bottom: 30px; margin-bottom: 40px; }',
+                        '.logo { font-size: 28px; font-weight: bold; letter-spacing: 0.2em; text-transform: uppercase; margin: 0; }',
+                        '.invoice-title { font-size: 14px; text-transform: uppercase; letter-spacing: 0.15em; color: #777; font-weight: bold; margin-top: 5px; }',
+                        '.meta-details { text-align: right; font-family: sans-serif; font-size: 12px; line-height: 1.6; color: #555; }',
+                        '.section-title { font-family: sans-serif; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.15em; color: #777; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 8px; }',
+                        '.grid-info { display: grid; grid-template-cols: 1fr 1fr; gap: 40px; margin-bottom: 40px; }',
+                        '.address-box p { margin: 4px 0; font-family: sans-serif; font-size: 12px; color: #333; line-height: 1.5; }',
+                        '.address-box strong { font-family: "Georgia", serif; font-size: 13px; color: #111; display: block; margin-bottom: 6px; }',
+                        'table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }',
+                        'th { font-family: sans-serif; font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.1em; color: #777; border-bottom: 1px solid #111; padding-bottom: 10px; text-align: left; }',
+                        '.totals-table { width: 45%; margin-left: auto; font-family: sans-serif; font-size: 13px; }',
+                        '.totals-table td { padding: 8px 0; }',
+                        '.totals-table tr.grand-total { font-family: "Georgia", serif; font-size: 18px; font-weight: bold; border-top: 1px solid #111; }',
+                        '.totals-table tr.grand-total td { padding-top: 15px; }',
+                        '.footer { border-top: 1px solid #eee; padding-top: 20px; margin-top: 60px; text-align: center; font-family: sans-serif; font-size: 11px; color: #aaa; letter-spacing: 0.05em; }',
+                        '</sty' + 'le></head><body>',
+                        '<div class="invoice-card">',
+                        '<div class="header"><div><h1 class="logo">AJU</h1><div class="invoice-title">Official Merchant Invoice</div></div>',
+                        '<div class="meta-details"><p style="margin: 0; font-weight: bold; color: #111;">Order Ref: #000' + order.id + '</p>',
+                        '<p style="margin: 3px 0 0 0;">Date: ' + orderDate + '</p>',
+                        '<p style="margin: 3px 0 0 0;">Payment: Verified Transaction</p></div></div>',
+                        '<div class="grid-info"><div class="address-box"><div class="section-title">Billing & Shipping Details</div>',
+                        '<strong>' + (order.customer_name || '') + '</strong><p>' + (order.customer_email || '') + '</p>',
+                        '<p>' + safeAddress + '</p></div>',
+                        '<div class="address-box" style="text-align: right;"><div class="section-title" style="text-align: right;">Merchant House</div>',
+                        '<strong>Aju Perfumes</strong><p>perfumesaju@gmail.com</p><p>Kerala, India</p><p>Contact: +91 8075304432</p></div></div>',
+                        '<div class="section-title">Purchased Fragrances</div><table><thead><tr>',
+                        '<th style="width: 60%;">Fragrance Details</th><th style="width: 15%; text-align: center;">Qty</th><th style="width: 25%; text-align: right;">Amount</th>',
+                        '</tr></thead><tbody>' + itemsHtml + '</tbody></table>',
+                        '<table class="totals-table"><tr><td style="color: #777; padding: 6px 0;">Subtotal</td>',
+                        '<td style="text-align: right; font-weight: 500;">₹' + totalAmt + '</td></tr>',
+                        '<tr><td style="color: #777; padding: 6px 0;">Shipping & Concierge</td>',
+                        '<td style="text-align: right; color: #22c55e; font-weight: bold; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;">Complimentary</td></tr>',
+                        '<tr class="grand-total"><td style="color: #111; font-weight: normal; padding-top: 15px; font-size: 16px;">Total Amount</td>',
+                        '<td style="text-align: right; color: #111; padding-top: 15px; font-size: 16px;">₹' + totalAmt + '</td></tr></table>',
+                        '<div class="footer">Thank you for your appreciation of Aju fine craftsmanship.</div></div>',
+                        '<scr' + 'ipt>window.onload = function() { window.print(); setTimeout(function() { window.close(); }, 500); };</scr' + 'ipt>',
+                        '</body></html>'
+                    ].join('');
+                    
+                    printWindow.document.write(html);
+                    printWindow.document.close();
+                },
+
+                init() {
+                    window.adminState = this;
+                    if (window.initAdminAuth) window.initAdminAuth();
+                }
+            }));
+        });
+    </script>
+
+    <div x-data="adminPortal" class="min-h-screen flex flex-col md:flex-row relative" x-init="init()">
 
         <!-- Notification Banner -->
         <div x-show="notification.show" 
@@ -308,7 +271,7 @@ export const prerender = false;
                     <!-- Orders Tab View -->
                     <div x-show="activeTab === 'orders'" class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden w-full">
                         <div class="overflow-x-auto">
-                            <table class="w-full text-left text-sm border-collapse min-w-[900px]">
+                            <table class="w-full text-left text-sm border-collapse min-w-[950px]">
                                 <thead>
                                     <tr class="bg-gray-50/80 border-b border-gray-100 text-gray-500 uppercase tracking-widest text-[10px] font-bold">
                                         <th class="p-4 sm:p-6">Order ID</th>
@@ -317,7 +280,7 @@ export const prerender = false;
                                         <th class="p-4 sm:p-6">Verification Tracker</th>
                                         <th class="p-4 sm:p-6">Amount</th>
                                         <th class="p-4 sm:p-6">Status</th>
-                                        <th class="p-4 sm:p-6">Document</th>
+                                        <th class="p-4 sm:p-6 text-center">Invoice</th>
                                         <th class="p-4 sm:p-6 text-right">Date</th>
                                     </tr>
                                 </thead>
@@ -331,7 +294,6 @@ export const prerender = false;
                                                 <div class="font-semibold text-gray-900" x-text="order.customer_name"></div>
                                                 <div class="text-gray-400 text-[11px] mt-1" x-text="order.customer_email"></div>
                                                 
-                                                <!-- Items Breakdown badge inside portal order view -->
                                                 <div class="mt-3 flex flex-wrap gap-1.5">
                                                     <template x-for="item in (typeof order.items === 'string' ? JSON.parse(order.items) : order.items)">
                                                         <span class="text-[9px] bg-neutral-100 border border-neutral-200/60 text-neutral-800 py-1 px-2 rounded-sm font-semibold" 
@@ -341,34 +303,26 @@ export const prerender = false;
                                                 </div>
                                             </td>
                                             
-                                            <!-- Clean Delivery Destination Address -->
                                             <td class="p-4 sm:p-6 align-top max-w-[240px]">
                                                 <div class="text-xs text-gray-700 leading-relaxed font-medium whitespace-normal break-words" x-text="getCleanAddress(order.shipping_address)"></div>
                                             </td>
 
-                                            <!-- EXPLICIT DYNAMIC TRANSACTION ID DISPLAY -->
                                             <td class="p-4 sm:p-6 align-top">
                                                 <template x-if="getPaymentInfo(order.shipping_address)">
                                                     <div class="space-y-2">
-                                                        <!-- Brand Identity Tag -->
                                                         <span class="inline-flex items-center gap-1.5 px-2.5 py-1 text-[9px] font-bold uppercase rounded-md border"
                                                               :class="getPaymentInfo(order.shipping_address).method === 'UPI' ? 'bg-emerald-50 text-emerald-800 border-emerald-100' : 'bg-blue-50 text-blue-800 border-blue-100'">
                                                             <span class="h-1.5 w-1.5 rounded-full" :class="getPaymentInfo(order.shipping_address).method === 'UPI' ? 'bg-emerald-500' : 'bg-blue-500'"></span>
                                                             <span x-text="getPaymentInfo(order.shipping_address).method"></span> Verified
                                                         </span>
-                                                        
-                                                        <!-- Identification Ref Block with One-Click Copy -->
                                                         <div class="flex items-center gap-2 mt-1">
                                                             <span class="font-mono text-xs font-semibold text-black select-all bg-gray-50 px-2 py-1.5 border border-gray-200 rounded-md" 
                                                                   x-text="getPaymentInfo(order.shipping_address).detail">
                                                             </span>
-                                                            
-                                                            <!-- Interactive Copy Button for UPI Reference UTR Codes -->
                                                             <template x-if="getPaymentInfo(order.shipping_address).method === 'UPI'">
                                                                 <button 
                                                                     @click="copyUTR(getPaymentInfo(order.shipping_address).detail, order.id)"
                                                                     class="p-1.5 border border-gray-200 hover:border-black rounded-md hover:bg-white text-gray-400 hover:text-black transition-all"
-                                                                    title="Copy 12-Digit Reference to Search Bank App"
                                                                 >
                                                                     <svg x-show="copiedOrderId !== order.id" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
                                                                     <svg x-show="copiedOrderId === order.id" style="display: none;" class="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
@@ -384,9 +338,8 @@ export const prerender = false;
 
                                             <td class="p-4 sm:p-6 font-semibold text-gray-900 align-top" x-text="'₹' + order.total_amount.toLocaleString()"></td>
                                             
-                                            <!-- Status Update Select -->
                                             <td class="p-4 sm:p-6 align-top">
-                                                <select x-model="order.status" @change="updateOrderStatus(order.id, $event.target.value)" class="text-[11px] font-bold uppercase tracking-wider p-2.5 rounded-lg focus:ring-2 focus:ring-black outline-none transition-all cursor-pointer appearance-none pr-8 relative"
+                                                <select x-model="order.status" @change="updateOrderStatus(order.id, $event.target.value)" class="text-[11px] font-bold uppercase tracking-wider p-2.5 rounded-lg focus:ring-2 focus:ring-black outline-none transition-all cursor-pointer appearance-none pr-8 relative animate-none"
                                                     style="background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23000000%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E'); background-repeat: no-repeat; background-position: right .7rem top 50%; background-size: .65rem auto;"
                                                     :class="{
                                                         'text-orange-700 bg-orange-50 border border-orange-100': order.status === 'placed',
@@ -399,14 +352,13 @@ export const prerender = false;
                                                 </select>
                                             </td>
 
-                                            <!-- ADDED ADMIN-SIDE INVOICE PRINT TRIGGER -->
-                                            <td class="p-4 sm:p-6 align-top">
+                                            <td class="p-4 sm:p-6 align-top text-center">
                                                 <button 
                                                     @click="printInvoice(order)"
-                                                    class="inline-flex items-center gap-1.5 px-3 py-2 border border-gray-200 hover:border-black rounded-lg hover:bg-black hover:text-white transition-all text-[10px] font-bold uppercase tracking-wider whitespace-nowrap"
+                                                    class="inline-flex items-center gap-1.5 px-3 py-2 border-2 border-black hover:bg-black hover:text-white transition-all text-[10px] font-extrabold uppercase tracking-wider rounded-md bg-white text-black shadow-sm"
                                                 >
-                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
-                                                    Invoice
+                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                                                    Print
                                                 </button>
                                             </td>
 
@@ -472,7 +424,7 @@ export const prerender = false;
             </main>
         </div>
 
-        <!-- Product Modal (Add/Edit) -->
+        <!-- Product Modal -->
         <div x-show="isProductModalOpen" style="display: none;" class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-[60] flex justify-center items-end sm:items-center p-0 sm:p-4">
             <div @click.away="isProductModalOpen = false" class="bg-white w-full sm:w-[600px] rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col" x-transition:enter="transition ease-out duration-300 transform" x-transition:enter-start="opacity-0 translate-y-full sm:translate-y-4" x-transition:enter-end="opacity-100 translate-y-0">
                 <div class="p-5 sm:p-6 border-b border-gray-100 flex justify-between items-center bg-white sticky top-0 z-10">
@@ -623,11 +575,11 @@ export const prerender = false;
                 if (!error) { 
                     if (data.user.email !== 'perfumesaju@gmail.com') {
                         await supabase.auth.signOut();
-                        this.showNotification('Access Denied: Unauthorized administrator.', 'error');
+                        this.showNotification('Access Denied: Unauthorized.', 'error');
                         return;
                     }
                     this.user = data.user; 
-                    this.showNotification('Access Granted. Welcome!');
+                    this.showNotification('Access Granted.');
                     await this.fetchDashboardData(); 
                 } else {
                     this.showNotification(error.message, 'error');
@@ -645,7 +597,7 @@ export const prerender = false;
                 if (session.user.email !== 'perfumesaju@gmail.com') {
                     await supabase.auth.signOut();
                     state.user = null;
-                    state.showNotification('Session Terminated: Unauthorized Admin.', 'error');
+                    state.showNotification('Session Terminated.', 'error');
                 } else {
                     state.user = session.user;
                     await state.fetchDashboardData();
