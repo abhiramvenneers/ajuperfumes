@@ -1,162 +1,85 @@
 ---
-import Layout from '../layouts/Layout.astro';
+export const prerender = false;
 ---
 
-<Layout title="My Account | Aju Perfumes">
-    <!-- Premium client-side component registry -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Admin | Aju Perfumes</title>
+    
+    <script is:inline src="https://cdn.tailwindcss.com"></script>
+    <script is:inline defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 antialiased selection:bg-black selection:text-white">
+
+    <!-- Build-safe state block to prevent Astro from ripping script tags -->
     <script is:inline>
         document.addEventListener('alpine:init', () => {
-            Alpine.data('accountPortal', () => ({
-                orders: [],
+            Alpine.data('adminPortal', () => ({
                 isLoading: true,
-                expandedOrderId: null,
-                apiError: '',
-                showDebug: false,
-                
-                // Address State
-                isEditingAddress: false,
-                isSavingAddress: false,
-                profile: {
-                    firstName: '',
-                    lastName: '',
-                    address: '',
-                    city: '',
-                    pincode: ''
+                user: null,
+                activeTab: 'orders',
+                isMobileMenuOpen: false,
+                orders: [],
+                products: [],
+                authForm: { email: '', password: '' },
+                productForm: { id: null, name: '', price: '', stock_quantity: '', volume: '50ml', notes: '', category: 'Classic', image_url: '' },
+                isProductModalOpen: false,
+
+                notification: { show: false, message: '', type: 'success' },
+                showNotification(msg, type = 'success') {
+                    this.notification.message = msg;
+                    this.notification.type = type;
+                    this.notification.show = true;
+                    setTimeout(() => { this.notification.show = false; }, 3000);
                 },
 
-                // Guest Lookup State
-                lookupId: '',
-                lookupEmail: '',
-                lookupError: '',
-                lookupSuccessOrder: null,
-                isLookingUp: false,
-                
-                async fetchUserOrders() {
-                    this.isLoading = true;
-                    this.apiError = '';
-                    
-                    const checkSession = setInterval(async () => {
-                        if (window.supabase) {
-                            clearInterval(checkSession);
-                            
-                            const { data: { session } } = await window.supabase.auth.getSession();
-                            
-                            if (session && session.user) {
-                                this.profile.firstName = session.user.user_metadata?.firstName || '';
-                                this.profile.lastName = session.user.user_metadata?.lastName || '';
-                                this.profile.address = session.user.user_metadata?.address || '';
-                                this.profile.city = session.user.user_metadata?.city || '';
-                                this.profile.pincode = session.user.user_metadata?.pincode || '';
+                copiedOrderId: null,
 
-                                try {
-                                    await window.supabase
-                                        .from('orders')
-                                        .update({ user_id: session.user.id })
-                                        .eq('customer_email', session.user.email)
-                                        .is('user_id', null);
-
-                                    const { data, error } = await window.supabase
-                                        .from('orders')
-                                        .select('*')
-                                        .eq('user_id', session.user.id)
-                                        .order('created_at', { ascending: false });
-                                        
-                                    if (error) throw error;
-                                    this.orders = data || [];
-                                    
-                                    if (this.orders.length > 0) {
-                                        this.expandedOrderId = this.orders[0].id;
-                                    }
-                                } catch (err) {
-                                    console.error('Error fetching orders:', err);
-                                    this.apiError = err.message || 'Row Level Security policy validation failed.';
-                                } finally {
-                                    this.isLoading = false;
-                                }
-                            } else {
-                                window.location.href = '/login';
-                            }
-                        }
-                    }, 50);
-
-                    setTimeout(() => {
-                        clearInterval(checkSession);
-                        if (this.isLoading) {
-                            this.isLoading = false;
-                            if (!window.Alpine?.store('auth')?.user) {
-                                window.location.href = '/login';
-                            }
-                        }
-                    }, 4000);
+                getCleanAddress(fullAddress) {
+                    if (!fullAddress) return '';
+                    return fullAddress.split(' [PAID')[0];
                 },
-                
-                async saveAddress() {
-                    this.isSavingAddress = true;
-                    try {
-                        const { error } = await window.supabase.auth.updateUser({
-                            data: {
-                                firstName: this.profile.firstName,
-                                lastName: this.profile.lastName,
-                                address: this.profile.address,
-                                city: this.profile.city,
-                                pincode: this.profile.pincode
-                            }
-                        });
-                        
-                        if (error) throw error;
-                        this.isEditingAddress = false;
-                        
-                        const { data: { session } } = await window.supabase.auth.getSession();
-                        if (session) window.Alpine.store('auth').user = session.user;
-                        
-                        window.Alpine.store('notifications').add('Address saved successfully');
-                    } catch (err) {
-                        alert('Failed to save address: ' + err.message);
-                    } finally {
-                        this.isSavingAddress = false;
+
+                getPaymentInfo(fullAddress) {
+                    if (!fullAddress) return null;
+                    const match = fullAddress.match(/\[PAID VIA (UPI|CARD) \| (UTR: \d+|Card ending in \d+)\]/i);
+                    if (match) {
+                        const innerText = match[0].slice(1, -1);
+                        const parts = innerText.split(' | ');
+                        return {
+                            method: parts[0].replace('PAID VIA ', ''),
+                            detail: parts[1]
+                        };
                     }
+                    return null;
                 },
 
-                async lookupInvoice() {
-                    this.lookupError = '';
-                    this.lookupSuccessOrder = null;
-                    this.isLookingUp = true;
+                copyUTR(utrRaw, orderId) {
+                    const utrNum = utrRaw.replace('UTR: ', '').trim();
+                    const textarea = document.createElement('textarea');
+                    textarea.value = utrNum;
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textarea);
 
-                    if (!this.lookupId || !this.lookupEmail) {
-                        this.lookupError = 'Please enter both Order ID and Email Address.';
-                        this.isLookingUp = false;
-                        return;
-                    }
-
-                    try {
-                        const { data, error } = await window.supabase
-                            .from('orders')
-                            .select('*')
-                            .eq('id', this.lookupId.trim())
-                            .eq('customer_email', this.lookupEmail.trim().toLowerCase())
-                            .maybeSingle();
-
-                        if (error) throw error;
-
-                        if (!data) {
-                            this.lookupError = 'No matching order found. Please check your credentials and try again.';
-                        } else {
-                            this.lookupSuccessOrder = data;
-                            window.Alpine.store('notifications').add('Order Located successfully!');
-                        }
-                    } catch (err) {
-                        this.lookupError = err.message;
-                    } finally {
-                        this.isLookingUp = false;
-                    }
+                    this.copiedOrderId = orderId;
+                    this.showNotification('UTR Copied to Clipboard!');
+                    setTimeout(() => { this.copiedOrderId = null; }, 2000);
                 },
 
-                toggleOrder(orderId) {
-                    this.expandedOrderId = this.expandedOrderId === orderId ? null : orderId;
-                },
-
-                // BUILD-SAFE INVOICE ENGINE: 
-                // Uses array string concatenation to hide HTML tags from Astro Compiler
+                // BUILD-SAFE INVOICE ENGINE
                 printInvoice(order) {
                     const printWindow = window.open('', '_blank');
                     const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
@@ -204,7 +127,7 @@ import Layout from '../layouts/Layout.astro';
                         '.footer { border-top: 1px solid #eee; padding-top: 20px; margin-top: 60px; text-align: center; font-family: sans-serif; font-size: 11px; color: #aaa; letter-spacing: 0.05em; }',
                         '</sty' + 'le></head><body>',
                         '<div class="invoice-card">',
-                        '<div class="header"><div><h1 class="logo">AJU</h1><div class="invoice-title">Official Invoice</div></div>',
+                        '<div class="header"><div><h1 class="logo">AJU</h1><div class="invoice-title">Official Merchant Invoice</div></div>',
                         '<div class="meta-details"><p style="margin: 0; font-weight: bold; color: #111;">Order Ref: #000' + order.id + '</p>',
                         '<p style="margin: 3px 0 0 0;">Date: ' + orderDate + '</p>',
                         '<p style="margin: 3px 0 0 0;">Payment: Verified Transaction</p></div></div>',
@@ -231,373 +154,464 @@ import Layout from '../layouts/Layout.astro';
                     printWindow.document.close();
                 },
 
-                get totalSpent() {
-                    return this.orders.reduce((sum, order) => sum + Number(order.total_amount || 0), 0);
-                },
-
-                get memberTier() {
-                    const total = this.totalSpent;
-                    if (total >= 15000) return { name: 'Vanguard Elite', color: 'text-purple-600 bg-purple-50 border-purple-100' };
-                    if (total >= 8000) return { name: 'Signature Gold', color: 'text-amber-600 bg-amber-50 border-amber-100' };
-                    if (total >= 3000) return { name: 'Privé Silver', color: 'text-slate-600 bg-slate-50 border-slate-100' };
-                    return { name: 'House Collector', color: 'text-gray-600 bg-gray-50 border-gray-100' };
-                },
-                
-                formatDate(rawDate) {
-                    const date = new Date(rawDate);
-                    return date.toLocaleDateString('en-IN', {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric'
-                    });
+                init() {
+                    window.adminState = this;
+                    if (window.initAdminAuth) window.initAdminAuth();
                 }
             }));
         });
     </script>
-    
-    <div class="max-w-[1200px] mx-auto px-6 lg:px-12 pb-32 pt-16 md:pt-24" x-data="accountPortal">
-        
-        <!-- Loading Screen -->
-        <div x-show="isLoading" class="min-h-[60vh] flex flex-col items-center justify-center text-center">
-            <svg class="animate-spin h-8 w-8 text-black mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <p class="text-xs uppercase tracking-[0.2em] font-bold text-gray-400">Verifying Credentials...</p>
+
+    <div x-data="adminPortal" class="min-h-screen flex flex-col md:flex-row relative" x-init="init()">
+
+        <!-- Notification Banner -->
+        <div x-show="notification.show" 
+             x-transition:enter="transition ease-out duration-300 transform"
+             x-transition:enter-start="-translate-y-4 opacity-0"
+             x-transition:enter-end="translate-y-0 opacity-100"
+             x-transition:leave="transition ease-in duration-200 transform"
+             x-transition:leave-start="translate-y-0 opacity-100"
+             x-transition:leave-end="-translate-y-4 opacity-0"
+             class="fixed top-4 left-1/2 -translate-x-1/2 z-[100] px-6 py-4 rounded-xl shadow-xl text-xs font-semibold uppercase tracking-widest text-white flex items-center gap-3 border bg-neutral-950 border-neutral-800"
+             style="display: none;"
+        >
+            <span x-text="notification.message"></span>
         </div>
 
-        <!-- Logged In Dashboard -->
-        <div x-show="$store.auth.user && !isLoading" style="display: none;" x-transition:enter="transition ease-out duration-500">
-            <!-- Profile Greeting Header -->
-            <div class="border-b border-gray-100 pb-12 mb-12 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
-                <div>
-                    <span class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-2">My Profile</span>
-                    <h1 class="text-3xl md:text-5xl font-serif font-medium text-gray-900" x-text="'Welcome, ' + ($store.auth.email.split('@')[0])"></h1>
-                    <p class="text-xs text-gray-500 mt-2" x-text="$store.auth.email"></p>
+        <!-- Loading State -->
+        <div x-show="isLoading" class="fixed inset-0 bg-white z-50 flex justify-center items-center">
+            <div class="flex flex-col items-center gap-4">
+                <div class="w-8 h-8 border-4 border-gray-200 border-t-black rounded-full animate-spin"></div>
+                <p class="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-semibold">Authenticating...</p>
+            </div>
+        </div>
+
+        <!-- Login Screen -->
+        <div x-show="!isLoading && !user" style="display: none;" class="flex-1 flex items-center justify-center bg-gray-50 p-4">
+            <div class="bg-white p-8 md:p-10 rounded-xl shadow-2xl w-full max-w-sm border border-gray-100">
+                <div class="text-center mb-10">
+                    <h1 class="text-2xl font-bold uppercase tracking-widest text-black mb-2">Aju Admin</h1>
+                    <p class="text-[10px] text-gray-400 uppercase tracking-widest">Authorized Access Only</p>
                 </div>
-                <div class="flex gap-4">
-                    <button @click="showDebug = !showDebug" class="text-[10px] text-gray-500 hover:text-black uppercase tracking-widest font-bold border border-gray-200 px-6 py-3 transition-colors">
-                        Diagnostics Panel
+                <form @submit.prevent="login" class="space-y-6">
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Email Address</label>
+                        <input type="email" x-model="authForm.email" required class="w-full p-4 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-black focus:border-black transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Password</label>
+                        <input type="password" x-model="authForm.password" required class="w-full p-4 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-black focus:border-black transition-all">
+                    </div>
+                    <button type="submit" class="w-full bg-black text-white py-4 rounded-lg uppercase tracking-[0.2em] text-xs font-bold hover:bg-gray-800 transition-colors shadow-lg shadow-gray-200 mt-2">Sign In</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Authenticated Dashboard -->
+        <div x-show="!isLoading && user" style="display: none;" class="flex w-full min-h-screen">
+            
+            <!-- Mobile Header -->
+            <div class="md:hidden flex items-center justify-between bg-black text-white p-4 fixed top-0 left-0 w-full z-30 shadow-md">
+                <h2 class="text-sm font-bold uppercase tracking-[0.2em]">Aju Admin</h2>
+                <button @click="isMobileMenuOpen = true" class="p-2 focus:outline-none hover:bg-white/10 rounded-lg transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                </button>
+            </div>
+
+            <!-- Mobile Overlay -->
+            <div x-show="isMobileMenuOpen" 
+                 x-transition.opacity 
+                 @click="isMobileMenuOpen = false" 
+                 class="fixed inset-0 bg-black/60 z-40 md:hidden backdrop-blur-sm" 
+                 style="display: none;"></div>
+            
+            <!-- Sidebar Navigation -->
+            <aside :class="isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'" class="w-64 bg-black text-white flex flex-col fixed inset-y-0 left-0 z-50 shadow-2xl transition-transform duration-300 md:relative md:h-screen">
+                <div class="p-6 md:p-8 border-b border-gray-800 flex items-center justify-between md:justify-center">
+                    <h2 class="text-lg font-bold uppercase tracking-[0.2em]">Aju Perfumes</h2>
+                    <button @click="isMobileMenuOpen = false" class="md:hidden text-gray-400 hover:text-white">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                     </button>
-                    <button @click="$store.auth.logout()" class="text-[10px] text-red-600 hover:text-red-400 uppercase tracking-widest font-bold border border-red-100 hover:border-red-300 px-6 py-3 transition-colors md:self-start">
+                </div>
+                <nav class="flex-1 p-4 md:p-6 space-y-2">
+                    <button @click="activeTab = 'orders'; isMobileMenuOpen = false" :class="activeTab === 'orders' ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'" class="w-full flex items-center gap-4 px-5 py-4 text-xs font-semibold uppercase tracking-widest transition-all rounded-lg text-left">
+                        <svg class="w-5 h-5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
+                        Orders
+                    </button>
+                    <button @click="activeTab = 'products'; isMobileMenuOpen = false" :class="activeTab === 'products' ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'" class="w-full flex items-center gap-4 px-5 py-4 text-xs font-semibold uppercase tracking-widest transition-all rounded-lg text-left">
+                        <svg class="w-5 h-5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+                        Inventory
+                    </button>
+                </nav>
+                <div class="p-4 md:p-6 border-t border-gray-800">
+                    <button @click="logout" class="w-full flex items-center justify-center gap-3 px-5 py-4 text-xs font-semibold uppercase tracking-widest text-gray-400 hover:text-white hover:bg-white/5 transition-all rounded-lg">
+                        <svg class="w-5 h-5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
                         Sign Out
                     </button>
                 </div>
-            </div>
+            </aside>
 
-            <!-- Diagnostics Panel -->
-            <div x-show="showDebug" x-transition class="mb-12 p-6 bg-slate-900 text-slate-300 rounded-sm font-mono text-xs space-y-3" style="display: none;">
-                <p class="text-white border-b border-slate-800 pb-2 uppercase tracking-wider font-bold">Diagnostics Panel</p>
-                <p>🟢 Supabase Client: <span class="text-green-400" x-text="window.supabase ? 'Connected' : 'Missing'"></span></p>
-                <p>👤 Supabase User ID: <span class="text-yellow-400" x-text="$store.auth.user?.id || 'No authenticated ID found'"></span></p>
-                <p>🔍 Found Orders: <span class="text-cyan-400" x-text="orders.length"></span></p>
-                <p x-show="apiError" class="text-red-400 font-bold">❌ Error Log: <span x-text="apiError"></span></p>
-            </div>
-
-            <!-- Client Experience Overview -->
-            <div x-show="orders.length > 0" class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-16" style="display: none;">
-                <div class="border border-gray-100 p-6 bg-white rounded-sm shadow-sm flex flex-col justify-between">
-                    <span class="text-[9px] text-gray-400 uppercase tracking-widest font-bold">Lifetime Orders</span>
-                    <p class="text-3xl font-serif font-semibold text-gray-900 mt-4" x-text="orders.length"></p>
-                </div>
-                <div class="border border-gray-100 p-6 bg-white rounded-sm shadow-sm flex flex-col justify-between">
-                    <span class="text-[9px] text-gray-400 uppercase tracking-widest font-bold">Lifetime Investment</span>
-                    <p class="text-3xl font-serif font-semibold text-gray-900 mt-4" x-text="'₹' + totalSpent.toLocaleString()"></p>
-                </div>
-                <div class="border border-gray-100 p-6 bg-white rounded-sm shadow-sm flex flex-col justify-between">
-                    <span class="text-[9px] text-gray-400 uppercase tracking-widest font-bold">House Privilege Tier</span>
-                    <span :class="memberTier.color" class="w-fit text-[10px] uppercase tracking-widest font-bold border px-3 py-1.5 mt-4 rounded-full text-center block" x-text="memberTier.name"></span>
-                </div>
-            </div>
-
-            <!-- Dashboard Content -->
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-16 items-start">
-                
-                <!-- Orders List Side (Left) -->
-                <div class="lg:col-span-8 space-y-12">
+            <!-- Main Content Area -->
+            <main class="flex-1 bg-gray-50 h-screen overflow-y-auto no-scrollbar pt-16 md:pt-0 w-full">
+                <div class="p-4 sm:p-8 lg:p-12 max-w-7xl mx-auto">
                     
-                    <section class="space-y-6">
-                        <h2 class="text-xs font-bold uppercase tracking-[0.2em] text-gray-900 pb-4 border-b border-gray-100">Order History</h2>
-
-                        <!-- Error State Panel -->
-                        <div x-show="apiError" style="display: none;" class="p-6 bg-red-50 border border-red-100 rounded-sm">
-                            <p class="text-xs text-red-700 font-bold uppercase tracking-widest mb-2">Supabase Policy Block</p>
-                            <p class="text-xs text-red-600 leading-relaxed font-light mb-4" x-text="apiError"></p>
+                    <!-- Top Header -->
+                    <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 md:mb-12 gap-4">
+                        <div>
+                            <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight" x-text="activeTab === 'orders' ? 'Order Management' : 'Inventory Management'"></h1>
+                            <p class="text-xs sm:text-sm text-gray-500 mt-1" x-text="activeTab === 'orders' ? 'View and process customer orders.' : 'Manage your perfume catalog.'"></p>
                         </div>
-
-                        <!-- Empty State -->
-                        <div x-show="orders.length === 0 && !apiError" style="display: none;" class="py-16 text-center border border-dashed border-gray-100 rounded-sm">
-                            <p class="font-serif italic text-lg text-gray-400 mb-6 font-light">No orders placed yet under this account.</p>
-                            <p class="text-xs text-gray-400 max-w-sm mx-auto mb-8 font-light">Make sure to complete a purchase while logged in so your orders securely bind to your profile.</p>
-                            <a href="/#shop" class="inline-block bg-black text-white px-8 py-3 uppercase text-[10px] font-bold tracking-[0.2em] hover:bg-gray-800 transition-colors">Browse Perfumes</a>
-                        </div>
-
-                        <!-- Orders Accordion/Grid -->
-                        <div x-show="orders.length > 0" class="space-y-6" style="display: none;">
-                            <template x-for="order in orders" :key="order.id">
-                                <div class="border border-gray-100 hover:border-gray-200 transition-all bg-white shadow-sm hover:shadow-md rounded-sm overflow-hidden">
-                                    
-                                    <!-- Accordion Header -->
-                                    <div 
-                                        @click="toggleOrder(order.id)" 
-                                        class="p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-gray-50 bg-[#fafafa]/50 cursor-pointer select-none group/header"
-                                    >
-                                        <div class="grid grid-cols-2 md:grid-cols-4 gap-6 flex-1">
-                                            <div>
-                                                <p class="text-[9px] text-gray-400 uppercase tracking-widest font-bold mb-1">Order Date</p>
-                                                <p class="text-xs text-gray-900 font-medium" x-text="formatDate(order.created_at)"></p>
-                                            </div>
-                                            <div>
-                                                <p class="text-[9px] text-gray-400 uppercase tracking-widest font-bold mb-1">Order Number</p>
-                                                <p class="text-xs text-gray-900 font-medium" x-text="'#000' + String(order.id)"></p>
-                                            </div>
-                                            <div>
-                                                <p class="text-[9px] text-gray-400 uppercase tracking-widest font-bold mb-1">Total Paid</p>
-                                                <p class="text-xs font-serif text-gray-900 font-semibold" x-text="'₹' + order.total_amount.toLocaleString()"></p>
-                                            </div>
-                                            <div class="flex items-center gap-3">
-                                                <div class="flex-1">
-                                                    <p class="text-[9px] text-gray-400 uppercase tracking-widest font-bold mb-1">Delivery Status</p>
-                                                    <span 
-                                                        :class="{
-                                                            'bg-gray-100 text-gray-800 border-gray-200': order.status === 'placed',
-                                                            'bg-blue-50 text-blue-800 border-blue-100': order.status === 'accepted',
-                                                            'bg-amber-50 text-amber-800 border-amber-100': order.status === 'shipped',
-                                                            'bg-green-50 text-green-800 border-green-100': order.status === 'delivered'
-                                                        }"
-                                                        class="inline-block text-[9px] uppercase tracking-widest font-bold border px-3 py-1 rounded-full text-center" 
-                                                        x-text="order.status"
-                                                    ></span>
-                                                </div>
-
-                                                <!-- DIRECT INVOICE TRIGGER ON ORDER ROW -->
-                                                <button 
-                                                    @click.stop="printInvoice(order)"
-                                                    class="px-3.5 py-2 border-2 border-black hover:bg-black hover:text-white rounded-md text-[9px] font-extrabold uppercase tracking-wider transition-colors shadow-sm bg-white text-black"
-                                                    title="Instant Invoice Download"
-                                                >
-                                                    Invoice
-                                                </button>
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="flex items-center justify-end">
-                                            <svg class="w-5 h-5 text-gray-400 group-hover:text-black transform transition-transform duration-300" :class="expandedOrderId === order.id ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 9l-7 7-7-7"></path>
-                                            </svg>
-                                        </div>
-                                    </div>
-
-                                    <!-- Accordion Details / Products -->
-                                    <div 
-                                        x-show="expandedOrderId === order.id" 
-                                        x-transition:enter="transition ease-out duration-300 transform"
-                                        x-transition:enter-start="opacity-0 -translate-y-2"
-                                        x-transition:enter-end="opacity-100 translate-y-0"
-                                        x-transition:leave="transition ease-in duration-200 transform"
-                                        x-transition:leave-start="opacity-100 translate-y-0"
-                                        x-transition:leave-end="opacity-0 -translate-y-2"
-                                        class="p-6 md:p-8 space-y-6 border-t border-gray-50"
-                                    >
-                                        <div class="flex justify-between items-center mb-4">
-                                            <h3 class="text-[9px] text-gray-400 uppercase tracking-widest font-bold">Items Ordered</h3>
-                                            <button 
-                                                @click.stop="printInvoice(order)"
-                                                class="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-black border border-neutral-300 hover:border-black hover:bg-neutral-50 px-5 py-2.5 rounded-md transition-all shadow-sm"
-                                            >
-                                                <svg class="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
-                                                Download Invoice (PDF)
-                                            </button>
-                                        </div>
-                                        
-                                        <div class="space-y-4">
-                                            <template x-for="item in (typeof order.items === 'string' ? JSON.parse(order.items) : order.items)" :key="item.id">
-                                                <div class="flex items-center gap-6 pb-4 border-b border-gray-50 last:border-0 last:pb-0">
-                                                    <div class="w-12 h-16 bg-gray-50 border border-gray-100 flex items-center justify-center flex-shrink-0 relative overflow-hidden">
-                                                        <span class="text-[8px] font-serif italic text-gray-400" x-text="item.name.split(' ')[0]"></span>
-                                                    </div>
-                                                    <div class="flex-1 min-w-0">
-                                                        <p class="font-serif font-medium text-sm text-gray-900 truncate" x-text="item.name"></p>
-                                                        <p class="text-[9px] text-gray-400 uppercase tracking-widest font-bold mt-1" x-text="item.volume + ' • Qty: ' + item.quantity"></p>
-                                                    </div>
-                                                    <div class="text-right flex-shrink-0">
-                                                        <p class="text-sm font-medium text-gray-900" x-text="'₹' + (item.price * item.quantity).toLocaleString()"></p>
-                                                    </div>
-                                                </div>
-                                            </template>
-                                        </div>
-
-                                        <!-- Shipping Address Info -->
-                                        <div class="pt-6 mt-6 border-t border-gray-100 grid grid-cols-1 md:grid-cols-2 gap-6 text-xs text-gray-600">
-                                            <div>
-                                                <p class="text-[9px] text-gray-400 uppercase tracking-widest font-bold mb-2">Recipient</p>
-                                                <p class="font-medium text-gray-900" x-text="order.customer_name"></p>
-                                            </div>
-                                            <div>
-                                                <p class="text-[9px] text-gray-400 uppercase tracking-widest font-bold mb-2">Shipping Destination</p>
-                                                <p class="font-light leading-relaxed" x-text="order.shipping_address"></p>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                </div>
-                            </template>
-                        </div>
-                    </section>
-
-                    <!-- GUEST INVOICE SEARCH & RETRIEVAL -->
-                    <section class="border-t border-gray-200 pt-12">
-                        <h2 class="text-xs font-bold uppercase tracking-[0.2em] text-gray-900 pb-4 border-b border-gray-100 mb-6">Invoice Search & Lookup Portal</h2>
-                        <p class="text-xs text-gray-500 leading-relaxed font-light mb-6">
-                            Did you check out as a Guest, or can't find your orders? Type your Order ID and registered checkout email below to locate and print your secure invoice instantly.
-                        </p>
-
-                        <div class="bg-gray-50 border border-gray-100 p-6 rounded-sm space-y-6">
-                            
-                            <!-- Input Grid -->
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Order ID / Reference Number *</label>
-                                    <input 
-                                        type="text" 
-                                        x-model="lookupId" 
-                                        placeholder="e.g. 1" 
-                                        class="w-full p-3.5 text-xs bg-white border border-gray-200 focus:outline-none focus:border-black rounded-sm"
-                                    >
-                                </div>
-                                <div>
-                                    <label class="block text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Registered Email *</label>
-                                    <input 
-                                        type="email" 
-                                        x-model="lookupEmail" 
-                                        placeholder="e.g. customer@example.com" 
-                                        class="w-full p-3.5 text-xs bg-white border border-gray-200 focus:outline-none focus:border-black rounded-sm"
-                                    >
-                                </div>
-                            </div>
-
-                            <div x-show="lookupError" x-transition class="p-3 bg-red-50 text-red-600 border border-red-100 text-[11px] leading-relaxed" style="display: none;" x-text="lookupError"></div>
-
-                            <button 
-                                type="button" 
-                                @click="lookupInvoice()" 
-                                :disabled="isLookingUp"
-                                class="bg-black hover:bg-neutral-800 text-white text-[10px] font-bold uppercase tracking-widest py-3.5 px-6 rounded-sm transition-all disabled:opacity-40 flex items-center justify-center gap-2"
-                            >
-                                <span x-show="!isLookingUp">Find & Download Invoice</span>
-                                <span x-show="isLookingUp" style="display: none;" class="flex items-center gap-2">
-                                    <svg class="animate-spin h-3.5 w-3.5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                                    Searching...
-                                </span>
+                        <div x-show="activeTab === 'products'" style="display: none;" class="w-full sm:w-auto">
+                            <button @click="productForm = { id: null, name: '', price: '', stock_quantity: '', volume: '50ml', notes: '', category: 'Classic', image_url: '' }; isProductModalOpen = true" class="w-full sm:w-auto bg-black text-white px-6 py-3.5 rounded-lg uppercase tracking-widest text-[11px] font-bold hover:bg-gray-800 transition-colors shadow-lg shadow-gray-200 whitespace-nowrap">
+                                + Add Perfume
                             </button>
-
-                            <!-- Located Display -->
-                            <div x-show="lookupSuccessOrder" x-transition class="border-t border-gray-200 pt-6 mt-6 space-y-4" style="display: none;">
-                                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 border border-emerald-100 rounded-sm">
-                                    <div>
-                                        <p class="text-[9px] text-emerald-600 uppercase tracking-widest font-bold mb-1">Order Located Successfully!</p>
-                                        <h4 class="font-serif font-medium text-gray-900" x-text="'Order Ref: #000' + lookupSuccessOrder?.id"></h4>
-                                        <p class="text-[11px] text-gray-500 mt-1" x-text="'Total Amount paid: ₹' + Number(lookupSuccessOrder?.total_amount || 0).toLocaleString()"></p>
-                                    </div>
-                                    <button 
-                                        @click="printInvoice(lookupSuccessOrder)"
-                                        class="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold uppercase tracking-widest py-3 px-6 rounded-sm transition-colors shadow-sm flex items-center gap-2"
-                                    >
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                                        Print Invoice (PDF)
-                                    </button>
-                                </div>
-                            </div>
-
                         </div>
-                    </section>
+                    </header>
 
-                </div>
+                    <!-- Orders Tab View -->
+                    <div x-show="activeTab === 'orders'" class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden w-full">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-sm border-collapse min-w-[950px]">
+                                <thead>
+                                    <tr class="bg-gray-50/80 border-b border-gray-100 text-gray-500 uppercase tracking-widest text-[10px] font-bold">
+                                        <th class="p-4 sm:p-6">Order ID</th>
+                                        <th class="p-4 sm:p-6">Customer & Items</th>
+                                        <th class="p-4 sm:p-6">Shipping Address</th>
+                                        <th class="p-4 sm:p-6">Verification Tracker</th>
+                                        <th class="p-4 sm:p-6">Amount</th>
+                                        <th class="p-4 sm:p-6">Status</th>
+                                        <th class="p-4 sm:p-6 text-center">Invoice</th>
+                                        <th class="p-4 sm:p-6 text-right">Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-50">
+                                    <template x-for="order in orders" :key="order.id">
+                                        <tr class="hover:bg-gray-50 transition-colors group cursor-default">
+                                            <td class="p-4 sm:p-6 font-mono text-gray-400 text-xs align-top">#<span x-text="order.id"></span></td>
+                                            
+                                            <!-- Recipient Detail -->
+                                            <td class="p-4 sm:p-6 align-top">
+                                                <div class="font-semibold text-gray-900" x-text="order.customer_name"></div>
+                                                <div class="text-gray-400 text-[11px] mt-1" x-text="order.customer_email"></div>
+                                                
+                                                <div class="mt-3 flex flex-wrap gap-1.5">
+                                                    <template x-for="item in (typeof order.items === 'string' ? JSON.parse(order.items) : order.items)">
+                                                        <span class="text-[9px] bg-neutral-100 border border-neutral-200/60 text-neutral-800 py-1 px-2 rounded-sm font-semibold" 
+                                                              x-text="item.name.split(' ')[0] + ' (' + item.volume + ') x' + item.quantity">
+                                                        </span>
+                                                    </template>
+                                                </div>
+                                            </td>
+                                            
+                                            <td class="p-4 sm:p-6 align-top max-w-[240px]">
+                                                <div class="text-xs text-gray-700 leading-relaxed font-medium whitespace-normal break-words" x-text="getCleanAddress(order.shipping_address)"></div>
+                                            </td>
 
-                <!-- Account Info Panel (Right) -->
-                <div class="lg:col-span-4 bg-[#fcfcfc] border border-gray-100 rounded-sm p-8 h-fit sticky top-28">
-                    <div>
-                        <h3 class="text-xs font-bold uppercase tracking-[0.2em] text-gray-900 pb-4 border-b border-gray-100 mb-6">Security & Settings</h3>
-                        
-                        <div class="space-y-4 text-xs">
-                            <div>
-                                <p class="text-[9px] text-gray-400 uppercase tracking-widest font-bold mb-1">Login Provider</p>
-                                <p class="font-medium text-gray-900 uppercase" x-text="$store.auth.user?.app_metadata?.provider || 'Email'"></p>
-                            </div>
-                            <div>
-                                <p class="text-[9px] text-gray-400 uppercase tracking-widest font-bold mb-1">Account Created</p>
-                                <p class="font-medium text-gray-900" x-text="formatDate(this.$store.auth.user?.created_at)"></p>
-                            </div>
+                                            <td class="p-4 sm:p-6 align-top">
+                                                <template x-if="getPaymentInfo(order.shipping_address)">
+                                                    <div class="space-y-2">
+                                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 text-[9px] font-bold uppercase rounded-md border"
+                                                              :class="getPaymentInfo(order.shipping_address).method === 'UPI' ? 'bg-emerald-50 text-emerald-800 border-emerald-100' : 'bg-blue-50 text-blue-800 border-blue-100'">
+                                                            <span class="h-1.5 w-1.5 rounded-full" :class="getPaymentInfo(order.shipping_address).method === 'UPI' ? 'bg-emerald-500' : 'bg-blue-500'"></span>
+                                                            <span x-text="getPaymentInfo(order.shipping_address).method"></span> Verified
+                                                        </span>
+                                                        <div class="flex items-center gap-2 mt-1">
+                                                            <span class="font-mono text-xs font-semibold text-black select-all bg-gray-50 px-2 py-1.5 border border-gray-200 rounded-md" 
+                                                                  x-text="getPaymentInfo(order.shipping_address).detail">
+                                                            </span>
+                                                            <template x-if="getPaymentInfo(order.shipping_address).method === 'UPI'">
+                                                                <button 
+                                                                    @click="copyUTR(getPaymentInfo(order.shipping_address).detail, order.id)"
+                                                                    class="p-1.5 border border-gray-200 hover:border-black rounded-md hover:bg-white text-gray-400 hover:text-black transition-all"
+                                                                >
+                                                                    <svg x-show="copiedOrderId !== order.id" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                                                                    <svg x-show="copiedOrderId === order.id" style="display: none;" class="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
+                                                                </button>
+                                                            </template>
+                                                        </div>
+                                                    </div>
+                                                </template>
+                                                <template x-if="!getPaymentInfo(order.shipping_address)">
+                                                    <span class="text-[10px] text-gray-400 uppercase tracking-wider font-medium italic">Standard checkout</span>
+                                                </template>
+                                            </td>
+
+                                            <td class="p-4 sm:p-6 font-semibold text-gray-900 align-top" x-text="'₹' + order.total_amount.toLocaleString()"></td>
+                                            
+                                            <td class="p-4 sm:p-6 align-top">
+                                                <select x-model="order.status" @change="updateOrderStatus(order.id, $event.target.value)" class="text-[11px] font-bold uppercase tracking-wider p-2.5 rounded-lg focus:ring-2 focus:ring-black outline-none transition-all cursor-pointer appearance-none pr-8 relative animate-none"
+                                                    style="background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23000000%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E'); background-repeat: no-repeat; background-position: right .7rem top 50%; background-size: .65rem auto;"
+                                                    :class="{
+                                                        'text-orange-700 bg-orange-50 border border-orange-100': order.status === 'placed',
+                                                        'text-blue-700 bg-blue-50 border border-blue-100': order.status === 'accepted',
+                                                        'text-emerald-700 bg-emerald-50 border border-emerald-100': order.status === 'shipped'
+                                                    }">
+                                                    <option value="placed">Placed</option>
+                                                    <option value="accepted">Accepted</option>
+                                                    <option value="shipped">Shipped</option>
+                                                </select>
+                                            </td>
+
+                                            <td class="p-4 sm:p-6 align-top text-center">
+                                                <button 
+                                                    @click="printInvoice(order)"
+                                                    class="inline-flex items-center gap-1.5 px-3 py-2 border-2 border-black hover:bg-black hover:text-white transition-all text-[10px] font-extrabold uppercase tracking-wider rounded-md bg-white text-black shadow-sm"
+                                                >
+                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                                                    Print
+                                                </button>
+                                            </td>
+
+                                            <td class="p-4 sm:p-6 text-right text-gray-400 text-[11px] font-medium align-top" x-text="new Date(order.created_at).toLocaleDateString(undefined, {month: 'short', day: 'numeric', year: 'numeric'})"></td>
+                                        </tr>
+                                    </template>
+                                    <tr x-show="orders.length === 0"><td colspan="8" class="p-12 text-center text-gray-400 text-sm">No orders have been placed yet.</td></tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
 
-                    <!-- Editable Shipping Address Block -->
-                    <div class="mt-8 pt-8 border-t border-gray-100">
-                        <div class="flex justify-between items-center mb-6 pb-4 border-b border-gray-100">
-                            <h3 class="text-xs font-bold uppercase tracking-[0.2em] text-gray-900">Saved Address</h3>
-                            <button x-show="!isEditingAddress" @click="isEditingAddress = true" class="text-[9px] text-gray-500 hover:text-black uppercase tracking-widest font-bold transition-colors">Edit</button>
+                    <!-- Products Tab View -->
+                    <div x-show="activeTab === 'products'" class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden w-full" style="display: none;">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-sm border-collapse min-w-[700px]">
+                                <thead>
+                                    <tr class="bg-gray-50/80 border-b border-gray-100 text-gray-500 uppercase tracking-widest text-[10px] font-bold">
+                                        <th class="p-4 sm:p-6">Product Details</th>
+                                        <th class="p-4 sm:p-6">Category</th>
+                                        <th class="p-4 sm:p-6">Price</th>
+                                        <th class="p-4 sm:p-6">Inventory</th>
+                                        <th class="p-4 sm:p-6 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-50">
+                                    <template x-for="product in products" :key="product.id">
+                                        <tr class="hover:bg-gray-50 transition-colors group cursor-default">
+                                            <td class="p-4 sm:p-6 flex items-center gap-4">
+                                                <div class="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400 overflow-hidden relative">
+                                                    <template x-if="product.image_url">
+                                                        <img :src="product.image_url" class="w-full h-full object-cover" alt="Product Image">
+                                                    </template>
+                                                    <template x-if="!product.image_url">
+                                                        <svg class="w-5 h-5 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+                                                    </template>
+                                                </div>
+                                                <div>
+                                                    <div class="font-semibold text-gray-900" x-text="product.name"></div>
+                                                    <div class="text-gray-400 text-[11px] mt-1" x-text="product.volume"></div>
+                                                </div>
+                                            </td>
+                                            <td class="p-4 sm:p-6">
+                                                <span class="px-3 py-1.5 bg-gray-100 text-gray-700 text-[10px] uppercase tracking-widest rounded-md font-bold" x-text="product.category || 'Classic'"></span>
+                                            </td>
+                                            <td class="p-4 sm:p-6 font-semibold text-gray-900" x-text="'₹' + product.price.toLocaleString()"></td>
+                                            <td class="p-4 sm:p-6">
+                                                <span class="font-bold text-[11px] uppercase tracking-wider" :class="product.stock_quantity > 5 ? 'text-emerald-600' : 'text-red-600'" x-text="product.stock_quantity + ' In Stock'"></span>
+                                            </td>
+                                            <td class="p-4 sm:p-6 text-right space-x-4">
+                                                <button @click="productForm = { ...product }; isProductModalOpen = true" class="text-gray-400 hover:text-black transition-colors font-semibold uppercase tracking-widest text-[10px]">Edit</button>
+                                                <button @click="deleteProduct(product.id)" class="text-red-400 hover:text-red-600 transition-colors font-semibold uppercase tracking-widest text-[10px]">Delete</button>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                    <tr x-show="products.length === 0"><td colspan="5" class="p-12 text-center text-gray-400 text-sm">No inventory found. Click 'Add Perfume' to start.</td></tr>
+                                </tbody>
+                            </table>
                         </div>
+                    </div>
+                    
+                </div>
+            </main>
+        </div>
 
-                        <!-- View Address Mode -->
-                        <div x-show="!isEditingAddress" class="text-xs space-y-2 text-gray-600">
-                            <template x-if="profile.address">
-                                <div>
-                                    <p class="font-medium text-gray-900 mb-1" x-text="profile.firstName + ' ' + profile.lastName"></p>
-                                    <p x-text="profile.address"></p>
-                                    <p x-text="profile.city + ' - ' + profile.pincode"></p>
-                                </div>
-                            </template>
-                            <template x-if="!profile.address">
-                                <p class="text-gray-400 font-light italic">No default address saved. Add one to save time at checkout.</p>
-                            </template>
-                        </div>
-
-                        <!-- Edit Address Mode -->
-                        <div x-show="isEditingAddress" style="display: none;" class="space-y-4">
-                            <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1">First Name</label>
-                                    <input type="text" x-model="profile.firstName" class="w-full p-3 text-xs bg-white border border-gray-200 rounded-sm focus:border-black focus:outline-none transition-colors">
-                                </div>
-                                <div>
-                                    <label class="block text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1">Last Name</label>
-                                    <input type="text" x-model="profile.lastName" class="w-full p-3 text-xs bg-white border border-gray-200 rounded-sm focus:border-black focus:outline-none transition-colors">
-                                </div>
-                            </div>
-                            <div>
-                                <label class="block text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1">Street Address</label>
-                                <input type="text" x-model="profile.address" class="w-full p-3 text-xs bg-white border border-gray-200 rounded-sm focus:border-black focus:outline-none transition-colors">
-                            </div>
-                            <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1">City</label>
-                                    <input type="text" x-model="profile.city" class="w-full p-3 text-xs bg-white border border-gray-200 rounded-sm focus:border-black focus:outline-none transition-colors">
-                                </div>
-                                <div>
-                                    <label class="block text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1">Pincode</label>
-                                    <input type="text" x-model="profile.pincode" class="w-full p-3 text-xs bg-white border border-gray-200 rounded-sm focus:border-black focus:outline-none transition-colors">
-                                </div>
-                            </div>
+        <!-- Product Modal -->
+        <div x-show="isProductModalOpen" style="display: none;" class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-[60] flex justify-center items-end sm:items-center p-0 sm:p-4">
+            <div @click.away="isProductModalOpen = false" class="bg-white w-full sm:w-[600px] rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col" x-transition:enter="transition ease-out duration-300 transform" x-transition:enter-start="opacity-0 translate-y-full sm:translate-y-4" x-transition:enter-end="opacity-100 translate-y-0">
+                <div class="p-5 sm:p-6 border-b border-gray-100 flex justify-between items-center bg-white sticky top-0 z-10">
+                    <h2 class="text-lg font-bold uppercase tracking-widest text-black" x-text="productForm.id ? 'Edit Fragrance' : 'New Fragrance'"></h2>
+                    <button @click="isProductModalOpen = false" class="text-gray-400 hover:text-black transition-colors p-2 rounded-full hover:bg-gray-50"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+                </div>
+                <div class="overflow-y-auto no-scrollbar">
+                    <form @submit.prevent="saveProduct" class="p-5 sm:p-6 space-y-6">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6">
                             
-                            <div class="flex gap-3 pt-2">
-                                <button @click="saveAddress()" :disabled="isSavingAddress" class="flex-1 bg-black text-white px-4 py-3 uppercase text-[9px] font-bold tracking-widest hover:bg-gray-800 transition-colors disabled:opacity-50">
-                                    <span x-show="!isSavingAddress">Save Details</span>
-                                    <span x-show="isSavingAddress" style="display: none;">Saving...</span>
-                                </button>
-                                <button @click="isEditingAddress = false" class="flex-1 border border-gray-200 text-gray-600 px-4 py-3 uppercase text-[9px] font-bold tracking-widest hover:bg-gray-50 transition-colors">Cancel</button>
+                            <div class="col-span-1 sm:col-span-2">
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Image URL (Public Link)</label>
+                                <input type="text" x-model="productForm.image_url" placeholder="Paste URL from Supabase Storage..." class="w-full p-3.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-black focus:border-black transition-all">
+                            </div>
+
+                            <div class="col-span-1 sm:col-span-2">
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Perfume Name</label>
+                                <input type="text" x-model="productForm.name" required class="w-full p-3.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-black focus:border-black transition-all">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Category</label>
+                                <select x-model="productForm.category" required class="w-full p-3.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-black focus:border-black transition-all appearance-none pr-10" style="background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23000000%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E'); background-repeat: no-repeat; background-position: right 1rem top 50%; background-size: .65rem auto;">
+                                    <option value="Classic">Classic</option>
+                                    <option value="Premium">Premium</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Price (₹)</label>
+                                <input type="number" x-model="productForm.price" required class="w-full p-3.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-black focus:border-black transition-all">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Stock Level</label>
+                                <input type="number" x-model="productForm.stock_quantity" required class="w-full p-3.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-black focus:border-black transition-all">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Volume Size</label>
+                                <input type="text" x-model="productForm.volume" placeholder="e.g., 50ml, 100ml" class="w-full p-3.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-black focus:border-black transition-all">
+                            </div>
+                            <div class="col-span-1 sm:col-span-2">
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Scent Notes</label>
+                                <textarea x-model="productForm.notes" rows="3" class="w-full p-3.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-black focus:border-black transition-all resize-none"></textarea>
                             </div>
                         </div>
-                    </div>
-
-                    <div class="pt-8 mt-8 border-t border-gray-100 text-xs">
-                        <p class="text-[9px] text-gray-400 uppercase tracking-widest font-bold mb-3">Customer Support</p>
-                        <p class="text-gray-500 font-light leading-relaxed mb-4">Have questions about your order or shipment tracking? Reach our house concierge anytime.</p>
-                        <a href="https://wa.me/918075304432" target="_blank" class="inline-block w-full text-center border border-black text-black px-6 py-3 uppercase text-[9px] font-bold tracking-widest hover:bg-black hover:text-white transition-colors">WhatsApp Assist</a>
-                    </div>
+                        <div class="pt-6 border-t border-gray-100 flex flex-col sm:flex-row justify-end gap-3 sm:gap-4 mt-8 pb-4">
+                            <button type="button" @click="isProductModalOpen = false" class="w-full sm:w-auto px-6 py-4 sm:py-3.5 rounded-lg text-[11px] font-bold uppercase tracking-widest text-gray-500 hover:text-black hover:bg-gray-100 transition-colors order-2 sm:order-1">Cancel</button>
+                            <button type="submit" class="w-full sm:w-auto px-8 py-4 sm:py-3.5 rounded-lg bg-black text-white text-[11px] font-bold uppercase tracking-widest hover:bg-gray-800 transition-colors shadow-lg shadow-gray-200 order-1 sm:order-2">Save Product</button>
+                        </div>
+                    </form>
                 </div>
-
             </div>
         </div>
 
     </div>
-</Layout>
+
+    <script>
+        import { supabase } from '../lib/supabase.js';
+
+        window.initAdminAuth = async () => {
+            const state = window.adminState;
+            if (!state) return;
+
+            state.fetchDashboardData = async function() {
+                const [ordersRes, productsRes] = await Promise.all([
+                    supabase.from('orders').select('*').order('created_at', { ascending: false }),
+                    supabase.from('perfumes').select('*').order('id', { ascending: true })
+                ]);
+                
+                if (ordersRes.error) {
+                    console.error('Orders Error:', ordersRes.error);
+                    this.showNotification('Error loading orders', 'error');
+                } else {
+                    this.orders = ordersRes.data || [];
+                }
+
+                if (productsRes.error) {
+                    console.error('Products Error:', productsRes.error);
+                    this.showNotification('Error loading products', 'error');
+                } else {
+                    this.products = productsRes.data || [];
+                }
+            };
+
+            state.updateOrderStatus = async function(id, status) {
+                const res = await fetch('/api/orders', {
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'updateStatus', id, status })
+                });
+                if(!res.ok) {
+                    this.showNotification('Failed to update status', 'error');
+                } else {
+                    this.showNotification(`Order status updated to: ${status}`);
+                    await this.fetchDashboardData();
+                }
+            };
+
+            state.saveProduct = async function() {
+                const payload = {
+                    action: this.productForm.id ? 'edit' : 'add',
+                    id: this.productForm.id,
+                    name: this.productForm.name,
+                    price: this.productForm.price,
+                    stock: this.productForm.stock_quantity,
+                    volume: this.productForm.volume,
+                    notes: this.productForm.notes,
+                    category: this.productForm.category,
+                    image_url: this.productForm.image_url
+                };
+                
+                const res = await fetch('/api/perfumes', {
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                const result = await res.json();
+                
+                if (res.ok) {
+                    this.isProductModalOpen = false;
+                    this.showNotification(payload.action === 'edit' ? 'Product updated successfully' : 'New perfume added!');
+                    await this.fetchDashboardData();
+                } else {
+                    console.error('API Error:', result.error);
+                    this.showNotification(result.error || 'Failed to save product', 'error');
+                }
+            };
+
+            state.deleteProduct = async function(id) {
+                const confirmation = confirm('Are you sure you want to permanently delete this product?');
+                if (!confirmation) return;
+
+                const res = await fetch('/api/perfumes', {
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'delete', id })
+                });
+
+                if (res.ok) {
+                    this.showNotification('Product deleted from inventory');
+                    await this.fetchDashboardData();
+                } else {
+                    this.showNotification('Failed to delete product', 'error');
+                }
+            };
+
+            state.login = async function() {
+                const { data, error } = await supabase.auth.signInWithPassword({ email: this.authForm.email, password: this.authForm.password });
+                if (!error) { 
+                    if (data.user.email !== 'perfumesaju@gmail.com') {
+                        await supabase.auth.signOut();
+                        this.showNotification('Access Denied: Unauthorized.', 'error');
+                        return;
+                    }
+                    this.user = data.user; 
+                    this.showNotification('Access Granted.');
+                    await this.fetchDashboardData(); 
+                } else {
+                    this.showNotification(error.message, 'error');
+                }
+            };
+            
+            state.logout = async () => { 
+                await supabase.auth.signOut(); 
+                window.location.reload(); 
+            };
+
+            const { data: { session } } = await supabase.auth.getSession();
+            
+            if (session?.user) {
+                if (session.user.email !== 'perfumesaju@gmail.com') {
+                    await supabase.auth.signOut();
+                    state.user = null;
+                    state.showNotification('Session Terminated.', 'error');
+                } else {
+                    state.user = session.user;
+                    await state.fetchDashboardData();
+                }
+            } else {
+                state.user = null;
+            }
+            
+            state.isLoading = false;
+        };
+
+        if (window.adminState) {
+            window.initAdminAuth();
+        }
+    </script>
+</body>
+</html>
