@@ -27,25 +27,64 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
                 remove(id) { this.items = this.items.filter(n => n.id !== id); }
             });
 
-            // Cart Store
+            // Cart Store (Upgraded with Item 4.1: Cloud Sync Support)
             Alpine.store('cart', {
                 items: JSON.parse(localStorage.getItem('cartItems') || '[]'),
-                save() { localStorage.setItem('cartItems', JSON.stringify(this.items)); },
+                
+                async save(triggerSync = true) {
+                    localStorage.setItem('cartItems', JSON.stringify(this.items));
+                    
+                    // Automatically push cart changes to Supabase metadata if logged in
+                    if (triggerSync && window.supabase && Alpine.store('auth').user) {
+                        await window.supabase.auth.updateUser({
+                            data: { cart: this.items }
+                        });
+                    }
+                },
+                
                 add(product) {
                     const existing = this.items.find(i => i.id === product.id);
                     if (existing) { existing.quantity++; } else { this.items.push({ ...product, quantity: 1 }); }
-                    this.save();
+                    this.save(true);
                     Alpine.store('notifications').add(`${product.name} added to bag`);
                 },
-                remove(id) { this.items = this.items.filter(i => i.id !== id); this.save(); },
+                
+                remove(id) { 
+                    this.items = this.items.filter(i => i.id !== id); 
+                    this.save(true); 
+                },
+                
                 updateQuantity(id, change) {
                     const item = this.items.find(i => i.id === id);
                     if (item) {
                         item.quantity += change;
                         if (item.quantity <= 0) this.remove(id);
-                        else this.save();
+                        else this.save(true);
                     }
                 },
+                
+                // Fetch saved cart from user metadata upon successful session check
+                mergeCloudCart(cloudCart) {
+                    if (!cloudCart || !Array.isArray(cloudCart)) return;
+                    
+                    if (this.items.length === 0) {
+                        // User has no local cart items, load cloud cart completely
+                        this.items = cloudCart;
+                        this.save(false); // Save to local storage only
+                    } else {
+                        // Merge carts by compiling unique items and taking higher quantity
+                        cloudCart.forEach(cloudItem => {
+                            const localItem = this.items.find(i => i.id === cloudItem.id);
+                            if (localItem) {
+                                localItem.quantity = Math.max(localItem.quantity, cloudItem.quantity);
+                            } else {
+                                this.items.push(cloudItem);
+                            }
+                        });
+                        this.save(true); // Save and update database with merged data
+                    }
+                },
+                
                 get total() { return this.items.reduce((sum, item) => sum + (item.price * item.quantity), 0); },
                 get count() { return this.items.reduce((sum, item) => sum + item.quantity, 0); }
             });
@@ -72,9 +111,18 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
         // Bulletproof synchronization: Poll until Alpine is ready, then write state
         const updateAlpineAuth = (session) => {
             const checkAlpine = setInterval(() => {
-                if (window.Alpine && window.Alpine.store('auth')) {
-                    window.Alpine.store('auth').user = session?.user || null;
-                    window.Alpine.store('auth').email = session?.user?.email || '';
+                if (window.Alpine && window.Alpine.store('auth') && window.Alpine.store('cart')) {
+                    const authStore = window.Alpine.store('auth');
+                    const cartStore = window.Alpine.store('cart');
+                    
+                    authStore.user = session?.user || null;
+                    authStore.email = session?.user?.email || '';
+                    
+                    // Item 4.1 Sync trigger: Extract and sync cloud-saved cart state
+                    if (session?.user?.user_metadata?.cart) {
+                        cartStore.mergeCloudCart(session.user.user_metadata.cart);
+                    }
+                    
                     clearInterval(checkAlpine);
                 }
             }, 30);

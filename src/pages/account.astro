@@ -116,6 +116,124 @@ import Layout from '../layouts/Layout.astro';
                 this.expandedOrderId = this.expandedOrderId === orderId ? null : orderId;
             },
 
+            // Item 4.2 Luxury Feature: PDF Receipt / Invoice generator
+            printInvoice(order) {
+                const printWindow = window.open('', '_blank');
+                
+                const itemsHtml = order.items.map(item => `
+                    <tr style="border-bottom: 1px solid #eee;">
+                        <td style="padding: 12px 0; font-family: sans-serif; font-size: 13px; color: #111;">${item.name} (${item.volume})</td>
+                        <td style="padding: 12px 0; text-align: center; font-family: sans-serif; font-size: 13px; color: #555;">${item.quantity}</td>
+                        <td style="padding: 12px 0; text-align: right; font-family: sans-serif; font-size: 13px; color: #111; font-weight: 500;">₹${(item.price * item.quantity).toLocaleString()}</td>
+                    </tr>
+                `).join('');
+
+                const orderDate = new Date(order.created_at).toLocaleDateString('en-IN', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric'
+                });
+
+                printWindow.document.write(\`
+                    <html>
+                    <head>
+                        <title>Aju_Invoice_#\${order.id}</title>
+                        <style>
+                            @page { size: A4; margin: 20mm; }
+                            body { font-family: 'Georgia', serif; color: #111; margin: 0; padding: 0; background-color: #fff; }
+                            .invoice-card { max-width: 800px; margin: 0 auto; padding: 20px; }
+                            .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #111; padding-bottom: 30px; margin-bottom: 40px; }
+                            .logo { font-size: 28px; font-weight: bold; letter-spacing: 0.2em; text-transform: uppercase; margin: 0; }
+                            .invoice-title { font-size: 14px; text-transform: uppercase; letter-spacing: 0.15em; color: #777; font-weight: bold; margin-top: 5px; }
+                            .meta-details { text-align: right; font-family: sans-serif; font-size: 12px; line-height: 1.6; color: #555; }
+                            .section-title { font-family: sans-serif; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.15em; color: #777; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 8px; }
+                            .grid-info { display: grid; grid-template-cols: 1fr 1fr; gap: 40px; margin-bottom: 40px; }
+                            .address-box p { margin: 4px 0; font-family: sans-serif; font-size: 12px; color: #333; line-height: 1.5; }
+                            .address-box strong { font-family: Georgia, serif; font-size: 13px; color: #111; display: block; margin-bottom: 6px; }
+                            table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
+                            th { font-family: sans-serif; font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.1em; color: #777; border-bottom: 1px solid #111; padding-bottom: 10px; text-align: left; }
+                            .totals-table { width: 45%; margin-left: auto; font-family: sans-serif; font-size: 13px; }
+                            .totals-table td { padding: 8px 0; }
+                            .totals-table tr.grand-total { font-family: Georgia, serif; font-size: 18px; font-weight: bold; border-top: 1px solid #111; }
+                            .totals-table tr.grand-total td { padding-top: 15px; }
+                            .footer { border-top: 1px solid #eee; padding-top: 20px; margin-top: 60px; text-align: center; font-family: sans-serif; font-size: 11px; color: #aaa; letter-spacing: 0.05em; }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="invoice-card">
+                            <div class="header" style="display: flex; justify-content: space-between;">
+                                <div>
+                                    <h1 class="logo">AJU</h1>
+                                    <div class="invoice-title">Official Invoice</div>
+                                </div>
+                                <div class="meta-details">
+                                    <p style="margin: 0; font-weight: bold; color: #111;">Order Ref: #000\${order.id}</p>
+                                    <p style="margin: 3px 0 0 0;">Date: \${orderDate}</p>
+                                    <p style="margin: 3px 0 0 0;">Payment: Verified Transaction</p>
+                                </div>
+                            </div>
+
+                            <div class="grid-info" style="display: flex; justify-content: space-between; margin-bottom: 40px;">
+                                <div class="address-box" style="flex: 1; margin-right: 40px;">
+                                    <div class="section-title">Billing & Shipping Details</div>
+                                    <strong>\${order.customer_name}</strong>
+                                    <p>\${order.customer_email}</p>
+                                    <p>\${order.shipping_address.split(' [PAID')[0]}</p>
+                                </div>
+                                <div class="address-box" style="flex: 1; text-align: right;">
+                                    <div class="section-title" style="text-align: right;">Merchant House</div>
+                                    <strong>Aju Perfumes</strong>
+                                    <p>perfumesaju@gmail.com</p>
+                                    <p>Kerala, India</p>
+                                    <p>Contact: +91 8075304432</p>
+                                </div>
+                            </div>
+
+                            <div class="section-title">Purchased Fragrances</div>
+                            <table style="width: 100%;">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 60%;">Fragrance Details</th>
+                                        <th style="width: 15%; text-align: center;">Qty</th>
+                                        <th style="width: 25%; text-align: right;">Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    \${itemsHtml}
+                                </tbody>
+                            </table>
+
+                            <table class="totals-table" style="width: 45%; margin-left: auto; border-collapse: collapse;">
+                                <tr>
+                                    <td style="color: #777; padding: 6px 0;">Subtotal</td>
+                                    <td style="text-align: right; font-weight: 500;">₹\${order.total_amount.toLocaleString()}</td>
+                                </tr>
+                                <tr>
+                                    <td style="color: #777; padding: 6px 0;">Shipping & Concierge</td>
+                                    <td style="text-align: right; color: #22c55e; font-weight: bold; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;">Complimentary</td>
+                                </tr>
+                                <tr class="grand-total" style="border-top: 1px solid #111; font-weight: bold;">
+                                    <td style="color: #111; font-weight: normal; padding-top: 15px; font-size: 16px;">Total Amount</td>
+                                    <td style="text-align: right; color: #111; padding-top: 15px; font-size: 16px;">₹\${order.total_amount.toLocaleString()}</td>
+                                </tr>
+                            </table>
+
+                            <div class="footer">
+                                Thank you for your appreciation of Aju fine craftsmanship.
+                            </div>
+                        </div>
+                        <script>
+                            window.onload = function() {
+                                window.print();
+                                setTimeout(() => { window.close(); }, 500);
+                            };
+                        <\/script>
+                    </body>
+                    </html>
+                \`);
+                printWindow.document.close();
+            },
+
             get totalSpent() {
                 return this.orders.reduce((sum, order) => sum + Number(order.total_amount || 0), 0);
             },
@@ -168,19 +286,16 @@ import Layout from '../layouts/Layout.astro';
                 </div>
             </div>
 
-            <!-- Diagnostics Panel (For debugging RLS issues and active session tokens) -->
+            <!-- Diagnostics Panel -->
             <div x-show="showDebug" x-transition class="mb-12 p-6 bg-slate-900 text-slate-300 rounded-sm font-mono text-xs space-y-3" style="display: none;">
                 <p class="text-white border-b border-slate-800 pb-2 uppercase tracking-wider font-bold">Diagnostics Panel</p>
                 <p>🟢 Supabase Client: <span class="text-green-400" x-text="window.supabase ? 'Connected' : 'Missing'"></span></p>
                 <p>👤 Supabase User ID: <span class="text-yellow-400" x-text="$store.auth.user?.id || 'No authenticated ID found'"></span></p>
                 <p>🔍 Found Orders: <span class="text-cyan-400" x-text="orders.length"></span></p>
                 <p x-show="apiError" class="text-red-400 font-bold">❌ Error Log: <span x-text="apiError"></span></p>
-                <div class="text-[10px] text-slate-500 pt-2 border-t border-slate-800">
-                    * If Found Orders is 0 and there is no Error Log, your Supabase database lacks RLS read policies for authenticated users or you are logged into a different profile.
-                </div>
             </div>
 
-            <!-- Client Experience Overview (Membership Stat Metrics) -->
+            <!-- Client Experience Overview -->
             <div x-show="orders.length > 0" class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-16" style="display: none;">
                 <div class="border border-gray-100 p-6 bg-white rounded-sm shadow-sm flex flex-col justify-between">
                     <span class="text-[9px] text-gray-400 uppercase tracking-widest font-bold">Lifetime Orders</span>
@@ -207,7 +322,6 @@ import Layout from '../layouts/Layout.astro';
                     <div x-show="apiError" style="display: none;" class="p-6 bg-red-50 border border-red-100 rounded-sm">
                         <p class="text-xs text-red-700 font-bold uppercase tracking-widest mb-2">Supabase Policy Block</p>
                         <p class="text-xs text-red-600 leading-relaxed font-light mb-4" x-text="apiError"></p>
-                        <p class="text-xs text-gray-500">To resolve this error, execute the SQL policies instructions in your workspace guides.</p>
                     </div>
 
                     <!-- Empty State -->
@@ -222,7 +336,7 @@ import Layout from '../layouts/Layout.astro';
                         <template x-for="order in orders" :key="order.id">
                             <div class="border border-gray-100 hover:border-gray-200 transition-all bg-white shadow-sm hover:shadow-md rounded-sm overflow-hidden">
                                 
-                                <!-- Accordion Header (Click to Toggle) -->
+                                <!-- Accordion Header -->
                                 <div 
                                     @click="toggleOrder(order.id)" 
                                     class="p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-gray-50 bg-[#fafafa]/50 cursor-pointer select-none group/header"
@@ -234,7 +348,7 @@ import Layout from '../layouts/Layout.astro';
                                         </div>
                                         <div>
                                             <p class="text-[9px] text-gray-400 uppercase tracking-widest font-bold mb-1">Order Number</p>
-                                            <p class="text-xs text-gray-900 font-medium" x-text="'#000' + order.id"></p>
+                                            <p class="text-xs text-gray-900 font-medium" x-text="'#000' + String(order.id)"></p>
                                         </div>
                                         <div>
                                             <p class="text-[9px] text-gray-400 uppercase tracking-widest font-bold mb-1">Total Paid</p>
@@ -257,13 +371,13 @@ import Layout from '../layouts/Layout.astro';
                                     
                                     <!-- Interactive Accordion Indicator -->
                                     <div class="flex items-center justify-end">
-                                        <svg class="w-5 h-5 text-gray-400 group-hover:text-black transform transition-transform duration-350" :class="expandedOrderId === order.id ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <svg class="w-5 h-5 text-gray-400 group-hover:text-black transform transition-transform duration-300" :class="expandedOrderId === order.id ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 9l-7 7-7-7"></path>
                                         </svg>
                                     </div>
                                 </div>
 
-                                <!-- Accordion Details / Products (Toggleable body) -->
+                                <!-- Accordion Details / Products -->
                                 <div 
                                     x-show="expandedOrderId === order.id" 
                                     x-transition:enter="transition ease-out duration-300 transform"
@@ -274,10 +388,19 @@ import Layout from '../layouts/Layout.astro';
                                     x-transition:leave-end="opacity-0 -translate-y-2"
                                     class="p-6 md:p-8 space-y-6 border-t border-gray-50"
                                 >
-                                    <h3 class="text-[9px] text-gray-400 uppercase tracking-widest font-bold mb-4">Items Ordered</h3>
+                                    <div class="flex justify-between items-center mb-4">
+                                        <h3 class="text-[9px] text-gray-400 uppercase tracking-widest font-bold">Items Ordered</h3>
+                                        <!-- PDF Receipt / Invoice Trigger -->
+                                        <button 
+                                            @click.stop="printInvoice(order)"
+                                            class="inline-flex items-center gap-2 text-[9px] font-bold uppercase tracking-widest text-black border border-neutral-200 hover:border-black hover:bg-neutral-50 px-4 py-2 rounded-md transition-all shadow-sm"
+                                        >
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                            Download Invoice (PDF)
+                                        </button>
+                                    </div>
                                     
                                     <div class="space-y-4">
-                                        <!-- Iterate through JSON array parsed from db -->
                                         <template x-for="item in (typeof order.items === 'string' ? JSON.parse(order.items) : order.items)" :key="item.id">
                                             <div class="flex items-center gap-6 pb-4 border-b border-gray-50 last:border-0 last:pb-0">
                                                 <div class="w-12 h-16 bg-gray-50 border border-gray-100 flex items-center justify-center flex-shrink-0 relative overflow-hidden">
@@ -294,7 +417,7 @@ import Layout from '../layouts/Layout.astro';
                                         </template>
                                     </div>
 
-                                    <!-- Shipping Address Info block inside order -->
+                                    <!-- Shipping Address Info -->
                                     <div class="pt-6 mt-6 border-t border-gray-100 grid grid-cols-1 md:grid-cols-2 gap-6 text-xs text-gray-600">
                                         <div>
                                             <p class="text-[9px] text-gray-400 uppercase tracking-widest font-bold mb-2">Recipient</p>
@@ -399,4 +522,8 @@ import Layout from '../layouts/Layout.astro';
         </div>
 
     </div>
-</Layout>
+</Layout>git add .
+git commit -m "Implement cloud cart syncing, luxury invoice generator, and secure orders RLS policies"
+git push origin main
+
+Your Vercel site will automatically receive this commit, recompile your pages, and update **ajuperfumes.com** with **zero downtime**! Let me know as soon as you've pushed this!
