@@ -1,471 +1,205 @@
 ---
-const { title = "Aju Perfumes | Premium Fragrances" } = Astro.props;
-const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
+import Layout from '../layouts/Layout.astro';
+import { supabase } from '../lib/supabase.js';
+
+const { data: products, error } = await supabase
+  .from('perfumes')
+  .select('*')
+  .order('id');
+
+if (error) console.error('Error fetching perfumes:', error.message);
+
+// Generate a safe string of categories using single quotes to avoid double-quote HTML conflicts
+const categoryList = (products || []).map(p => `'${(p.category || 'Classic').trim().toLowerCase()}'`).join(', ');
+const sectionXData = `{ filter: 'All', categories: [${categoryList}] }`;
+
+// Robust helper function to catch any variation of 'N/A', 'n/a', or empty spaces
+const isSafe = (val) => {
+    if (!val) return false;
+    const cleaned = String(val).trim().toUpperCase();
+    return cleaned !== 'N/A' && cleaned !== 'NA' && cleaned !== '';
+};
 ---
 
-<!DOCTYPE html>
-<html lang="en" class="scroll-smooth">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{title}</title>
+<Layout title="Aju Perfumes | The Art of Fine Fragrance">
     
-    <script is:inline src="https://cdn.tailwindcss.com"></script>
-    <script is:inline defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    
-    <script is:inline>
-        document.addEventListener('alpine:init', () => {
-            // Notification Store
-            Alpine.store('notifications', {
-                items: [],
-                add(message, type = 'success') {
-                    const id = Date.now();
-                    this.items.push({ id, message, type });
-                    setTimeout(() => { this.remove(id); }, 3000); 
-                },
-                remove(id) { this.items = this.items.filter(n => n.id !== id); }
-            });
+    <!-- Immersive Hero Section -->
+    <section class="relative h-[90vh] flex items-center justify-center overflow-hidden bg-[#0a0a0a]">
+        <!-- Gradient Mesh Background for Luxury Vibe -->
+        <div class="absolute inset-0">
+            <div class="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-gray-800 blur-[120px] opacity-30"></div>
+            <div class="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-gray-700 blur-[120px] opacity-20"></div>
+        </div>
+        
+        <div class="relative z-10 text-center px-6 max-w-5xl mx-auto flex flex-col items-center">
+            <span class="text-white/60 uppercase tracking-[0.4em] text-[10px] font-bold mb-8 border border-white/20 px-6 py-2 rounded-full backdrop-blur-sm">New Arrivals</span>
+            
+            <h1 class="text-5xl sm:text-7xl lg:text-[6rem] text-white font-serif mb-8 leading-[1.1] font-medium tracking-tight">
+                The Art of <br>
+                <span class="italic font-light text-gray-300">Fine Fragrance</span>
+            </h1>
+            
+            <p class="text-base sm:text-lg text-gray-400 mb-12 font-light max-w-xl leading-relaxed mx-auto">
+                Immerse yourself in our meticulously curated collection of premium scents, designed to leave an unforgettable, lingering impression.
+            </p>
+            
+            <a href="#shop" class="bg-white text-black px-12 py-5 uppercase text-[11px] font-bold tracking-[0.25em] hover:bg-gray-200 transition-all duration-500 rounded-sm shadow-[0_0_40px_rgba(255,255,255,0.15)] hover:shadow-[0_0_60px_rgba(255,255,255,0.25)]">
+                Explore Collection
+            </a>
+        </div>
+    </section>
 
-            // Cart Store (Upgraded with Cloud Sync Support)
-            Alpine.store('cart', {
-                items: JSON.parse(localStorage.getItem('cartItems') || '[]'),
-                
-                async save(triggerSync = true) {
-                    localStorage.setItem('cartItems', JSON.stringify(this.items));
-                    
-                    // Automatically push cart changes to Supabase metadata if logged in
-                    if (triggerSync && window.supabase && Alpine.store('auth').user) {
-                        await window.supabase.auth.updateUser({
-                            data: { cart: this.items }
-                        });
-                    }
-                },
-                
-                parsePrice(val) {
-                    if (typeof val === 'number') return val;
-                    if (!val) return 0;
-                    const parsed = parseFloat(String(val).replace(/[^\d.]/g, ''));
-                    return isNaN(parsed) ? 0 : parsed;
-                },
-
-                isSafeVolume(vol) {
-                    return vol && vol.trim() && vol.trim().toUpperCase() !== 'N/A';
-                },
-                
-                add(product) {
-                    let imageUrl = product.image_url || '';
-                    if (imageUrl.includes(',')) {
-                        imageUrl = imageUrl.split(',')[0].trim();
-                    }
-                    const cleanVolume = (product.volume && product.volume.trim().toUpperCase() !== 'N/A') ? product.volume : '';
-
-                    const existing = this.items.find(i => i.id === product.id);
-                    if (existing) { 
-                        existing.quantity++; 
-                    } else { 
-                        this.items.push({ 
-                            ...product, 
-                            price: this.parsePrice(product.price),
-                            volume: cleanVolume,
-                            image_url: imageUrl,
-                            quantity: 1 
-                        }); 
-                    }
-                    this.save(true);
-                    Alpine.store('notifications').add(`${product.name} added to bag`);
-                },
-                
-                remove(id) { 
-                    this.items = this.items.filter(i => i.id !== id); 
-                    this.save(true); 
-                },
-                
-                updateQuantity(id, change) {
-                    const item = this.items.find(i => i.id === id);
-                    if (item) {
-                        item.quantity += change;
-                        if (item.quantity <= 0) this.remove(id);
-                        else this.save(true);
-                    }
-                },
-                
-                // Fetch saved cart from user metadata upon successful session check
-                mergeCloudCart(cloudCart) {
-                    if (!cloudCart || !Array.isArray(cloudCart)) return;
-                    
-                    if (this.items.length === 0) {
-                        // User has no local cart items, load cloud cart completely
-                        this.items = cloudCart;
-                        this.save(false); // Save to local storage only
+    <!-- Refined Product Grid Section -->
+    <section id="shop" class="py-24 sm:py-32 px-4 sm:px-6 lg:px-12 max-w-[1400px] mx-auto" 
+             x-data={sectionXData} 
+             x-init="
+                const updateFilter = () => {
+                    const hash = window.location.hash.substring(1).toLowerCase();
+                    if (hash === 'premium') {
+                        filter = 'Premium';
+                    } else if (hash === 'classic') {
+                        filter = 'Classic';
                     } else {
-                        // Merge carts by compiling unique items and taking higher quantity
-                        cloudCart.forEach(cloudItem => {
-                            const localItem = this.items.find(i => i.id === cloudItem.id);
-                            if (localItem) {
-                                localItem.quantity = Math.max(localItem.quantity, cloudItem.quantity);
-                            } else {
-                                this.items.push(cloudItem);
-                            }
-                        });
-                        this.save(true); // Save and update database with merged data
+                        filter = 'All'; 
                     }
-                },
-                
-                get total() { 
-                    return this.items.reduce((sum, item) => sum + (this.parsePrice(item.price) * item.quantity), 0); 
-                },
-                get count() { 
-                    return this.items.reduce((sum, item) => sum + item.quantity, 0); 
-                }
-            });
-
-            // Auth Store
-            Alpine.store('auth', {
-                user: null,
-                email: '',
-                logout() {
-                    window.dispatchEvent(new CustomEvent('app:logout'));
-                }
-            });
-        });
-    </script>
-
-    <!-- Securely connect Supabase Auth to Alpine UI on the client-side -->
-    <script is:inline src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script is:inline define:vars={{ supabaseUrl, supabaseAnonKey }}>
-        // Initialize Supabase client globally
-        const { createClient } = window.supabase;
-        const supabase = createClient(supabaseUrl, supabaseAnonKey);
-        window.supabase = supabase; // Shared instance for login & checkout pages
-
-        // Bulletproof synchronization: Poll until Alpine is ready, then write state
-        const updateAlpineAuth = (session) => {
-            const checkAlpine = setInterval(() => {
-                if (window.Alpine && window.Alpine.store('auth') && window.Alpine.store('cart')) {
-                    const authStore = window.Alpine.store('auth');
-                    const cartStore = window.Alpine.store('cart');
-                    
-                    authStore.user = session?.user || null;
-                    authStore.email = session?.user?.email || '';
-                    
-                    // Sync trigger: Extract and sync cloud-saved cart state
-                    if (session?.user?.user_metadata?.cart) {
-                        cartStore.mergeCloudCart(session.user.user_metadata.cart);
-                    }
-                    
-                    clearInterval(checkAlpine);
-                }
-            }, 30);
-        };
-
-        const initAuth = async () => {
-            // 1. Immediately fetch current session (handles redirect landing)
-            const { data: { session } } = await supabase.auth.getSession();
-            updateAlpineAuth(session);
-
-            // 2. Clear query codes/tokens from the URL bar cleanly for a luxury look
-            if (session && (window.location.search.includes('code=') || window.location.hash.includes('access_token='))) {
-                const cleanUrl = window.location.pathname + window.location.hash.replace(/#access_token=.*/, '');
-                window.history.replaceState({}, document.title, cleanUrl);
-            }
-
-            // 3. Keep a live subscription active for real-time authentication state updates
-            supabase.auth.onAuthStateChange((_event, curSession) => {
-                updateAlpineAuth(curSession);
-            });
-        };
-
-        // Run immediately. Do not wait for alpine:initialized events!
-        initAuth();
-
-        window.addEventListener('app:logout', async () => {
-            await supabase.auth.signOut();
-            window.Alpine.store('notifications').add('Successfully signed out');
-            setTimeout(() => { window.location.reload(); }, 1000);
-        });
-    </script>
-    
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-    
-    <style>
-        .font-serif { font-family: 'Playfair Display', serif; }
-        .font-sans { font-family: 'Inter', sans-serif; }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 1px #000 !important; border-color: #000 !important; }
-    </style>
-</head>
-<body class="bg-white text-gray-900 font-sans antialiased overflow-x-hidden selection:bg-black selection:text-white">
-
-    <div x-data="{ isMenuOpen: false, isCartOpen: false }">
-
-        <div x-show="isMenuOpen || isCartOpen" 
-             x-transition.opacity.duration.400ms
-             @click="isMenuOpen = false; isCartOpen = false" 
-             class="fixed inset-0 bg-black/40 z-40 backdrop-blur-[2px]" 
-             style="display: none;"></div>
-
-        <!-- Premium Header -->
-        <header class="fixed top-0 w-full bg-white/90 backdrop-blur-xl border-b border-gray-100 z-50 transition-all duration-300">
-            <div class="max-w-[1400px] mx-auto px-6 lg:px-12 h-20 flex items-center justify-between">
-                
-                <button @click="isMenuOpen = true" class="group flex items-center gap-3 text-gray-900 hover:text-gray-500 transition-colors">
-                    <div class="flex flex-col gap-1.5 w-6">
-                        <span class="w-full h-[1.5px] bg-current transform transition-all group-hover:w-4/5"></span>
-                        <span class="w-full h-[1.5px] bg-current transform transition-all"></span>
-                        <span class="w-full h-[1.5px] bg-current transform transition-all group-hover:w-4/5"></span>
-                    </div>
-                    <span class="hidden md:block uppercase tracking-widest text-[10px] font-bold">Menu</span>
+                };
+                updateFilter();
+                window.addEventListener('hashchange', updateFilter);
+             ">
+        
+        <div class="flex flex-col md:flex-row justify-between items-center md:items-end mb-12 sm:mb-20 border-b border-gray-200 pb-8 gap-6 sm:gap-8">
+            <h2 class="text-3xl sm:text-4xl md:text-5xl font-serif font-medium tracking-tight text-gray-900 text-center md:text-left">Signature Scents</h2>
+            
+            <!-- Elegant Tabs -->
+            <div class="flex gap-6 sm:gap-12">
+                <button @click="filter = 'All'; window.location.hash = 'shop'" 
+                        :class="filter === 'All' ? 'text-black border-b border-black' : 'text-gray-400 border-transparent hover:text-black'" 
+                        class="pb-1 uppercase text-[10px] sm:text-[11px] font-bold tracking-[0.2em] transition-colors">
+                    All
                 </button>
+                <button @click="filter = 'Premium'; window.location.hash = 'premium'" 
+                        :class="filter === 'Premium' ? 'text-black border-b border-black' : 'text-gray-400 border-transparent hover:text-black'" 
+                        class="pb-1 uppercase text-[10px] sm:text-[11px] font-bold tracking-[0.2em] transition-colors">
+                    Premium
+                </button>
+                <button @click="filter = 'Classic'; window.location.hash = 'classic'" 
+                        :class="filter === 'Classic' ? 'text-black border-b border-black' : 'text-gray-400 border-transparent hover:text-black'" 
+                        class="pb-1 uppercase text-[10px] sm:text-[11px] font-bold tracking-[0.2em] transition-colors">
+                    Classic
+                </button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-4 sm:gap-x-12 gap-y-12 sm:gap-y-24">
+            
+            {(products || []).map((product) => {
+                const rawCategory = product.category || 'Classic';
+                const category = rawCategory.toString().trim().charAt(0).toUpperCase() + rawCategory.toString().trim().slice(1).toLowerCase();
+                const imageUrl = product.image_url ? product.image_url.split(',')[0].trim() : '';
                 
-                <a href="/" class="text-2xl md:text-3xl font-serif font-bold tracking-widest text-black uppercase absolute left-1/2 -translate-x-1/2">
-                    Aju
-                </a>
+                // Safe Alpine bindings
+                const xShow = `filter === 'All' || filter === '${category}'`;
+                const safeName = product.name.replace(/'/g, "\\'");
+                const safeImageUrl = imageUrl.replace(/'/g, "\\'");
+                const onCartAdd = `$store.cart.add({ id: ${product.id}, name: '${safeName}', price: ${product.price}, volume: '${isSafe(product.volume) ? product.volume : ''}', image_url: '${safeImageUrl}' })`;
                 
-                <div class="flex items-center gap-4 sm:gap-6">
-                    
-                    <!-- Account Icon (Logged In State with interactive dropdown) -->
-                    <div x-show="$store.auth.user" style="display: none;" class="relative group">
-                        <button class="flex items-center gap-2 text-gray-900 hover:text-gray-500 transition-colors">
-                            <span class="hidden md:block uppercase tracking-widest text-[10px] font-bold">Account</span>
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
-                        </button>
-                        <!-- Dropdown menu on hover (Desktop) -->
-                        <div class="hidden md:block absolute right-0 mt-4 w-56 bg-white border border-gray-100 shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50">
-                            <div class="p-5 border-b border-gray-100 bg-gray-50/50">
-                                <p class="text-[9px] text-gray-500 uppercase tracking-widest font-bold mb-1">Signed in as</p>
-                                <p class="text-xs text-gray-900 truncate font-medium" x-text="$store.auth.email"></p>
+                // Inventory Logic
+                const stock = Number(product.stock_quantity || 0);
+                const isOutOfStock = stock <= 0;
+                const isLowStock = stock > 0 && stock <= 5;
+                
+                return (
+                    <div 
+                        class="group flex flex-col cursor-pointer"
+                        x-show={xShow}
+                        x-transition:enter="transition-opacity duration-700 ease-out"
+                        x-transition:enter-start="opacity-0 translate-y-4"
+                        x-transition:enter-end="opacity-100 translate-y-0"
+                    >
+                        {/* Static Image Container */}
+                        <div class="aspect-[3/4] w-full bg-[#f4f4f4] relative mb-4 sm:mb-8 overflow-hidden flex items-center justify-center transition-colors duration-500 group-hover:bg-[#ebebeb]">
+                            
+                            {/* DYNAMIC STOCK BADGES */}
+                            {isOutOfStock && (
+                                <span class="absolute top-4 right-4 bg-red-600 text-white px-3 py-1 text-[8px] font-bold uppercase tracking-widest z-20 shadow-sm">Out of Stock</span>
+                            )}
+                            {isLowStock && (
+                                <span class="absolute top-4 right-4 bg-amber-100 text-amber-800 px-3 py-1 text-[8px] font-bold uppercase tracking-widest z-20 shadow-sm border border-amber-200">Few Stock Left</span>
+                            )}
+
+                            {imageUrl ? (
+                                <>
+                                    <img 
+                                        src={imageUrl} 
+                                        alt={product.name} 
+                                        class={`w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 ${isOutOfStock ? 'opacity-60 grayscale' : ''}`}
+                                        onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+                                    />
+                                    <span class="hidden text-gray-400 font-serif italic text-xl sm:text-3xl px-4 text-center transition-transform duration-700 group-hover:scale-105">
+                                        {product.name.split(' ')[0]}
+                                    </span>
+                                </>
+                            ) : (
+                                <span class="text-gray-400 font-serif italic text-xl sm:text-3xl px-4 text-center transition-transform duration-700 group-hover:scale-105">
+                                    {product.name.split(' ')[0]}
+                                </span>
+                            )}
+                            
+                            {/* Slide-up Add to Cart (Desktop) */}
+                            <div class="hidden lg:block absolute inset-x-0 bottom-0 p-6 translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] z-30">
+                                <button 
+                                    @click.stop={onCartAdd}
+                                    disabled={isOutOfStock}
+                                    class={`w-full py-4 uppercase text-[10px] font-bold tracking-[0.2em] transition-colors duration-300 shadow-xl ${isOutOfStock ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-white text-black hover:bg-black hover:text-white'}`}
+                                >
+                                    {isOutOfStock ? 'Sold Out' : `Add to Bag — ₹${product.price.toLocaleString('en-IN')}`}
+                                </button>
                             </div>
-                            <div class="p-2 border-b border-gray-100 bg-white">
-                                <a href="/account" class="block px-3 py-2 text-[10px] text-gray-600 hover:text-black hover:bg-gray-50 uppercase tracking-widest font-bold transition-colors">
-                                    My Account / Orders
-                                </a>
+                        </div>
+
+                        {/* Minimalist Typography */}
+                        <div class="text-center px-1 sm:px-2">
+                            <h3 class="font-serif text-base sm:text-xl font-medium text-gray-900 mb-1 sm:mb-2 leading-tight">
+                                {product.name}
+                            </h3>
+                            
+                            <!-- SAFELY AVOID N/A VALUE FOR VOLUME -->
+                            <div class="flex items-center justify-center gap-1 sm:gap-2 text-[8px] sm:text-[9px] text-gray-500 uppercase tracking-[0.2em] mb-2 sm:mb-4 font-bold">
+                                <span>{category}</span>
+                                {isSafe(product.volume) && (
+                                    <>
+                                        <span>•</span>
+                                        <span>{product.volume}</span>
+                                    </>
+                                )}
                             </div>
-                            <button @click="$store.auth.logout()" class="w-full text-left px-5 py-4 text-[10px] text-gray-600 hover:text-black hover:bg-gray-50 uppercase tracking-widest font-bold transition-colors">
-                                Sign Out
+                            
+                            <!-- SAFELY AVOID N/A VALUE FOR SCENT NOTES -->
+                            {isSafe(product.notes) && (
+                                <p class="text-xs sm:text-sm text-gray-500 font-light leading-relaxed line-clamp-2 mb-4 sm:mb-6 max-w-[280px] mx-auto hidden sm:block">
+                                    {product.notes}
+                                </p>
+                            )}
+                            
+                            {/* Mobile fallback button (WITH EXPLICIT PRICE NOW DISPLAYED) */}
+                            <button 
+                                @click.stop={onCartAdd}
+                                disabled={isOutOfStock}
+                                class={`lg:hidden w-full border py-2.5 sm:py-3 uppercase text-[9px] sm:text-[10px] font-bold tracking-[0.2em] transition-colors mt-2 ${isOutOfStock ? 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed' : 'border-gray-200 text-gray-900 hover:bg-gray-50'}`}
+                            >
+                                {isOutOfStock ? 'Sold Out' : `Add to Bag — ₹${product.price.toLocaleString('en-IN')}`}
                             </button>
                         </div>
                     </div>
-
-                    <!-- Account Icon (Logged Out State) -->
-                    <a href="/login" x-show="!$store.auth.user" class="flex items-center gap-2 text-gray-900 hover:text-gray-500 transition-colors">
-                        <span class="hidden md:block uppercase tracking-widest text-[10px] font-bold">Login</span>
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
-                    </a>
-
-                    <!-- Bag -->
-                    <button @click="isCartOpen = true" class="flex items-center gap-2 text-gray-900 hover:text-gray-500 transition-colors relative">
-                        <span class="hidden md:block uppercase tracking-widest text-[10px] font-bold">Bag</span>
-                        <div class="relative">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
-                            <span x-show="$store.cart.count > 0" x-text="$store.cart.count" class="absolute -top-1 -right-2 bg-black text-white text-[9px] font-bold rounded-full h-4 w-4 flex items-center justify-center border border-white" style="display: none;">0</span>
-                        </div>
-                    </button>
-                </div>
-            </div>
-        </header>
-
-        <!-- Sliding Navigation Drawer -->
-        <nav x-show="isMenuOpen" 
-             x-transition:enter="transition ease-out duration-500 transform"
-             x-transition:enter-start="-translate-x-full"
-             x-transition:enter-end="translate-x-0"
-             x-transition:leave="transition ease-in duration-400 transform"
-             x-transition:leave-start="translate-x-0"
-             x-transition:leave-end="-translate-x-full"
-             class="fixed inset-y-0 left-0 w-full sm:w-[400px] bg-white shadow-2xl z-50 flex flex-col border-r border-gray-100" 
-             style="display: none;">
+                );
+            })}
             
-            <div class="p-8 flex justify-between items-center bg-white border-b border-gray-100">
-                <span class="font-serif text-lg font-medium italic text-gray-500">Navigation</span>
-                <button @click="isMenuOpen = false" class="text-gray-400 hover:text-black p-2 -mr-2 transition-colors">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 18L18 6M6 6l12 12"></path></svg>
-                </button>
+            {/* Empty State for Filters */}
+            <div x-show="!categories.some(cat => filter === 'All' || cat === filter.toLowerCase())" style="display: none;" class="col-span-full py-12 text-center text-gray-400 font-serif italic text-lg">
+                No fragrances found in this collection.
             </div>
-            
-            <div class="p-10 space-y-8 flex-1 overflow-y-auto font-serif text-3xl font-medium tracking-wide text-gray-900">
-                <a href="/" @click="isMenuOpen = false" class="block hover:text-gray-400 transition-colors">Home</a>
-                <a href="/#shop" @click="isMenuOpen = false" class="block hover:text-gray-400 transition-colors">All Fragrances</a>
-                <a href="/#premium" @click="isMenuOpen = false" class="block hover:text-gray-400 transition-colors">Premium Line</a>
-                <a href="/#classic" @click="isMenuOpen = false" class="block hover:text-gray-400 transition-colors">Classic Scents</a>
-                
-                <div class="pt-12 border-t border-gray-100 mt-12 font-sans text-xs">
-                    <p class="text-[10px] text-gray-400 tracking-widest font-bold uppercase mb-6">Account</p>
-                    
-                    <div x-show="!$store.auth.user" class="mb-8">
-                        <a href="/login" class="flex items-center gap-3 font-medium uppercase tracking-wider hover:text-gray-500 transition-colors">
-                            Sign In / Register
-                        </a>
-                    </div>
-                    
-                    <div x-show="$store.auth.user" style="display: none;" class="space-y-4 mb-8">
-                        <a href="/account" @click="isMenuOpen = false" class="block font-medium uppercase tracking-wider hover:text-gray-500 transition-colors mb-2">
-                            My Account / Orders
-                        </a>
-                        <span class="flex items-center font-medium text-gray-400 uppercase tracking-wider truncate mb-2" x-text="$store.auth.email"></span>
-                        <button @click="$store.auth.logout()" class="flex items-center font-medium uppercase tracking-wider text-red-600 hover:text-red-400 transition-colors">
-                            Sign Out
-                        </button>
-                    </div>
 
-                    <p class="text-[10px] text-gray-400 tracking-widest font-bold uppercase mt-8 mb-6">Client Care</p>
-                    <div class="space-y-6">
-                        <a href="https://wa.me/918075304432" target="_blank" class="flex items-center gap-3 font-medium uppercase tracking-wider hover:text-gray-500 transition-colors">WhatsApp Assistance</a>
-                        <a href="tel:+918075304432" class="flex items-center gap-3 font-medium uppercase tracking-wider hover:text-gray-500 transition-colors">+91 8075304432</a>
-                        <a href="mailto:perfumesaju@gmail.com" class="flex items-center gap-3 font-medium uppercase tracking-wider hover:text-gray-500 transition-colors">perfumesaju@gmail.com</a>
-                    </div>
-                </div>
-            </div>
-        </nav>
-
-        <!-- Sliding Shopping Cart Drawer -->
-        <div x-show="isCartOpen" 
-             x-transition:enter="transition ease-out duration-500 transform"
-             x-transition:enter-start="translate-x-full"
-             x-transition:enter-end="translate-x-0"
-             x-transition:leave="transition ease-in duration-400 transform"
-             x-transition:leave-start="translate-x-0"
-             x-transition:leave-end="translate-x-full"
-             class="fixed inset-y-0 right-0 w-full sm:w-[480px] bg-white shadow-2xl z-50 flex flex-col border-l border-gray-100" 
-             style="display: none;">
-            
-            <div class="p-8 flex justify-between items-center bg-white border-b border-gray-100">
-                <span class="font-serif text-2xl font-medium tracking-wide text-black flex items-center gap-3">
-                    Shopping Bag
-                    <span class="font-sans text-[10px] bg-gray-100 text-gray-900 px-3 py-1 rounded-full font-bold uppercase tracking-widest" x-text="$store.cart.count + ' Items'"></span>
-                </span>
-                <button @click="isCartOpen = false" class="text-gray-400 hover:text-black p-2 -mr-2 transition-colors">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 18L18 6M6 6l12 12"></path></svg>
-                </button>
-            </div>
-            
-            <!-- Cart Items -->
-            <div class="flex-1 overflow-y-auto no-scrollbar p-8">
-                <template x-for="item in $store.cart.items" :key="item.id">
-                    <div class="flex items-center gap-6 mb-8 pb-8 border-b border-gray-100 last:border-0 last:mb-0 last:pb-0 group">
-                        
-                        <!-- PREMIUM CACHED IMAGE LOADER WITH FALLBACKS (Resolved Photo Display) -->
-                        <div class="w-24 h-32 bg-[#f8f8f8] flex items-center justify-center relative overflow-hidden flex-shrink-0">
-                            <img x-show="item.image_url" 
-                                 :src="item.image_url" 
-                                 class="w-full h-full object-cover absolute inset-0 z-0" 
-                                 :alt="item.name" 
-                                 @error="item.image_url = ''">
-                            <span x-show="!item.image_url" 
-                                  class="z-10 text-gray-400 font-serif italic text-sm text-center px-2" 
-                                  x-text="item.name.split(' ')[0]"></span>
-                            <div class="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                        </div>
-                        
-                        <div class="flex-1 flex flex-col justify-between h-32 py-1">
-                            <div>
-                                <div class="flex justify-between items-start">
-                                    <span class="font-serif font-medium text-lg text-gray-900 leading-tight" x-text="item.name"></span>
-                                    <button @click="$store.cart.remove(item.id)" class="text-gray-300 hover:text-red-500 transition-colors p-1">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                    </button>
-                                </div>
-                                
-                                <!-- EXPLICIT N/A SAFE STRING CONDITIONAL (Resolved N/A Volume Display) -->
-                                <span class="text-[10px] text-gray-500 uppercase tracking-[0.2em] font-bold block mt-2" 
-                                      x-text="($store.cart.isSafeVolume(item.volume) ? item.volume + ' • ' : '') + '₹' + $store.cart.parsePrice(item.price).toLocaleString('en-IN')">
-                                </span>
-                            </div>
-                            
-                            <div class="flex justify-between items-end mt-4">
-                                <div class="flex items-center border border-gray-200 w-fit bg-white">
-                                    <button @click="$store.cart.updateQuantity(item.id, -1)" class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-black transition-colors">-</button>
-                                    <span class="font-medium text-xs w-8 text-center text-gray-900" x-text="item.quantity"></span>
-                                    <button @click="$store.cart.updateQuantity(item.id, 1)" class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-black transition-colors">+</button>
-                                </div>
-                                
-                                <!-- SECURE DYNAMIC DOUBLE MULTIPLICATION AND FORMATTING (Resolved Price Display) -->
-                                <span class="font-serif font-semibold text-lg" x-text="'₹' + ($store.cart.parsePrice(item.price) * item.quantity).toLocaleString('en-IN')"></span>
-                            </div>
-                        </div>
-                    </div>
-                </template>
-                
-                <!-- Empty State -->
-                <div x-show="$store.cart.items.length === 0" class="h-full flex flex-col items-center justify-center text-center pb-20">
-                    <p class="text-gray-900 font-serif text-3xl mb-4 italic">Empty.</p>
-                    <p class="text-gray-500 text-sm mb-8 font-light max-w-[200px]">Your bag awaits its first signature scent.</p>
-                    <button @click="isCartOpen = false" class="text-[10px] font-bold uppercase tracking-[0.2em] border-b border-black pb-1 hover:text-gray-500 hover:border-gray-500 transition-all">Explore Collection</button>
-                </div>
-            </div>
-            
-            <!-- Checkout Footer -->
-            <div x-show="$store.cart.items.length > 0" class="p-8 border-t border-gray-100 bg-white" style="display: none;">
-                <div class="flex justify-between items-center mb-6">
-                    <span class="text-gray-900 font-serif font-medium text-lg">Subtotal</span>
-                    <!-- SECURE TOTAL DYNAMIC INTEGER CONVERSION (Resolved Price Display) -->
-                    <span class="font-serif font-semibold text-xl" x-text="'₹' + Number($store.cart.total || 0).toLocaleString('en-IN')"></span>
-                </div>
-                <p class="text-[10px] text-gray-500 uppercase tracking-widest text-center mb-6">Complimentary shipping on all orders.</p>
-                <a href="/checkout" class="block text-center w-full bg-black text-white py-4 uppercase text-[11px] font-bold tracking-[0.2em] hover:bg-gray-800 transition-colors shadow-xl shadow-black/10">Secure Checkout</a>
-            </div>
         </div>
+    </section>
 
-        <main class="min-h-screen pt-20">
-            <slot />
-        </main>
-
-        <!-- Premium Footer -->
-        <footer class="bg-black text-white pt-24 pb-12 px-6 border-t border-gray-900">
-            <div class="max-w-[1400px] mx-auto grid grid-cols-1 md:grid-cols-4 gap-16 text-center md:text-left">
-                <div class="md:col-span-2">
-                    <h3 class="font-serif text-3xl md:text-4xl font-medium tracking-wider uppercase mb-6">Aju</h3>
-                    <p class="text-gray-400 text-sm leading-relaxed max-w-sm mx-auto md:mx-0 font-light">
-                        Elevating your presence with meticulously crafted, long-lasting premium fragrances. Designed for the modern individual.
-                    </p>
-                </div>
-                <div class="flex flex-col space-y-5">
-                    <h4 class="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-500 mb-2">Client Care</h4>
-                    <a href="https://wa.me/918075304432" class="text-xs tracking-wider uppercase text-gray-300 hover:text-white transition-colors">WhatsApp Assistance</a>
-                    <a href="tel:+918075304432" class="text-xs tracking-wider uppercase text-gray-300 hover:text-white transition-colors">+91 8075304432</a>
-                    <a href="mailto:perfumesaju@gmail.com" class="text-xs tracking-wider uppercase text-gray-300 hover:text-white transition-colors">Email Us</a>
-                </div>
-                <div class="flex flex-col space-y-5">
-                    <h4 class="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-500 mb-2">The House</h4>
-                    <a href="/#shop" class="text-xs tracking-wider uppercase text-gray-300 hover:text-white transition-colors">All Collections</a>
-                    <a href="/#premium" class="text-xs tracking-wider uppercase text-gray-300 hover:text-white transition-colors">Premium Line</a>
-                    <a href="/#classic" class="text-xs tracking-wider uppercase text-gray-300 hover:text-white transition-colors">Classic Scents</a>
-                </div>
-            </div>
-            
-            <div class="max-w-[1400px] mx-auto mt-24 pt-8 border-t border-gray-100 flex flex-col md:flex-row justify-between items-center gap-6 text-[10px] text-gray-600 uppercase tracking-widest font-bold">
-                <p>&copy; 2026 Aju Perfumes. All Rights Reserved.</p>
-                <div class="space-x-8">
-                    <a href="#" class="hover:text-white transition-colors">Privacy Policy</a>
-                    <a href="#" class="hover:text-white transition-colors">Terms of Service</a>
-                </div>
-            </div>
-        </footer>
-
-        <!-- Global Notification System UI -->
-        <div class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex flex-col items-center gap-3 pointer-events-none">
-            <template x-for="notification in $store.notifications.items" :key="notification.id">
-                <div 
-                    x-transition:enter="transition ease-out duration-300 transform"
-                    x-transition:enter-start="opacity-0 translate-y-4"
-                    x-transition:enter-end="opacity-100 translate-y-0"
-                    x-transition:leave="transition ease-in duration-300 transform"
-                    x-transition:leave-start="opacity-100 translate-y-0"
-                    x-transition:leave-end="opacity-0 translate-y-4"
-                    class="bg-black text-white px-6 py-4 rounded-full shadow-2xl pointer-events-auto flex items-center justify-between min-w-[280px] max-w-sm border border-gray-800"
-                >
-                    <div class="flex items-center gap-3">
-                        <svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                        <span class="text-[10px] font-bold uppercase tracking-widest truncate" x-text="notification.message"></span>
-                    </div>
-                    <button @click="$store.notifications.remove(notification.id)" class="ml-4 text-gray-400 hover:text-white transition-colors">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                    </button>
-                </div>
-            </template>
-        </div>
-
-    </div>
-</body>
-</html>
+</Layout>
