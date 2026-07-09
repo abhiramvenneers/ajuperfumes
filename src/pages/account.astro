@@ -49,12 +49,16 @@ import Layout from '../layouts/Layout.astro';
                                 this.profile.pincode = session.user.user_metadata?.pincode || '';
 
                                 try {
-                                    await window.supabase
+                                    // SMART BACKGROUND AUTO-LINK: Decoupled to prevent blocking order fetch
+                                    window.supabase
                                         .from('orders')
                                         .update({ user_id: session.user.id })
                                         .eq('customer_email', session.user.email)
-                                        .is('user_id', null);
+                                        .is('user_id', null)
+                                        .then(() => console.log('Historical guest orders synced.'))
+                                        .catch(err => console.warn('Silent sync skipped:', err));
 
+                                    // Fetch orders instantly
                                     const { data, error } = await window.supabase
                                         .from('orders')
                                         .select('*')
@@ -155,8 +159,6 @@ import Layout from '../layouts/Layout.astro';
                     this.expandedOrderId = this.expandedOrderId === orderId ? null : orderId;
                 },
 
-                // BUILD-SAFE INVOICE ENGINE: 
-                // Uses array string concatenation to hide HTML tags from Astro Compiler
                 printInvoice(order) {
                     const printWindow = window.open('', '_blank');
                     const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
@@ -244,7 +246,9 @@ import Layout from '../layouts/Layout.astro';
                 },
                 
                 formatDate(rawDate) {
+                    if (!rawDate) return 'Pending...';
                     const date = new Date(rawDate);
+                    if (isNaN(date.getTime())) return 'Pending...';
                     return date.toLocaleDateString('en-IN', {
                         day: 'numeric',
                         month: 'short',
@@ -255,7 +259,7 @@ import Layout from '../layouts/Layout.astro';
         });
     </script>
     
-    <div class="max-w-[1200px] mx-auto px-6 lg:px-12 pb-32 pt-16 md:pt-24" x-data="accountPortal">
+    <div class="max-w-[1200px] mx-auto px-6 lg:px-12 pb-32 pt-16 md:pt-24" x-data="accountPortal" x-init="fetchUserOrders()">
         
         <!-- Loading Screen -->
         <div x-show="isLoading" class="min-h-[60vh] flex flex-col items-center justify-center text-center">
@@ -272,8 +276,8 @@ import Layout from '../layouts/Layout.astro';
             <div class="border-b border-gray-100 pb-12 mb-12 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
                 <div>
                     <span class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-2">My Profile</span>
-                    <h1 class="text-3xl md:text-5xl font-serif font-medium text-gray-900" x-text="'Welcome, ' + ($store.auth.email.split('@')[0])"></h1>
-                    <p class="text-xs text-gray-500 mt-2" x-text="$store.auth.email"></p>
+                    <h1 class="text-3xl md:text-5xl font-serif font-medium text-gray-900" x-text="'Welcome, ' + ($store.auth.email ? $store.auth.email.split('@')[0] : 'Guest')"></h1>
+                    <p class="text-xs text-gray-500 mt-2" x-text="$store.auth.email || ''"></p>
                 </div>
                 <div class="flex gap-4">
                     <button @click="showDebug = !showDebug" class="text-[10px] text-gray-500 hover:text-black uppercase tracking-widest font-bold border border-gray-200 px-6 py-3 transition-colors">
@@ -526,7 +530,7 @@ import Layout from '../layouts/Layout.astro';
                             </div>
                             <div>
                                 <p class="text-[9px] text-gray-400 uppercase tracking-widest font-bold mb-1">Account Created</p>
-                                <p class="font-medium text-gray-900" x-text="formatDate(this.$store.auth.user?.created_at)"></p>
+                                <p class="font-medium text-gray-900" x-text="formatDate($store.auth.user?.created_at)"></p>
                             </div>
                         </div>
                     </div>
