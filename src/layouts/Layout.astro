@@ -9,9 +9,9 @@ const { data: products, error } = await supabase
 
 if (error) console.error('Error fetching perfumes:', error.message);
 
-// Generate a safe string of categories using single quotes to avoid double-quote HTML conflicts
-const categoryList = (products || []).map(p => `'${(p.category || 'Classic').trim().toLowerCase()}'`).join(', ');
-const sectionXData = `{ filter: 'All', categories: [${categoryList}] }`;
+// Robust Alpine state generation (Safely stringified to prevent HTML quote clashes)
+const categories = Array.from(new Set((products || []).map(p => (p.category || 'Classic').trim())));
+const sectionXData = JSON.stringify({ filter: 'All', categories: categories });
 
 // Robust helper function to catch any variation of 'N/A', 'n/a', or empty spaces
 const isSafe = (val) => {
@@ -93,15 +93,21 @@ const isSafe = (val) => {
         <div class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-4 sm:gap-x-12 gap-y-12 sm:gap-y-24">
             
             {(products || []).map((product) => {
+                // Formatting Categories
                 const rawCategory = product.category || 'Classic';
                 const category = rawCategory.toString().trim().charAt(0).toUpperCase() + rawCategory.toString().trim().slice(1).toLowerCase();
-                const imageUrl = product.image_url ? product.image_url.split(',')[0].trim() : '';
+                const imageUrl = product.image_url ? String(product.image_url).split(',')[0].trim() : '';
+                
+                // CRITICAL FAIL-SAFES: Preventing Null Database Values from crashing the server render
+                const productName = product.name || 'Signature Fragrance';
+                const productPrice = Number(product.price || 0);
                 
                 // Safe Alpine bindings
                 const xShow = `filter === 'All' || filter === '${category}'`;
-                const safeName = product.name.replace(/'/g, "\\'");
+                const safeName = productName.replace(/'/g, "\\'");
                 const safeImageUrl = imageUrl.replace(/'/g, "\\'");
-                const onCartAdd = `$store.cart.add({ id: ${product.id}, name: '${safeName}', price: ${product.price}, volume: '${isSafe(product.volume) ? product.volume : ''}', image_url: '${safeImageUrl}' })`;
+                const safeVolume = isSafe(product.volume) ? String(product.volume).replace(/'/g, "\\'") : '';
+                const onCartAdd = `$store.cart.add({ id: ${product.id || 0}, name: '${safeName}', price: ${productPrice}, volume: '${safeVolume}', image_url: '${safeImageUrl}' })`;
                 
                 // Inventory Logic
                 const stock = Number(product.stock_quantity || 0);
@@ -131,17 +137,17 @@ const isSafe = (val) => {
                                 <>
                                     <img 
                                         src={imageUrl} 
-                                        alt={product.name} 
+                                        alt={productName} 
                                         class={`w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 ${isOutOfStock ? 'opacity-60 grayscale' : ''}`}
                                         onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
                                     />
                                     <span class="hidden text-gray-400 font-serif italic text-xl sm:text-3xl px-4 text-center transition-transform duration-700 group-hover:scale-105">
-                                        {product.name.split(' ')[0]}
+                                        {productName.split(' ')[0]}
                                     </span>
                                 </>
                             ) : (
                                 <span class="text-gray-400 font-serif italic text-xl sm:text-3xl px-4 text-center transition-transform duration-700 group-hover:scale-105">
-                                    {product.name.split(' ')[0]}
+                                    {productName.split(' ')[0]}
                                 </span>
                             )}
                             
@@ -152,7 +158,7 @@ const isSafe = (val) => {
                                     disabled={isOutOfStock}
                                     class={`w-full py-4 uppercase text-[10px] font-bold tracking-[0.2em] transition-colors duration-300 shadow-xl ${isOutOfStock ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-white text-black hover:bg-black hover:text-white'}`}
                                 >
-                                    {isOutOfStock ? 'Sold Out' : `Add to Bag — ₹${product.price.toLocaleString('en-IN')}`}
+                                    {isOutOfStock ? 'Sold Out' : `Add to Bag — ₹${productPrice.toLocaleString('en-IN')}`}
                                 </button>
                             </div>
                         </div>
@@ -160,7 +166,7 @@ const isSafe = (val) => {
                         {/* Minimalist Typography */}
                         <div class="text-center px-1 sm:px-2">
                             <h3 class="font-serif text-base sm:text-xl font-medium text-gray-900 mb-1 sm:mb-2 leading-tight">
-                                {product.name}
+                                {productName}
                             </h3>
                             
                             <!-- SAFELY AVOID N/A VALUE FOR VOLUME -->
@@ -187,7 +193,7 @@ const isSafe = (val) => {
                                 disabled={isOutOfStock}
                                 class={`lg:hidden w-full border py-2.5 sm:py-3 uppercase text-[9px] sm:text-[10px] font-bold tracking-[0.2em] transition-colors mt-2 ${isOutOfStock ? 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed' : 'border-gray-200 text-gray-900 hover:bg-gray-50'}`}
                             >
-                                {isOutOfStock ? 'Sold Out' : `Add to Bag — ₹${product.price.toLocaleString('en-IN')}`}
+                                {isOutOfStock ? 'Sold Out' : `Add to Bag — ₹${productPrice.toLocaleString('en-IN')}`}
                             </button>
                         </div>
                     </div>
