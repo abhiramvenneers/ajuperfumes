@@ -31,6 +31,28 @@ const escapeAttr = (str) => {
 
 <Layout title="Aju Perfumes | The Art of Fine Fragrance">
     
+    <!-- Self-Healing Local Storage Script for returning Laptop browsers -->
+    <script is:inline>
+        (function() {
+            try {
+                const stored = localStorage.getItem('cartItems');
+                if (stored) {
+                    const parsed = JSON.parse(stored);
+                    if (Array.isArray(parsed)) {
+                        // Inspect if any stored item contains legacy structure or missing parameters
+                        const needsUpgrade = parsed.some(item => !item.hasOwnProperty('image_url') || item.price === undefined || item.volume === 'N/A');
+                        if (needsUpgrade) {
+                            console.log('Stale testing metadata detected. Self-healing client local storage...');
+                            localStorage.removeItem('cartItems'); // Clear out corrupted legacy arrays cleanly
+                        }
+                    }
+                }
+            } catch (e) {
+                localStorage.removeItem('cartItems');
+            }
+        })();
+    </script>
+
     <!-- Immersive Hero Section -->
     <section class="relative h-[90vh] flex items-center justify-center overflow-hidden bg-[#0a0a0a]">
         <!-- Gradient Mesh Background for Luxury Vibe -->
