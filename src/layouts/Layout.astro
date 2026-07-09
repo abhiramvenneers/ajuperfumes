@@ -42,12 +42,35 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
                     }
                 },
                 
+                parsePrice(val) {
+                    if (typeof val === 'number') return val;
+                    if (!val) return 0;
+                    const parsed = parseFloat(String(val).replace(/[^\d.]/g, ''));
+                    return isNaN(parsed) ? 0 : parsed;
+                },
+
+                isSafeVolume(vol) {
+                    return vol && vol.trim() && vol.trim().toUpperCase() !== 'N/A';
+                },
+                
                 add(product) {
+                    let imageUrl = product.image_url || '';
+                    if (imageUrl.includes(',')) {
+                        imageUrl = imageUrl.split(',')[0].trim();
+                    }
+                    const cleanVolume = (product.volume && product.volume.trim().toUpperCase() !== 'N/A') ? product.volume : '';
+
                     const existing = this.items.find(i => i.id === product.id);
                     if (existing) { 
                         existing.quantity++; 
                     } else { 
-                        this.items.push({ ...product, quantity: 1 }); 
+                        this.items.push({ 
+                            ...product, 
+                            price: this.parsePrice(product.price),
+                            volume: cleanVolume,
+                            image_url: imageUrl,
+                            quantity: 1 
+                        }); 
                     }
                     this.save(true);
                     Alpine.store('notifications').add(`${product.name} added to bag`);
@@ -90,7 +113,7 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
                 },
                 
                 get total() { 
-                    return this.items.reduce((sum, item) => sum + (Number(item.price || 0) * item.quantity), 0); 
+                    return this.items.reduce((sum, item) => sum + (this.parsePrice(item.price) * item.quantity), 0); 
                 },
                 get count() { 
                     return this.items.reduce((sum, item) => sum + item.quantity, 0); 
@@ -324,10 +347,14 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
                         
                         <!-- PREMIUM CACHED IMAGE LOADER WITH FALLBACKS (Resolved Photo Display) -->
                         <div class="w-24 h-32 bg-[#f8f8f8] flex items-center justify-center relative overflow-hidden flex-shrink-0">
-                            <template x-if="item.image_url">
-                                <img :src="item.image_url" class="w-full h-full object-cover absolute inset-0 z-0" :alt="item.name" onerror="this.style.display='none';">
-                            </template>
-                            <span class="z-10 text-gray-400 font-serif italic text-sm text-center px-2" x-text="item.name.split(' ')[0]"></span>
+                            <img x-show="item.image_url" 
+                                 :src="item.image_url" 
+                                 class="w-full h-full object-cover absolute inset-0 z-0" 
+                                 :alt="item.name" 
+                                 @error="item.image_url = ''">
+                            <span x-show="!item.image_url" 
+                                  class="z-10 text-gray-400 font-serif italic text-sm text-center px-2" 
+                                  x-text="item.name.split(' ')[0]"></span>
                             <div class="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                         </div>
                         
@@ -342,7 +369,7 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
                                 
                                 <!-- EXPLICIT N/A SAFE STRING CONDITIONAL (Resolved N/A Volume Display) -->
                                 <span class="text-[10px] text-gray-500 uppercase tracking-[0.2em] font-bold block mt-2" 
-                                      x-text="(item.volume && item.volume !== 'N/A' ? item.volume + ' • ' : '') + '₹' + Number(item.price || 0).toLocaleString('en-IN')">
+                                      x-text="($store.cart.isSafeVolume(item.volume) ? item.volume + ' • ' : '') + '₹' + $store.cart.parsePrice(item.price).toLocaleString('en-IN')">
                                 </span>
                             </div>
                             
@@ -354,7 +381,7 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
                                 </div>
                                 
                                 <!-- SECURE DYNAMIC DOUBLE MULTIPLICATION AND FORMATTING (Resolved Price Display) -->
-                                <span class="font-serif font-semibold text-lg" x-text="'₹' + (Number(item.price || 0) * item.quantity).toLocaleString('en-IN')"></span>
+                                <span class="font-serif font-semibold text-lg" x-text="'₹' + ($store.cart.parsePrice(item.price) * item.quantity).toLocaleString('en-IN')"></span>
                             </div>
                         </div>
                     </div>
