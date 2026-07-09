@@ -1,607 +1,607 @@
----
-import Layout from '../layouts/Layout.astro';
----
+    ---
+    import Layout from '../layouts/Layout.astro';
+    ---
 
-<Layout title="My Account | Aju Perfumes">
-    <!-- Premium client-side component registry -->
-    <script is:inline>
-        document.addEventListener('alpine:init', () => {
-            Alpine.data('accountPortal', () => ({
-                orders: [],
-                isLoading: true,
-                expandedOrderId: null,
-                apiError: '',
-                showDebug: false,
-                
-                // Address State
-                isEditingAddress: false,
-                isSavingAddress: false,
-                profile: {
-                    firstName: '',
-                    lastName: '',
-                    address: '',
-                    city: '',
-                    pincode: ''
-                },
-
-                // Guest Lookup State
-                lookupId: '',
-                lookupEmail: '',
-                lookupError: '',
-                lookupSuccessOrder: null,
-                isLookingUp: false,
-                
-                async fetchUserOrders() {
-                    this.isLoading = true;
-                    this.apiError = '';
+    <Layout title="My Account | Aju Perfumes">
+        <!-- Premium client-side component registry -->
+        <script is:inline>
+            document.addEventListener('alpine:init', () => {
+                Alpine.data('accountPortal', () => ({
+                    orders: [],
+                    isLoading: true,
+                    expandedOrderId: null,
+                    apiError: '',
+                    showDebug: false,
                     
-                    const checkSession = setInterval(async () => {
-                        if (window.supabase) {
+                    // Address State
+                    isEditingAddress: false,
+                    isSavingAddress: false,
+                    profile: {
+                        firstName: '',
+                        lastName: '',
+                        address: '',
+                        city: '',
+                        pincode: ''
+                    },
+
+                    // Guest Lookup State
+                    lookupId: '',
+                    lookupEmail: '',
+                    lookupError: '',
+                    lookupSuccessOrder: null,
+                    isLookingUp: false,
+                    
+                    async fetchUserOrders() {
+                        this.isLoading = true;
+                        this.apiError = '';
+                        
+                        const checkSession = setInterval(async () => {
+                            if (window.supabase) {
+                                clearInterval(checkSession);
+                                
+                                const { data: { session } } = await window.supabase.auth.getSession();
+                                
+                                if (session && session.user) {
+                                    this.profile.firstName = session.user.user_metadata?.firstName || '';
+                                    this.profile.lastName = session.user.user_metadata?.lastName || '';
+                                    this.profile.address = session.user.user_metadata?.address || '';
+                                    this.profile.city = session.user.user_metadata?.city || '';
+                                    this.profile.pincode = session.user.user_metadata?.pincode || '';
+
+                                    try {
+                                        // SMART BACKGROUND AUTO-LINK: Decoupled to prevent blocking order fetch
+                                        window.supabase
+                                            .from('orders')
+                                            .update({ user_id: session.user.id })
+                                            .eq('customer_email', session.user.email)
+                                            .is('user_id', null)
+                                            .then(() => console.log('Historical guest orders synced.'))
+                                            .catch(err => console.warn('Silent sync skipped:', err));
+
+                                        // Fetch orders instantly
+                                        const { data, error } = await window.supabase
+                                            .from('orders')
+                                            .select('*')
+                                            .eq('user_id', session.user.id)
+                                            .order('created_at', { ascending: false });
+                                            
+                                        if (error) throw error;
+                                        this.orders = data || [];
+                                        
+                                        if (this.orders.length > 0) {
+                                            this.expandedOrderId = this.orders[0].id;
+                                        }
+                                    } catch (err) {
+                                        console.error('Error fetching orders:', err);
+                                        this.apiError = err.message || 'Row Level Security policy validation failed.';
+                                    } finally {
+                                        this.isLoading = false;
+                                    }
+                                } else {
+                                    window.location.href = '/login';
+                                }
+                            }
+                        }, 50);
+
+                        setTimeout(() => {
                             clearInterval(checkSession);
+                            if (this.isLoading) {
+                                this.isLoading = false;
+                                if (!window.Alpine?.store('auth')?.user) {
+                                    window.location.href = '/login';
+                                }
+                            }
+                        }, 4000);
+                    },
+                    
+                    async saveAddress() {
+                        this.isSavingAddress = true;
+                        try {
+                            const { error } = await window.supabase.auth.updateUser({
+                                data: {
+                                    firstName: this.profile.firstName,
+                                    lastName: this.profile.lastName,
+                                    address: this.profile.address,
+                                    city: this.profile.city,
+                                    pincode: this.profile.pincode
+                                }
+                            });
+                            
+                            if (error) throw error;
+                            this.isEditingAddress = false;
                             
                             const { data: { session } } = await window.supabase.auth.getSession();
+                            if (session) window.Alpine.store('auth').user = session.user;
                             
-                            if (session && session.user) {
-                                this.profile.firstName = session.user.user_metadata?.firstName || '';
-                                this.profile.lastName = session.user.user_metadata?.lastName || '';
-                                this.profile.address = session.user.user_metadata?.address || '';
-                                this.profile.city = session.user.user_metadata?.city || '';
-                                this.profile.pincode = session.user.user_metadata?.pincode || '';
+                            window.Alpine.store('notifications').add('Address saved successfully');
+                        } catch (err) {
+                            alert('Failed to save address: ' + err.message);
+                        } finally {
+                            this.isSavingAddress = false;
+                        }
+                    },
 
-                                try {
-                                    // SMART BACKGROUND AUTO-LINK: Decoupled to prevent blocking order fetch
-                                    window.supabase
-                                        .from('orders')
-                                        .update({ user_id: session.user.id })
-                                        .eq('customer_email', session.user.email)
-                                        .is('user_id', null)
-                                        .then(() => console.log('Historical guest orders synced.'))
-                                        .catch(err => console.warn('Silent sync skipped:', err));
+                    async lookupInvoice() {
+                        this.lookupError = '';
+                        this.lookupSuccessOrder = null;
+                        this.isLookingUp = true;
 
-                                    // Fetch orders instantly
-                                    const { data, error } = await window.supabase
-                                        .from('orders')
-                                        .select('*')
-                                        .eq('user_id', session.user.id)
-                                        .order('created_at', { ascending: false });
-                                        
-                                    if (error) throw error;
-                                    this.orders = data || [];
-                                    
-                                    if (this.orders.length > 0) {
-                                        this.expandedOrderId = this.orders[0].id;
-                                    }
-                                } catch (err) {
-                                    console.error('Error fetching orders:', err);
-                                    this.apiError = err.message || 'Row Level Security policy validation failed.';
-                                } finally {
-                                    this.isLoading = false;
-                                }
+                        if (!this.lookupId || !this.lookupEmail) {
+                            this.lookupError = 'Please enter both Order ID and Email Address.';
+                            this.isLookingUp = false;
+                            return;
+                        }
+
+                        try {
+                            const { data, error } = await window.supabase
+                                .from('orders')
+                                .select('*')
+                                .eq('id', this.lookupId.trim())
+                                .eq('customer_email', this.lookupEmail.trim().toLowerCase())
+                                .maybeSingle();
+
+                            if (error) throw error;
+
+                            if (!data) {
+                                this.lookupError = 'No matching order found. Please check your credentials and try again.';
                             } else {
-                                window.location.href = '/login';
+                                this.lookupSuccessOrder = data;
+                                window.Alpine.store('notifications').add('Order Located successfully!');
                             }
+                        } catch (err) {
+                            this.lookupError = err.message;
+                        } finally {
+                            this.isLookingUp = false;
                         }
-                    }, 50);
+                    },
 
-                    setTimeout(() => {
-                        clearInterval(checkSession);
-                        if (this.isLoading) {
-                            this.isLoading = false;
-                            if (!window.Alpine?.store('auth')?.user) {
-                                window.location.href = '/login';
-                            }
-                        }
-                    }, 4000);
-                },
-                
-                async saveAddress() {
-                    this.isSavingAddress = true;
-                    try {
-                        const { error } = await window.supabase.auth.updateUser({
-                            data: {
-                                firstName: this.profile.firstName,
-                                lastName: this.profile.lastName,
-                                address: this.profile.address,
-                                city: this.profile.city,
-                                pincode: this.profile.pincode
-                            }
+                    toggleOrder(orderId) {
+                        this.expandedOrderId = this.expandedOrderId === orderId ? null : orderId;
+                    },
+
+                    printInvoice(order) {
+                        const printWindow = window.open('', '_blank');
+                        const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+                        
+                        let itemsHtml = '';
+                        items.forEach(item => {
+                            const qty = item.quantity || 1;
+                            const price = item.price || 0;
+                            const total = (price * qty).toLocaleString('en-IN');
+                            itemsHtml += '<tr style="border-bottom: 1px solid #eee;">' +
+                                '<td style="padding: 12px 0; font-family: sans-serif; font-size: 13px; color: #111;">' + (item.name || '') + ' (' + (item.volume || '50ml') + ')</td>' +
+                                '<td style="padding: 12px 0; text-align: center; font-family: sans-serif; font-size: 13px; color: #555;">' + qty + '</td>' +
+                                '<td style="padding: 12px 0; text-align: right; font-family: sans-serif; font-size: 13px; color: #111; font-weight: 500;">₹' + total + '</td>' +
+                            '</tr>';
                         });
+
+                        const orderDate = new Date(order.created_at).toLocaleDateString('en-IN', {
+                            day: 'numeric', month: 'long', year: 'numeric'
+                        });
+
+                        const safeAddress = order.shipping_address ? order.shipping_address.split(' [PAID')[0] : '';
+                        const totalAmt = Number(order.total_amount || 0).toLocaleString('en-IN');
+
+                        const html = [
+                            '<!DOCTYPE html>',
+                            '<html><head><title>Aju_Invoice_#' + order.id + '</title>',
+                            '<sty' + 'le>',
+                            '@page { size: A4; margin: 20mm; }',
+                            'body { font-family: "Georgia", serif; color: #111; margin: 0; padding: 0; background-color: #fff; }',
+                            '.invoice-card { max-width: 800px; margin: 0 auto; padding: 20px; }',
+                            '.header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #111; padding-bottom: 30px; margin-bottom: 40px; }',
+                            '.logo { font-size: 28px; font-weight: bold; letter-spacing: 0.2em; text-transform: uppercase; margin: 0; }',
+                            '.invoice-title { font-size: 14px; text-transform: uppercase; letter-spacing: 0.15em; color: #777; font-weight: bold; margin-top: 5px; }',
+                            '.meta-details { text-align: right; font-family: sans-serif; font-size: 12px; line-height: 1.6; color: #555; }',
+                            '.section-title { font-family: sans-serif; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.15em; color: #777; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 8px; }',
+                            '.grid-info { display: grid; grid-template-cols: 1fr 1fr; gap: 40px; margin-bottom: 40px; }',
+                            '.address-box p { margin: 4px 0; font-family: sans-serif; font-size: 12px; color: #333; line-height: 1.5; }',
+                            '.address-box strong { font-family: "Georgia", serif; font-size: 13px; color: #111; display: block; margin-bottom: 6px; }',
+                            'table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }',
+                            'th { font-family: sans-serif; font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.1em; color: #777; border-bottom: 1px solid #111; padding-bottom: 10px; text-align: left; }',
+                            '.totals-table { width: 45%; margin-left: auto; font-family: sans-serif; font-size: 13px; }',
+                            '.totals-table td { padding: 8px 0; }',
+                            '.totals-table tr.grand-total { font-family: "Georgia", serif; font-size: 18px; font-weight: bold; border-top: 1px solid #111; }',
+                            '.totals-table tr.grand-total td { padding-top: 15px; }',
+                            '.footer { border-top: 1px solid #eee; padding-top: 20px; margin-top: 60px; text-align: center; font-family: sans-serif; font-size: 11px; color: #aaa; letter-spacing: 0.05em; }',
+                            '</sty' + 'le></head><body>',
+                            '<div class="invoice-card">',
+                            '<div class="header"><div><h1 class="logo">AJU</h1><div class="invoice-title">Official Invoice</div></div>',
+                            '<div class="meta-details"><p style="margin: 0; font-weight: bold; color: #111;">Order Ref: #000' + order.id + '</p>',
+                            '<p style="margin: 3px 0 0 0;">Date: ' + orderDate + '</p>',
+                            '<p style="margin: 3px 0 0 0;">Payment: Verified Transaction</p></div></div>',
+                            '<div class="grid-info"><div class="address-box"><div class="section-title">Billing & Shipping Details</div>',
+                            '<strong>' + (order.customer_name || '') + '</strong><p>' + (order.customer_email || '') + '</p>',
+                            '<p>' + safeAddress + '</p></div>',
+                            '<div class="address-box" style="text-align: right;"><div class="section-title" style="text-align: right;">Merchant House</div>',
+                            '<strong>Aju Perfumes</strong><p>perfumesaju@gmail.com</p><p>Kerala, India</p><p>Contact: +91 8075304432</p></div></div>',
+                            '<div class="section-title">Purchased Fragrances</div><table><thead><tr>',
+                            '<th style="width: 60%;">Fragrance Details</th><th style="width: 15%; text-align: center;">Qty</th><th style="width: 25%; text-align: right;">Amount</th>',
+                            '</tr></thead><tbody>' + itemsHtml + '</tbody></table>',
+                            '<table class="totals-table"><tr><td style="color: #777; padding: 6px 0;">Subtotal</td>',
+                            '<td style="text-align: right; font-weight: 500;">₹' + totalAmt + '</td></tr>',
+                            '<tr><td style="color: #777; padding: 6px 0;">Shipping & Concierge</td>',
+                            '<td style="text-align: right; color: #22c55e; font-weight: bold; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;">Complimentary</td></tr>',
+                            '<tr class="grand-total"><td style="color: #111; font-weight: normal; padding-top: 15px; font-size: 16px;">Total Amount</td>',
+                            '<td style="text-align: right; color: #111; padding-top: 15px; font-size: 16px;">₹' + totalAmt + '</td></tr></table>',
+                            '<div class="footer">Thank you for your appreciation of Aju fine craftsmanship.</div></div>',
+                            '<scr' + 'ipt>window.onload = function() { window.print(); setTimeout(function() { window.close(); }, 500); };</scr' + 'ipt>',
+                            '</body></html>'
+                        ].join('');
                         
-                        if (error) throw error;
-                        this.isEditingAddress = false;
-                        
-                        const { data: { session } } = await window.supabase.auth.getSession();
-                        if (session) window.Alpine.store('auth').user = session.user;
-                        
-                        window.Alpine.store('notifications').add('Address saved successfully');
-                    } catch (err) {
-                        alert('Failed to save address: ' + err.message);
-                    } finally {
-                        this.isSavingAddress = false;
-                    }
-                },
+                        printWindow.document.write(html);
+                        printWindow.document.close();
+                    },
 
-                async lookupInvoice() {
-                    this.lookupError = '';
-                    this.lookupSuccessOrder = null;
-                    this.isLookingUp = true;
+                    get totalSpent() {
+                        return this.orders.reduce((sum, order) => sum + Number(order.total_amount || 0), 0);
+                    },
 
-                    if (!this.lookupId || !this.lookupEmail) {
-                        this.lookupError = 'Please enter both Order ID and Email Address.';
-                        this.isLookingUp = false;
-                        return;
-                    }
-
-                    try {
-                        const { data, error } = await window.supabase
-                            .from('orders')
-                            .select('*')
-                            .eq('id', this.lookupId.trim())
-                            .eq('customer_email', this.lookupEmail.trim().toLowerCase())
-                            .maybeSingle();
-
-                        if (error) throw error;
-
-                        if (!data) {
-                            this.lookupError = 'No matching order found. Please check your credentials and try again.';
-                        } else {
-                            this.lookupSuccessOrder = data;
-                            window.Alpine.store('notifications').add('Order Located successfully!');
-                        }
-                    } catch (err) {
-                        this.lookupError = err.message;
-                    } finally {
-                        this.isLookingUp = false;
-                    }
-                },
-
-                toggleOrder(orderId) {
-                    this.expandedOrderId = this.expandedOrderId === orderId ? null : orderId;
-                },
-
-                printInvoice(order) {
-                    const printWindow = window.open('', '_blank');
-                    const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+                    get memberTier() {
+                        const total = this.totalSpent;
+                        if (total >= 15000) return { name: 'Vanguard Elite', color: 'text-purple-600 bg-purple-50 border-purple-100' };
+                        if (total >= 8000) return { name: 'Signature Gold', color: 'text-amber-600 bg-amber-50 border-amber-100' };
+                        if (total >= 3000) return { name: 'Privé Silver', color: 'text-slate-600 bg-slate-50 border-slate-100' };
+                        return { name: 'House Collector', color: 'text-gray-600 bg-gray-50 border-gray-100' };
+                    },
                     
-                    let itemsHtml = '';
-                    items.forEach(item => {
-                        const qty = item.quantity || 1;
-                        const price = item.price || 0;
-                        const total = (price * qty).toLocaleString('en-IN');
-                        itemsHtml += '<tr style="border-bottom: 1px solid #eee;">' +
-                            '<td style="padding: 12px 0; font-family: sans-serif; font-size: 13px; color: #111;">' + (item.name || '') + ' (' + (item.volume || '50ml') + ')</td>' +
-                            '<td style="padding: 12px 0; text-align: center; font-family: sans-serif; font-size: 13px; color: #555;">' + qty + '</td>' +
-                            '<td style="padding: 12px 0; text-align: right; font-family: sans-serif; font-size: 13px; color: #111; font-weight: 500;">₹' + total + '</td>' +
-                        '</tr>';
-                    });
-
-                    const orderDate = new Date(order.created_at).toLocaleDateString('en-IN', {
-                        day: 'numeric', month: 'long', year: 'numeric'
-                    });
-
-                    const safeAddress = order.shipping_address ? order.shipping_address.split(' [PAID')[0] : '';
-                    const totalAmt = Number(order.total_amount || 0).toLocaleString('en-IN');
-
-                    const html = [
-                        '<!DOCTYPE html>',
-                        '<html><head><title>Aju_Invoice_#' + order.id + '</title>',
-                        '<sty' + 'le>',
-                        '@page { size: A4; margin: 20mm; }',
-                        'body { font-family: "Georgia", serif; color: #111; margin: 0; padding: 0; background-color: #fff; }',
-                        '.invoice-card { max-width: 800px; margin: 0 auto; padding: 20px; }',
-                        '.header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #111; padding-bottom: 30px; margin-bottom: 40px; }',
-                        '.logo { font-size: 28px; font-weight: bold; letter-spacing: 0.2em; text-transform: uppercase; margin: 0; }',
-                        '.invoice-title { font-size: 14px; text-transform: uppercase; letter-spacing: 0.15em; color: #777; font-weight: bold; margin-top: 5px; }',
-                        '.meta-details { text-align: right; font-family: sans-serif; font-size: 12px; line-height: 1.6; color: #555; }',
-                        '.section-title { font-family: sans-serif; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.15em; color: #777; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 8px; }',
-                        '.grid-info { display: grid; grid-template-cols: 1fr 1fr; gap: 40px; margin-bottom: 40px; }',
-                        '.address-box p { margin: 4px 0; font-family: sans-serif; font-size: 12px; color: #333; line-height: 1.5; }',
-                        '.address-box strong { font-family: "Georgia", serif; font-size: 13px; color: #111; display: block; margin-bottom: 6px; }',
-                        'table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }',
-                        'th { font-family: sans-serif; font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.1em; color: #777; border-bottom: 1px solid #111; padding-bottom: 10px; text-align: left; }',
-                        '.totals-table { width: 45%; margin-left: auto; font-family: sans-serif; font-size: 13px; }',
-                        '.totals-table td { padding: 8px 0; }',
-                        '.totals-table tr.grand-total { font-family: "Georgia", serif; font-size: 18px; font-weight: bold; border-top: 1px solid #111; }',
-                        '.totals-table tr.grand-total td { padding-top: 15px; }',
-                        '.footer { border-top: 1px solid #eee; padding-top: 20px; margin-top: 60px; text-align: center; font-family: sans-serif; font-size: 11px; color: #aaa; letter-spacing: 0.05em; }',
-                        '</sty' + 'le></head><body>',
-                        '<div class="invoice-card">',
-                        '<div class="header"><div><h1 class="logo">AJU</h1><div class="invoice-title">Official Invoice</div></div>',
-                        '<div class="meta-details"><p style="margin: 0; font-weight: bold; color: #111;">Order Ref: #000' + order.id + '</p>',
-                        '<p style="margin: 3px 0 0 0;">Date: ' + orderDate + '</p>',
-                        '<p style="margin: 3px 0 0 0;">Payment: Verified Transaction</p></div></div>',
-                        '<div class="grid-info"><div class="address-box"><div class="section-title">Billing & Shipping Details</div>',
-                        '<strong>' + (order.customer_name || '') + '</strong><p>' + (order.customer_email || '') + '</p>',
-                        '<p>' + safeAddress + '</p></div>',
-                        '<div class="address-box" style="text-align: right;"><div class="section-title" style="text-align: right;">Merchant House</div>',
-                        '<strong>Aju Perfumes</strong><p>perfumesaju@gmail.com</p><p>Kerala, India</p><p>Contact: +91 8075304432</p></div></div>',
-                        '<div class="section-title">Purchased Fragrances</div><table><thead><tr>',
-                        '<th style="width: 60%;">Fragrance Details</th><th style="width: 15%; text-align: center;">Qty</th><th style="width: 25%; text-align: right;">Amount</th>',
-                        '</tr></thead><tbody>' + itemsHtml + '</tbody></table>',
-                        '<table class="totals-table"><tr><td style="color: #777; padding: 6px 0;">Subtotal</td>',
-                        '<td style="text-align: right; font-weight: 500;">₹' + totalAmt + '</td></tr>',
-                        '<tr><td style="color: #777; padding: 6px 0;">Shipping & Concierge</td>',
-                        '<td style="text-align: right; color: #22c55e; font-weight: bold; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;">Complimentary</td></tr>',
-                        '<tr class="grand-total"><td style="color: #111; font-weight: normal; padding-top: 15px; font-size: 16px;">Total Amount</td>',
-                        '<td style="text-align: right; color: #111; padding-top: 15px; font-size: 16px;">₹' + totalAmt + '</td></tr></table>',
-                        '<div class="footer">Thank you for your appreciation of Aju fine craftsmanship.</div></div>',
-                        '<scr' + 'ipt>window.onload = function() { window.print(); setTimeout(function() { window.close(); }, 500); };</scr' + 'ipt>',
-                        '</body></html>'
-                    ].join('');
-                    
-                    printWindow.document.write(html);
-                    printWindow.document.close();
-                },
-
-                get totalSpent() {
-                    return this.orders.reduce((sum, order) => sum + Number(order.total_amount || 0), 0);
-                },
-
-                get memberTier() {
-                    const total = this.totalSpent;
-                    if (total >= 15000) return { name: 'Vanguard Elite', color: 'text-purple-600 bg-purple-50 border-purple-100' };
-                    if (total >= 8000) return { name: 'Signature Gold', color: 'text-amber-600 bg-amber-50 border-amber-100' };
-                    if (total >= 3000) return { name: 'Privé Silver', color: 'text-slate-600 bg-slate-50 border-slate-100' };
-                    return { name: 'House Collector', color: 'text-gray-600 bg-gray-50 border-gray-100' };
-                },
-                
-                formatDate(rawDate) {
-                    if (!rawDate) return 'Pending...';
-                    const date = new Date(rawDate);
-                    if (isNaN(date.getTime())) return 'Pending...';
-                    return date.toLocaleDateString('en-IN', {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric'
-                    });
-                }
-            }));
-        });
-    </script>
-    
-    <div class="max-w-[1200px] mx-auto px-6 lg:px-12 pb-32 pt-16 md:pt-24" x-data="accountPortal" x-init="fetchUserOrders()">
+                    formatDate(rawDate) {
+                        if (!rawDate) return 'Pending...';
+                        const date = new Date(rawDate);
+                        if (isNaN(date.getTime())) return 'Pending...';
+                        return date.toLocaleDateString('en-IN', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric'
+                        });
+                    }
+                }));
+            });
+        </script>
         
-        <!-- Loading Screen -->
-        <div x-show="isLoading" class="min-h-[60vh] flex flex-col items-center justify-center text-center">
-            <svg class="animate-spin h-8 w-8 text-black mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <p class="text-xs uppercase tracking-[0.2em] font-bold text-gray-400">Verifying Credentials...</p>
-        </div>
-
-        <!-- Logged In Dashboard -->
-        <div x-show="$store.auth.user && !isLoading" style="display: none;" x-transition:enter="transition ease-out duration-500">
-            <!-- Profile Greeting Header -->
-            <div class="border-b border-gray-100 pb-12 mb-12 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
-                <div>
-                    <span class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-2">My Profile</span>
-                    <h1 class="text-3xl md:text-5xl font-serif font-medium text-gray-900" x-text="'Welcome, ' + ($store.auth.email ? $store.auth.email.split('@')[0] : 'Guest')"></h1>
-                    <p class="text-xs text-gray-500 mt-2" x-text="$store.auth.email || ''"></p>
-                </div>
-                <div class="flex gap-4">
-                    <button @click="showDebug = !showDebug" class="text-[10px] text-gray-500 hover:text-black uppercase tracking-widest font-bold border border-gray-200 px-6 py-3 transition-colors">
-                        Diagnostics Panel
-                    </button>
-                    <button @click="$store.auth.logout()" class="text-[10px] text-red-600 hover:text-red-400 uppercase tracking-widest font-bold border border-red-100 hover:border-red-300 px-6 py-3 transition-colors md:self-start">
-                        Sign Out
-                    </button>
-                </div>
+        <div class="max-w-[1200px] mx-auto px-6 lg:px-12 pb-32 pt-16 md:pt-24" x-data="accountPortal" x-init="fetchUserOrders()">
+            
+            <!-- Loading Screen -->
+            <div x-show="isLoading" class="min-h-[60vh] flex flex-col items-center justify-center text-center">
+                <svg class="animate-spin h-8 w-8 text-black mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <p class="text-xs uppercase tracking-[0.2em] font-bold text-gray-400">Verifying Credentials...</p>
             </div>
 
-            <!-- Diagnostics Panel -->
-            <div x-show="showDebug" x-transition class="mb-12 p-6 bg-slate-900 text-slate-300 rounded-sm font-mono text-xs space-y-3" style="display: none;">
-                <p class="text-white border-b border-slate-800 pb-2 uppercase tracking-wider font-bold">Diagnostics Panel</p>
-                <p>🟢 Supabase Client: <span class="text-green-400" x-text="window.supabase ? 'Connected' : 'Missing'"></span></p>
-                <p>👤 Supabase User ID: <span class="text-yellow-400" x-text="$store.auth.user?.id || 'No authenticated ID found'"></span></p>
-                <p>🔍 Found Orders: <span class="text-cyan-400" x-text="orders.length"></span></p>
-                <p x-show="apiError" class="text-red-400 font-bold">❌ Error Log: <span x-text="apiError"></span></p>
-            </div>
+            <!-- Logged In Dashboard -->
+            <div x-show="$store.auth.user && !isLoading" style="display: none;" x-transition:enter="transition ease-out duration-500">
+                <!-- Profile Greeting Header -->
+                <div class="border-b border-gray-100 pb-12 mb-12 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+                    <div>
+                        <span class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-2">My Profile</span>
+                        <h1 class="text-3xl md:text-5xl font-serif font-medium text-gray-900" x-text="'Welcome, ' + ($store.auth.email ? $store.auth.email.split('@')[0] : 'Guest')"></h1>
+                        <p class="text-xs text-gray-500 mt-2" x-text="$store.auth.email || ''"></p>
+                    </div>
+                    <div class="flex gap-4">
+                        <button @click="showDebug = !showDebug" class="text-[10px] text-gray-500 hover:text-black uppercase tracking-widest font-bold border border-gray-200 px-6 py-3 transition-colors">
+                            Diagnostics Panel
+                        </button>
+                        <button @click="$store.auth.logout()" class="text-[10px] text-red-600 hover:text-red-400 uppercase tracking-widest font-bold border border-red-100 hover:border-red-300 px-6 py-3 transition-colors md:self-start">
+                            Sign Out
+                        </button>
+                    </div>
+                </div>
 
-            <!-- Client Experience Overview -->
-            <div x-show="orders.length > 0" class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-16" style="display: none;">
-                <div class="border border-gray-100 p-6 bg-white rounded-sm shadow-sm flex flex-col justify-between">
-                    <span class="text-[9px] text-gray-400 uppercase tracking-widest font-bold">Lifetime Orders</span>
-                    <p class="text-3xl font-serif font-semibold text-gray-900 mt-4" x-text="orders.length"></p>
+                <!-- Diagnostics Panel -->
+                <div x-show="showDebug" x-transition class="mb-12 p-6 bg-slate-900 text-slate-300 rounded-sm font-mono text-xs space-y-3" style="display: none;">
+                    <p class="text-white border-b border-slate-800 pb-2 uppercase tracking-wider font-bold">Diagnostics Panel</p>
+                    <p>🟢 Supabase Client: <span class="text-green-400" x-text="window.supabase ? 'Connected' : 'Missing'"></span></p>
+                    <p>👤 Supabase User ID: <span class="text-yellow-400" x-text="$store.auth.user?.id || 'No authenticated ID found'"></span></p>
+                    <p>🔍 Found Orders: <span class="text-cyan-400" x-text="orders.length"></span></p>
+                    <p x-show="apiError" class="text-red-400 font-bold">❌ Error Log: <span x-text="apiError"></span></p>
                 </div>
-                <div class="border border-gray-100 p-6 bg-white rounded-sm shadow-sm flex flex-col justify-between">
-                    <span class="text-[9px] text-gray-400 uppercase tracking-widest font-bold">Lifetime Investment</span>
-                    <p class="text-3xl font-serif font-semibold text-gray-900 mt-4" x-text="'₹' + totalSpent.toLocaleString()"></p>
-                </div>
-                <div class="border border-gray-100 p-6 bg-white rounded-sm shadow-sm flex flex-col justify-between">
-                    <span class="text-[9px] text-gray-400 uppercase tracking-widest font-bold">House Privilege Tier</span>
-                    <span :class="memberTier.color" class="w-fit text-[10px] uppercase tracking-widest font-bold border px-3 py-1.5 mt-4 rounded-full text-center block" x-text="memberTier.name"></span>
-                </div>
-            </div>
 
-            <!-- Dashboard Content -->
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-16 items-start">
-                
-                <!-- Orders List Side (Left) -->
-                <div class="lg:col-span-8 space-y-12">
+                <!-- Client Experience Overview -->
+                <div x-show="orders.length > 0" class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-16" style="display: none;">
+                    <div class="border border-gray-100 p-6 bg-white rounded-sm shadow-sm flex flex-col justify-between">
+                        <span class="text-[9px] text-gray-400 uppercase tracking-widest font-bold">Lifetime Orders</span>
+                        <p class="text-3xl font-serif font-semibold text-gray-900 mt-4" x-text="orders.length"></p>
+                    </div>
+                    <div class="border border-gray-100 p-6 bg-white rounded-sm shadow-sm flex flex-col justify-between">
+                        <span class="text-[9px] text-gray-400 uppercase tracking-widest font-bold">Lifetime Investment</span>
+                        <p class="text-3xl font-serif font-semibold text-gray-900 mt-4" x-text="'₹' + totalSpent.toLocaleString()"></p>
+                    </div>
+                    <div class="border border-gray-100 p-6 bg-white rounded-sm shadow-sm flex flex-col justify-between">
+                        <span class="text-[9px] text-gray-400 uppercase tracking-widest font-bold">House Privilege Tier</span>
+                        <span :class="memberTier.color" class="w-fit text-[10px] uppercase tracking-widest font-bold border px-3 py-1.5 mt-4 rounded-full text-center block" x-text="memberTier.name"></span>
+                    </div>
+                </div>
+
+                <!-- Dashboard Content -->
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-16 items-start">
                     
-                    <section class="space-y-6">
-                        <h2 class="text-xs font-bold uppercase tracking-[0.2em] text-gray-900 pb-4 border-b border-gray-100">Order History</h2>
+                    <!-- Orders List Side (Left) -->
+                    <div class="lg:col-span-8 space-y-12">
+                        
+                        <section class="space-y-6">
+                            <h2 class="text-xs font-bold uppercase tracking-[0.2em] text-gray-900 pb-4 border-b border-gray-100">Order History</h2>
 
-                        <!-- Error State Panel -->
-                        <div x-show="apiError" style="display: none;" class="p-6 bg-red-50 border border-red-100 rounded-sm">
-                            <p class="text-xs text-red-700 font-bold uppercase tracking-widest mb-2">Supabase Policy Block</p>
-                            <p class="text-xs text-red-600 leading-relaxed font-light mb-4" x-text="apiError"></p>
-                        </div>
+                            <!-- Error State Panel -->
+                            <div x-show="apiError" style="display: none;" class="p-6 bg-red-50 border border-red-100 rounded-sm">
+                                <p class="text-xs text-red-700 font-bold uppercase tracking-widest mb-2">Supabase Policy Block</p>
+                                <p class="text-xs text-red-600 leading-relaxed font-light mb-4" x-text="apiError"></p>
+                            </div>
 
-                        <!-- Empty State -->
-                        <div x-show="orders.length === 0 && !apiError" style="display: none;" class="py-16 text-center border border-dashed border-gray-100 rounded-sm">
-                            <p class="font-serif italic text-lg text-gray-400 mb-6 font-light">No orders placed yet under this account.</p>
-                            <p class="text-xs text-gray-400 max-w-sm mx-auto mb-8 font-light">Make sure to complete a purchase while logged in so your orders securely bind to your profile.</p>
-                            <a href="/#shop" class="inline-block bg-black text-white px-8 py-3 uppercase text-[10px] font-bold tracking-[0.2em] hover:bg-gray-800 transition-colors">Browse Perfumes</a>
-                        </div>
+                            <!-- Empty State -->
+                            <div x-show="orders.length === 0 && !apiError" style="display: none;" class="py-16 text-center border border-dashed border-gray-100 rounded-sm">
+                                <p class="font-serif italic text-lg text-gray-400 mb-6 font-light">No orders placed yet under this account.</p>
+                                <p class="text-xs text-gray-400 max-w-sm mx-auto mb-8 font-light">Make sure to complete a purchase while logged in so your orders securely bind to your profile.</p>
+                                <a href="/#shop" class="inline-block bg-black text-white px-8 py-3 uppercase text-[10px] font-bold tracking-[0.2em] hover:bg-gray-800 transition-colors">Browse Perfumes</a>
+                            </div>
 
-                        <!-- Orders Accordion/Grid -->
-                        <div x-show="orders.length > 0" class="space-y-6" style="display: none;">
-                            <template x-for="order in orders" :key="order.id">
-                                <div class="border border-gray-100 hover:border-gray-200 transition-all bg-white shadow-sm hover:shadow-md rounded-sm overflow-hidden">
-                                    
-                                    <!-- Accordion Header -->
-                                    <div 
-                                        @click="toggleOrder(order.id)" 
-                                        class="p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-gray-50 bg-[#fafafa]/50 cursor-pointer select-none group/header"
-                                    >
-                                        <div class="grid grid-cols-2 md:grid-cols-4 gap-6 flex-1">
-                                            <div>
-                                                <p class="text-[9px] text-gray-400 uppercase tracking-widest font-bold mb-1">Order Date</p>
-                                                <p class="text-xs text-gray-900 font-medium" x-text="formatDate(order.created_at)"></p>
-                                            </div>
-                                            <div>
-                                                <p class="text-[9px] text-gray-400 uppercase tracking-widest font-bold mb-1">Order Number</p>
-                                                <p class="text-xs text-gray-900 font-medium" x-text="'#000' + String(order.id)"></p>
-                                            </div>
-                                            <div>
-                                                <p class="text-[9px] text-gray-400 uppercase tracking-widest font-bold mb-1">Total Paid</p>
-                                                <p class="text-xs font-serif text-gray-900 font-semibold" x-text="'₹' + order.total_amount.toLocaleString()"></p>
-                                            </div>
-                                            <div class="flex items-center gap-3">
-                                                <div class="flex-1">
-                                                    <p class="text-[9px] text-gray-400 uppercase tracking-widest font-bold mb-1">Delivery Status</p>
-                                                    <span 
-                                                        :class="{
-                                                            'bg-gray-100 text-gray-800 border-gray-200': order.status === 'placed',
-                                                            'bg-blue-50 text-blue-800 border-blue-100': order.status === 'accepted',
-                                                            'bg-amber-50 text-amber-800 border-amber-100': order.status === 'shipped',
-                                                            'bg-green-50 text-green-800 border-green-100': order.status === 'delivered'
-                                                        }"
-                                                        class="inline-block text-[9px] uppercase tracking-widest font-bold border px-3 py-1 rounded-full text-center" 
-                                                        x-text="order.status"
-                                                    ></span>
+                            <!-- Orders Accordion/Grid -->
+                            <div x-show="orders.length > 0" class="space-y-6" style="display: none;">
+                                <template x-for="order in orders" :key="order.id">
+                                    <div class="border border-gray-100 hover:border-gray-200 transition-all bg-white shadow-sm hover:shadow-md rounded-sm overflow-hidden">
+                                        
+                                        <!-- Accordion Header -->
+                                        <div 
+                                            @click="toggleOrder(order.id)" 
+                                            class="p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-gray-50 bg-[#fafafa]/50 cursor-pointer select-none group/header"
+                                        >
+                                            <div class="grid grid-cols-2 md:grid-cols-4 gap-6 flex-1">
+                                                <div>
+                                                    <p class="text-[9px] text-gray-400 uppercase tracking-widest font-bold mb-1">Order Date</p>
+                                                    <p class="text-xs text-gray-900 font-medium" x-text="formatDate(order.created_at)"></p>
                                                 </div>
+                                                <div>
+                                                    <p class="text-[9px] text-gray-400 uppercase tracking-widest font-bold mb-1">Order Number</p>
+                                                    <p class="text-xs text-gray-900 font-medium" x-text="'#000' + String(order.id)"></p>
+                                                </div>
+                                                <div>
+                                                    <p class="text-[9px] text-gray-400 uppercase tracking-widest font-bold mb-1">Total Paid</p>
+                                                    <p class="text-xs font-serif text-gray-900 font-semibold" x-text="'₹' + order.total_amount.toLocaleString()"></p>
+                                                </div>
+                                                <div class="flex items-center gap-3">
+                                                    <div class="flex-1">
+                                                        <p class="text-[9px] text-gray-400 uppercase tracking-widest font-bold mb-1">Delivery Status</p>
+                                                        <span 
+                                                            :class="{
+                                                                'bg-gray-100 text-gray-800 border-gray-200': order.status === 'placed',
+                                                                'bg-blue-50 text-blue-800 border-blue-100': order.status === 'accepted',
+                                                                'bg-amber-50 text-amber-800 border-amber-100': order.status === 'shipped',
+                                                                'bg-green-50 text-green-800 border-green-100': order.status === 'delivered'
+                                                            }"
+                                                            class="inline-block text-[9px] uppercase tracking-widest font-bold border px-3 py-1 rounded-full text-center" 
+                                                            x-text="order.status"
+                                                        ></span>
+                                                    </div>
 
-                                                <!-- DIRECT INVOICE TRIGGER ON ORDER ROW -->
+                                                    <!-- DIRECT INVOICE TRIGGER ON ORDER ROW -->
+                                                    <button 
+                                                        @click.stop="printInvoice(order)"
+                                                        class="px-3.5 py-2 border-2 border-black hover:bg-black hover:text-white rounded-md text-[9px] font-extrabold uppercase tracking-wider transition-colors shadow-sm bg-white text-black"
+                                                        title="Instant Invoice Download"
+                                                    >
+                                                        Invoice
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="flex items-center justify-end">
+                                                <svg class="w-5 h-5 text-gray-400 group-hover:text-black transform transition-transform duration-300" :class="expandedOrderId === order.id ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 9l-7 7-7-7"></path>
+                                                </svg>
+                                            </div>
+                                        </div>
+
+                                        <!-- Accordion Details / Products -->
+                                        <div 
+                                            x-show="expandedOrderId === order.id" 
+                                            x-transition:enter="transition ease-out duration-300 transform"
+                                            x-transition:enter-start="opacity-0 -translate-y-2"
+                                            x-transition:enter-end="opacity-100 translate-y-0"
+                                            x-transition:leave="transition ease-in duration-200 transform"
+                                            x-transition:leave-start="opacity-100 translate-y-0"
+                                            x-transition:leave-end="opacity-0 -translate-y-2"
+                                            class="p-6 md:p-8 space-y-6 border-t border-gray-50"
+                                        >
+                                            <div class="flex justify-between items-center mb-4">
+                                                <h3 class="text-[9px] text-gray-400 uppercase tracking-widest font-bold">Items Ordered</h3>
                                                 <button 
                                                     @click.stop="printInvoice(order)"
-                                                    class="px-3.5 py-2 border-2 border-black hover:bg-black hover:text-white rounded-md text-[9px] font-extrabold uppercase tracking-wider transition-colors shadow-sm bg-white text-black"
-                                                    title="Instant Invoice Download"
+                                                    class="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-black border border-neutral-300 hover:border-black hover:bg-neutral-50 px-5 py-2.5 rounded-md transition-all shadow-sm"
                                                 >
-                                                    Invoice
+                                                    <svg class="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                                                    Download Invoice (PDF)
                                                 </button>
                                             </div>
-                                        </div>
-                                        
-                                        <div class="flex items-center justify-end">
-                                            <svg class="w-5 h-5 text-gray-400 group-hover:text-black transform transition-transform duration-300" :class="expandedOrderId === order.id ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 9l-7 7-7-7"></path>
-                                            </svg>
-                                        </div>
-                                    </div>
+                                            
+                                            <div class="space-y-4">
+                                                <template x-for="item in (typeof order.items === 'string' ? JSON.parse(order.items) : order.items)" :key="item.id">
+                                                    <div class="flex items-center gap-6 pb-4 border-b border-gray-50 last:border-0 last:pb-0">
+                                                        <div class="w-12 h-16 bg-gray-50 border border-gray-100 flex items-center justify-center flex-shrink-0 relative overflow-hidden">
+                                                            <span class="text-[8px] font-serif italic text-gray-400" x-text="item.name.split(' ')[0]"></span>
+                                                        </div>
+                                                        <div class="flex-1 min-w-0">
+                                                            <p class="font-serif font-medium text-sm text-gray-900 truncate" x-text="item.name"></p>
+                                                            <p class="text-[9px] text-gray-400 uppercase tracking-widest font-bold mt-1" x-text="item.volume + ' • Qty: ' + item.quantity"></p>
+                                                        </div>
+                                                        <div class="text-right flex-shrink-0">
+                                                            <p class="text-sm font-medium text-gray-900" x-text="'₹' + (item.price * item.quantity).toLocaleString()"></p>
+                                                        </div>
+                                                    </div>
+                                                </template>
+                                            </div>
 
-                                    <!-- Accordion Details / Products -->
-                                    <div 
-                                        x-show="expandedOrderId === order.id" 
-                                        x-transition:enter="transition ease-out duration-300 transform"
-                                        x-transition:enter-start="opacity-0 -translate-y-2"
-                                        x-transition:enter-end="opacity-100 translate-y-0"
-                                        x-transition:leave="transition ease-in duration-200 transform"
-                                        x-transition:leave-start="opacity-100 translate-y-0"
-                                        x-transition:leave-end="opacity-0 -translate-y-2"
-                                        class="p-6 md:p-8 space-y-6 border-t border-gray-50"
-                                    >
-                                        <div class="flex justify-between items-center mb-4">
-                                            <h3 class="text-[9px] text-gray-400 uppercase tracking-widest font-bold">Items Ordered</h3>
-                                            <button 
-                                                @click.stop="printInvoice(order)"
-                                                class="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-black border border-neutral-300 hover:border-black hover:bg-neutral-50 px-5 py-2.5 rounded-md transition-all shadow-sm"
-                                            >
-                                                <svg class="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
-                                                Download Invoice (PDF)
-                                            </button>
-                                        </div>
-                                        
-                                        <div class="space-y-4">
-                                            <template x-for="item in (typeof order.items === 'string' ? JSON.parse(order.items) : order.items)" :key="item.id">
-                                                <div class="flex items-center gap-6 pb-4 border-b border-gray-50 last:border-0 last:pb-0">
-                                                    <div class="w-12 h-16 bg-gray-50 border border-gray-100 flex items-center justify-center flex-shrink-0 relative overflow-hidden">
-                                                        <span class="text-[8px] font-serif italic text-gray-400" x-text="item.name.split(' ')[0]"></span>
-                                                    </div>
-                                                    <div class="flex-1 min-w-0">
-                                                        <p class="font-serif font-medium text-sm text-gray-900 truncate" x-text="item.name"></p>
-                                                        <p class="text-[9px] text-gray-400 uppercase tracking-widest font-bold mt-1" x-text="item.volume + ' • Qty: ' + item.quantity"></p>
-                                                    </div>
-                                                    <div class="text-right flex-shrink-0">
-                                                        <p class="text-sm font-medium text-gray-900" x-text="'₹' + (item.price * item.quantity).toLocaleString()"></p>
-                                                    </div>
+                                            <!-- Shipping Address Info -->
+                                            <div class="pt-6 mt-6 border-t border-gray-100 grid grid-cols-1 md:grid-cols-2 gap-6 text-xs text-gray-600">
+                                                <div>
+                                                    <p class="text-[9px] text-gray-400 uppercase tracking-widest font-bold mb-2">Recipient</p>
+                                                    <p class="font-medium text-gray-900" x-text="order.customer_name"></p>
                                                 </div>
-                                            </template>
+                                                <div>
+                                                    <p class="text-[9px] text-gray-400 uppercase tracking-widest font-bold mb-2">Shipping Destination</p>
+                                                    <p class="font-light leading-relaxed" x-text="order.shipping_address"></p>
+                                                </div>
+                                            </div>
                                         </div>
 
-                                        <!-- Shipping Address Info -->
-                                        <div class="pt-6 mt-6 border-t border-gray-100 grid grid-cols-1 md:grid-cols-2 gap-6 text-xs text-gray-600">
-                                            <div>
-                                                <p class="text-[9px] text-gray-400 uppercase tracking-widest font-bold mb-2">Recipient</p>
-                                                <p class="font-medium text-gray-900" x-text="order.customer_name"></p>
-                                            </div>
-                                            <div>
-                                                <p class="text-[9px] text-gray-400 uppercase tracking-widest font-bold mb-2">Shipping Destination</p>
-                                                <p class="font-light leading-relaxed" x-text="order.shipping_address"></p>
-                                            </div>
-                                        </div>
                                     </div>
-
-                                </div>
-                            </template>
-                        </div>
-                    </section>
-
-                    <!-- GUEST INVOICE SEARCH & RETRIEVAL -->
-                    <section class="border-t border-gray-200 pt-12">
-                        <h2 class="text-xs font-bold uppercase tracking-[0.2em] text-gray-900 pb-4 border-b border-gray-100 mb-6">Invoice Search & Lookup Portal</h2>
-                        <p class="text-xs text-gray-500 leading-relaxed font-light mb-6">
-                            Did you check out as a Guest, or can't find your orders? Type your Order ID and registered checkout email below to locate and print your secure invoice instantly.
-                        </p>
-
-                        <div class="bg-gray-50 border border-gray-100 p-6 rounded-sm space-y-6">
-                            
-                            <!-- Input Grid -->
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Order ID / Reference Number *</label>
-                                    <input 
-                                        type="text" 
-                                        x-model="lookupId" 
-                                        placeholder="e.g. 1" 
-                                        class="w-full p-3.5 text-xs bg-white border border-gray-200 focus:outline-none focus:border-black rounded-sm"
-                                    >
-                                </div>
-                                <div>
-                                    <label class="block text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Registered Email *</label>
-                                    <input 
-                                        type="email" 
-                                        x-model="lookupEmail" 
-                                        placeholder="e.g. customer@example.com" 
-                                        class="w-full p-3.5 text-xs bg-white border border-gray-200 focus:outline-none focus:border-black rounded-sm"
-                                    >
-                                </div>
+                                </template>
                             </div>
+                        </section>
 
-                            <div x-show="lookupError" x-transition class="p-3 bg-red-50 text-red-600 border border-red-100 text-[11px] leading-relaxed" style="display: none;" x-text="lookupError"></div>
+                        <!-- GUEST INVOICE SEARCH & RETRIEVAL -->
+                        <section class="border-t border-gray-200 pt-12">
+                            <h2 class="text-xs font-bold uppercase tracking-[0.2em] text-gray-900 pb-4 border-b border-gray-100 mb-6">Invoice Search & Lookup Portal</h2>
+                            <p class="text-xs text-gray-500 leading-relaxed font-light mb-6">
+                                Did you check out as a Guest, or can't find your orders? Type your Order ID and registered checkout email below to locate and print your secure invoice instantly.
+                            </p>
 
-                            <button 
-                                type="button" 
-                                @click="lookupInvoice()" 
-                                :disabled="isLookingUp"
-                                class="bg-black hover:bg-neutral-800 text-white text-[10px] font-bold uppercase tracking-widest py-3.5 px-6 rounded-sm transition-all disabled:opacity-40 flex items-center justify-center gap-2"
-                            >
-                                <span x-show="!isLookingUp">Find & Download Invoice</span>
-                                <span x-show="isLookingUp" style="display: none;" class="flex items-center gap-2">
-                                    <svg class="animate-spin h-3.5 w-3.5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                                    Searching...
-                                </span>
-                            </button>
-
-                            <!-- Located Display -->
-                            <div x-show="lookupSuccessOrder" x-transition class="border-t border-gray-200 pt-6 mt-6 space-y-4" style="display: none;">
-                                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 border border-emerald-100 rounded-sm">
+                            <div class="bg-gray-50 border border-gray-100 p-6 rounded-sm space-y-6">
+                                
+                                <!-- Input Grid -->
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
-                                        <p class="text-[9px] text-emerald-600 uppercase tracking-widest font-bold mb-1">Order Located Successfully!</p>
-                                        <h4 class="font-serif font-medium text-gray-900" x-text="'Order Ref: #000' + lookupSuccessOrder?.id"></h4>
-                                        <p class="text-[11px] text-gray-500 mt-1" x-text="'Total Amount paid: ₹' + Number(lookupSuccessOrder?.total_amount || 0).toLocaleString()"></p>
+                                        <label class="block text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Order ID / Reference Number *</label>
+                                        <input 
+                                            type="text" 
+                                            x-model="lookupId" 
+                                            placeholder="e.g. 1" 
+                                            class="w-full p-3.5 text-xs bg-white border border-gray-200 focus:outline-none focus:border-black rounded-sm"
+                                        >
                                     </div>
-                                    <button 
-                                        @click="printInvoice(lookupSuccessOrder)"
-                                        class="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold uppercase tracking-widest py-3 px-6 rounded-sm transition-colors shadow-sm flex items-center gap-2"
-                                    >
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                                        Print Invoice (PDF)
-                                    </button>
+                                    <div>
+                                        <label class="block text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Registered Email *</label>
+                                        <input 
+                                            type="email" 
+                                            x-model="lookupEmail" 
+                                            placeholder="e.g. customer@example.com" 
+                                            class="w-full p-3.5 text-xs bg-white border border-gray-200 focus:outline-none focus:border-black rounded-sm"
+                                        >
+                                    </div>
                                 </div>
-                            </div>
 
-                        </div>
-                    </section>
+                                <div x-show="lookupError" x-transition class="p-3 bg-red-50 text-red-600 border border-red-100 text-[11px] leading-relaxed" style="display: none;" x-text="lookupError"></div>
 
-                </div>
-
-                <!-- Account Info Panel (Right) -->
-                <div class="lg:col-span-4 bg-[#fcfcfc] border border-gray-100 rounded-sm p-8 h-fit sticky top-28">
-                    <div>
-                        <h3 class="text-xs font-bold uppercase tracking-[0.2em] text-gray-900 pb-4 border-b border-gray-100 mb-6">Security & Settings</h3>
-                        
-                        <div class="space-y-4 text-xs">
-                            <div>
-                                <p class="text-[9px] text-gray-400 uppercase tracking-widest font-bold mb-1">Login Provider</p>
-                                <p class="font-medium text-gray-900 uppercase" x-text="$store.auth.user?.app_metadata?.provider || 'Email'"></p>
-                            </div>
-                            <div>
-                                <p class="text-[9px] text-gray-400 uppercase tracking-widest font-bold mb-1">Account Created</p>
-                                <p class="font-medium text-gray-900" x-text="formatDate($store.auth.user?.created_at)"></p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Editable Shipping Address Block -->
-                    <div class="mt-8 pt-8 border-t border-gray-100">
-                        <div class="flex justify-between items-center mb-6 pb-4 border-b border-gray-100">
-                            <h3 class="text-xs font-bold uppercase tracking-[0.2em] text-gray-900">Saved Address</h3>
-                            <button x-show="!isEditingAddress" @click="isEditingAddress = true" class="text-[9px] text-gray-500 hover:text-black uppercase tracking-widest font-bold transition-colors">Edit</button>
-                        </div>
-
-                        <!-- View Address Mode -->
-                        <div x-show="!isEditingAddress" class="text-xs space-y-2 text-gray-600">
-                            <template x-if="profile.address">
-                                <div>
-                                    <p class="font-medium text-gray-900 mb-1" x-text="profile.firstName + ' ' + profile.lastName"></p>
-                                    <p x-text="profile.address"></p>
-                                    <p x-text="profile.city + ' - ' + profile.pincode"></p>
-                                </div>
-                            </template>
-                            <template x-if="!profile.address">
-                                <p class="text-gray-400 font-light italic">No default address saved. Add one to save time at checkout.</p>
-                            </template>
-                        </div>
-
-                        <!-- Edit Address Mode -->
-                        <div x-show="isEditingAddress" style="display: none;" class="space-y-4">
-                            <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1">First Name</label>
-                                    <input type="text" x-model="profile.firstName" class="w-full p-3 text-xs bg-white border border-gray-200 rounded-sm focus:border-black focus:outline-none transition-colors">
-                                </div>
-                                <div>
-                                    <label class="block text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1">Last Name</label>
-                                    <input type="text" x-model="profile.lastName" class="w-full p-3 text-xs bg-white border border-gray-200 rounded-sm focus:border-black focus:outline-none transition-colors">
-                                </div>
-                            </div>
-                            <div>
-                                <label class="block text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1">Street Address</label>
-                                <input type="text" x-model="profile.address" class="w-full p-3 text-xs bg-white border border-gray-200 rounded-sm focus:border-black focus:outline-none transition-colors">
-                            </div>
-                            <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1">City</label>
-                                    <input type="text" x-model="profile.city" class="w-full p-3 text-xs bg-white border border-gray-200 rounded-sm focus:border-black focus:outline-none transition-colors">
-                                </div>
-                                <div>
-                                    <label class="block text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1">Pincode</label>
-                                    <input type="text" x-model="profile.pincode" class="w-full p-3 text-xs bg-white border border-gray-200 rounded-sm focus:border-black focus:outline-none transition-colors">
-                                </div>
-                            </div>
-                            
-                            <div class="flex gap-3 pt-2">
-                                <button @click="saveAddress()" :disabled="isSavingAddress" class="flex-1 bg-black text-white px-4 py-3 uppercase text-[9px] font-bold tracking-widest hover:bg-gray-800 transition-colors disabled:opacity-50">
-                                    <span x-show="!isSavingAddress">Save Details</span>
-                                    <span x-show="isSavingAddress" style="display: none;">Saving...</span>
+                                <button 
+                                    type="button" 
+                                    @click="lookupInvoice()" 
+                                    :disabled="isLookingUp"
+                                    class="bg-black hover:bg-neutral-800 text-white text-[10px] font-bold uppercase tracking-widest py-3.5 px-6 rounded-sm transition-all disabled:opacity-40 flex items-center justify-center gap-2"
+                                >
+                                    <span x-show="!isLookingUp">Find & Download Invoice</span>
+                                    <span x-show="isLookingUp" style="display: none;" class="flex items-center gap-2">
+                                        <svg class="animate-spin h-3.5 w-3.5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                        Searching...
+                                    </span>
                                 </button>
-                                <button @click="isEditingAddress = false" class="flex-1 border border-gray-200 text-gray-600 px-4 py-3 uppercase text-[9px] font-bold tracking-widest hover:bg-gray-50 transition-colors">Cancel</button>
+
+                                <!-- Located Display -->
+                                <div x-show="lookupSuccessOrder" x-transition class="border-t border-gray-200 pt-6 mt-6 space-y-4" style="display: none;">
+                                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 border border-emerald-100 rounded-sm">
+                                        <div>
+                                            <p class="text-[9px] text-emerald-600 uppercase tracking-widest font-bold mb-1">Order Located Successfully!</p>
+                                            <h4 class="font-serif font-medium text-gray-900" x-text="'Order Ref: #000' + lookupSuccessOrder?.id"></h4>
+                                            <p class="text-[11px] text-gray-500 mt-1" x-text="'Total Amount paid: ₹' + Number(lookupSuccessOrder?.total_amount || 0).toLocaleString()"></p>
+                                        </div>
+                                        <button 
+                                            @click="printInvoice(lookupSuccessOrder)"
+                                            class="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold uppercase tracking-widest py-3 px-6 rounded-sm transition-colors shadow-sm flex items-center gap-2"
+                                        >
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                            Print Invoice (PDF)
+                                        </button>
+                                    </div>
+                                </div>
+
                             </div>
+                        </section>
+
+                    </div>
+
+                    <!-- Account Info Panel (Right) -->
+                    <div class="lg:col-span-4 bg-[#fcfcfc] border border-gray-100 rounded-sm p-8 h-fit sticky top-28">
+                        <div>
+                            <h3 class="text-xs font-bold uppercase tracking-[0.2em] text-gray-900 pb-4 border-b border-gray-100 mb-6">Security & Settings</h3>
+                            
+                            <div class="space-y-4 text-xs">
+                                <div>
+                                    <p class="text-[9px] text-gray-400 uppercase tracking-widest font-bold mb-1">Login Provider</p>
+                                    <p class="font-medium text-gray-900 uppercase" x-text="$store.auth.user?.app_metadata?.provider || 'Email'"></p>
+                                </div>
+                                <div>
+                                    <p class="text-[9px] text-gray-400 uppercase tracking-widest font-bold mb-1">Account Created</p>
+                                    <p class="font-medium text-gray-900" x-text="formatDate($store.auth.user?.created_at)"></p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Editable Shipping Address Block -->
+                        <div class="mt-8 pt-8 border-t border-gray-100">
+                            <div class="flex justify-between items-center mb-6 pb-4 border-b border-gray-100">
+                                <h3 class="text-xs font-bold uppercase tracking-[0.2em] text-gray-900">Saved Address</h3>
+                                <button x-show="!isEditingAddress" @click="isEditingAddress = true" class="text-[9px] text-gray-500 hover:text-black uppercase tracking-widest font-bold transition-colors">Edit</button>
+                            </div>
+
+                            <!-- View Address Mode -->
+                            <div x-show="!isEditingAddress" class="text-xs space-y-2 text-gray-600">
+                                <template x-if="profile.address">
+                                    <div>
+                                        <p class="font-medium text-gray-900 mb-1" x-text="profile.firstName + ' ' + profile.lastName"></p>
+                                        <p x-text="profile.address"></p>
+                                        <p x-text="profile.city + ' - ' + profile.pincode"></p>
+                                    </div>
+                                </template>
+                                <template x-if="!profile.address">
+                                    <p class="text-gray-400 font-light italic">No default address saved. Add one to save time at checkout.</p>
+                                </template>
+                            </div>
+
+                            <!-- Edit Address Mode -->
+                            <div x-show="isEditingAddress" style="display: none;" class="space-y-4">
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1">First Name</label>
+                                        <input type="text" x-model="profile.firstName" class="w-full p-3 text-xs bg-white border border-gray-200 rounded-sm focus:border-black focus:outline-none transition-colors">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1">Last Name</label>
+                                        <input type="text" x-model="profile.lastName" class="w-full p-3 text-xs bg-white border border-gray-200 rounded-sm focus:border-black focus:outline-none transition-colors">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1">Street Address</label>
+                                    <input type="text" x-model="profile.address" class="w-full p-3 text-xs bg-white border border-gray-200 rounded-sm focus:border-black focus:outline-none transition-colors">
+                                </div>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1">City</label>
+                                        <input type="text" x-model="profile.city" class="w-full p-3 text-xs bg-white border border-gray-200 rounded-sm focus:border-black focus:outline-none transition-colors">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1">Pincode</label>
+                                        <input type="text" x-model="profile.pincode" class="w-full p-3 text-xs bg-white border border-gray-200 rounded-sm focus:border-black focus:outline-none transition-colors">
+                                    </div>
+                                </div>
+                                
+                                <div class="flex gap-3 pt-2">
+                                    <button @click="saveAddress()" :disabled="isSavingAddress" class="flex-1 bg-black text-white px-4 py-3 uppercase text-[9px] font-bold tracking-widest hover:bg-gray-800 transition-colors disabled:opacity-50">
+                                        <span x-show="!isSavingAddress">Save Details</span>
+                                        <span x-show="isSavingAddress" style="display: none;">Saving...</span>
+                                    </button>
+                                    <button @click="isEditingAddress = false" class="flex-1 border border-gray-200 text-gray-600 px-4 py-3 uppercase text-[9px] font-bold tracking-widest hover:bg-gray-50 transition-colors">Cancel</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="pt-8 mt-8 border-t border-gray-100 text-xs">
+                            <p class="text-[9px] text-gray-400 uppercase tracking-widest font-bold mb-3">Customer Support</p>
+                            <p class="text-gray-500 font-light leading-relaxed mb-4">Have questions about your order or shipment tracking? Reach our house concierge anytime.</p>
+                            <a href="https://wa.me/918075304432" target="_blank" class="inline-block w-full text-center border border-black text-black px-6 py-3 uppercase text-[9px] font-bold tracking-widest hover:bg-black hover:text-white transition-colors">WhatsApp Assist</a>
                         </div>
                     </div>
 
-                    <div class="pt-8 mt-8 border-t border-gray-100 text-xs">
-                        <p class="text-[9px] text-gray-400 uppercase tracking-widest font-bold mb-3">Customer Support</p>
-                        <p class="text-gray-500 font-light leading-relaxed mb-4">Have questions about your order or shipment tracking? Reach our house concierge anytime.</p>
-                        <a href="https://wa.me/918075304432" target="_blank" class="inline-block w-full text-center border border-black text-black px-6 py-3 uppercase text-[9px] font-bold tracking-widest hover:bg-black hover:text-white transition-colors">WhatsApp Assist</a>
-                    </div>
                 </div>
-
             </div>
-        </div>
 
-    </div>
-</Layout>
+        </div>
+    </Layout>
