@@ -8,6 +8,25 @@ const { data: products, error } = await supabase
   .order('id');
 
 if (error) console.error('Error fetching perfumes:', error.message);
+
+// Reverting JSON.stringify to manual string construction using SINGLE quotes. 
+// This prevents breaking the HTML double-quote boundaries!
+const categories = Array.from(new Set((products || []).map(p => (p.category || 'Classic').trim())));
+const categoryList = categories.map(c => `'${c}'`).join(', ');
+const sectionXData = `{ filter: 'All', categories: [${categoryList}] }`;
+
+// Robust helper function to catch any variation of 'N/A', 'n/a', or empty spaces
+const isSafe = (val) => {
+    if (!val) return false;
+    const cleaned = String(val).trim().toUpperCase();
+    return cleaned !== 'N/A' && cleaned !== 'NA' && cleaned !== '';
+};
+
+// Strict escaper to prevent database strings from breaking the Alpine JS syntax
+const escapeAttr = (str) => {
+    if (!str) return '';
+    return String(str).replace(/'/g, "\\'").replace(/"/g, "&quot;");
+};
 ---
 
 <Layout title="Aju Perfumes | The Art of Fine Fragrance">
@@ -40,7 +59,7 @@ if (error) console.error('Error fetching perfumes:', error.message);
 
     <!-- Refined Product Grid Section -->
     <section id="shop" class="py-24 sm:py-32 px-4 sm:px-6 lg:px-12 max-w-[1400px] mx-auto" 
-             x-data="{ filter: 'All' }" 
+             x-data={sectionXData} 
              x-init="
                 const updateFilter = () => {
                     const hash = window.location.hash.substring(1).toLowerCase();
@@ -49,7 +68,7 @@ if (error) console.error('Error fetching perfumes:', error.message);
                     } else if (hash === 'classic') {
                         filter = 'Classic';
                     } else {
-                        filter = 'All'; // Default back to All if hash is empty or #shop
+                        filter = 'All'; 
                     }
                 };
                 updateFilter();
@@ -79,87 +98,119 @@ if (error) console.error('Error fetching perfumes:', error.message);
             </div>
         </div>
 
-        <!-- 
-          CHANGED: grid-cols-1 to grid-cols-2 for mobile viewing.
-          This makes items sit side-by-side on phones, keeping them small and reducing scroll height.
-        -->
         <div class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-4 sm:gap-x-12 gap-y-12 sm:gap-y-24">
             
             {(products || []).map((product) => {
-                // Strictly normalize the category so it perfectly matches 'Premium' or 'Classic'
+                // Formatting Categories
                 const rawCategory = product.category || 'Classic';
                 const category = rawCategory.toString().trim().charAt(0).toUpperCase() + rawCategory.toString().trim().slice(1).toLowerCase();
+                const imageUrl = product.image_url ? String(product.image_url).split(',')[0].trim() : '';
+                
+                // CRITICAL FAIL-SAFES: Preventing Null Database Values from crashing the server render
+                const productName = product.name || 'Signature Fragrance';
+                const productPrice = Number(product.price || 0);
+                
+                // Safe Alpine bindings
+                const xShow = `filter === 'All' || filter === '${category}'`;
+                const safeName = escapeAttr(productName);
+                const safeImageUrl = escapeAttr(imageUrl);
+                const safeVolume = isSafe(product.volume) ? escapeAttr(product.volume) : '';
+                
+                const onCartAdd = `$store.cart.add({ id: ${product.id || 0}, name: '${safeName}', price: ${productPrice}, volume: '${safeVolume}', image_url: '${safeImageUrl}' })`;
+                
+                // Inventory Logic
+                const stock = Number(product.stock_quantity || 0);
+                const isOutOfStock = stock <= 0;
+                const isLowStock = stock > 0 && stock <= 5;
                 
                 return (
                     <div 
                         class="group flex flex-col cursor-pointer"
-                        x-show={`filter === 'All' || filter === '${category}'`}
+                        x-show={xShow}
                         x-transition:enter="transition-opacity duration-700 ease-out"
                         x-transition:enter-start="opacity-0 translate-y-4"
                         x-transition:enter-end="opacity-100 translate-y-0"
                     >
-                        <!-- Image Container with Hover Interaction -->
+                        {/* Static Image Container */}
                         <div class="aspect-[3/4] w-full bg-[#f4f4f4] relative mb-4 sm:mb-8 overflow-hidden flex items-center justify-center transition-colors duration-500 group-hover:bg-[#ebebeb]">
                             
-                            {/* Display real image if it exists, otherwise fallback to initials */}
-                            {product.image_url ? (
-                                <img 
-                                    src={product.image_url} 
-                                    alt={product.name} 
-                                    class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                                    onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
-                                />
-                                <span class="hidden text-gray-400 font-serif italic text-xl sm:text-3xl px-4 text-center transition-transform duration-700 group-hover:scale-105">
-                                    {product.name.split(' ')[0]}
-                                </span>
+                            {/* DYNAMIC STOCK BADGES */}
+                            {isOutOfStock && (
+                                <span class="absolute top-4 right-4 bg-red-600 text-white px-3 py-1 text-[8px] font-bold uppercase tracking-widest z-20 shadow-sm">Out of Stock</span>
+                            )}
+                            {isLowStock && (
+                                <span class="absolute top-4 right-4 bg-amber-100 text-amber-800 px-3 py-1 text-[8px] font-bold uppercase tracking-widest z-20 shadow-sm border border-amber-200">Few Stock Left</span>
+                            )}
+
+                            {imageUrl ? (
+                                <>
+                                    <img 
+                                        src={imageUrl} 
+                                        alt={productName} 
+                                        class={`w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 ${isOutOfStock ? 'opacity-60 grayscale' : ''}`}
+                                        onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+                                    />
+                                    <span class="hidden text-gray-400 font-serif italic text-xl sm:text-3xl px-4 text-center transition-transform duration-700 group-hover:scale-105">
+                                        {productName.split(' ')[0]}
+                                    </span>
+                                </>
                             ) : (
                                 <span class="text-gray-400 font-serif italic text-xl sm:text-3xl px-4 text-center transition-transform duration-700 group-hover:scale-105">
-                                    {product.name.split(' ')[0]}
+                                    {productName.split(' ')[0]}
                                 </span>
                             )}
                             
-                            <!-- Slide-up Add to Cart -->
-                            <div class="hidden lg:block absolute inset-x-0 bottom-0 p-6 translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]">
+                            {/* Slide-up Add to Cart (Desktop) */}
+                            <div class="hidden lg:block absolute inset-x-0 bottom-0 p-6 translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] z-30">
                                 <button 
-                                    @click.stop={`$store.cart.add({ id: ${product.id}, name: '${product.name}', price: ${product.price}, volume: '${product.volume}' }); isCartOpen = true;`}
-                                    class="w-full bg-white text-black py-4 uppercase text-[10px] font-bold tracking-[0.2em] hover:bg-black hover:text-white transition-colors duration-300 shadow-xl"
+                                    @click.stop={onCartAdd}
+                                    disabled={isOutOfStock}
+                                    class={`w-full py-4 uppercase text-[10px] font-bold tracking-[0.2em] transition-colors duration-300 shadow-xl ${isOutOfStock ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-white text-black hover:bg-black hover:text-white'}`}
                                 >
-                                    Add to Bag — ₹{product.price.toLocaleString()}
+                                    {isOutOfStock ? 'Sold Out' : `Add to Bag — ₹${productPrice.toLocaleString('en-IN')}`}
                                 </button>
                             </div>
                         </div>
 
-                        <!-- Minimalist Typography (Adjusted for mobile) -->
+                        {/* Minimalist Typography */}
                         <div class="text-center px-1 sm:px-2">
                             <h3 class="font-serif text-base sm:text-xl font-medium text-gray-900 mb-1 sm:mb-2 leading-tight">
-                                {product.name}
+                                {productName}
                             </h3>
+                            
+                            <!-- SAFELY AVOID N/A VALUE FOR VOLUME -->
                             <div class="flex items-center justify-center gap-1 sm:gap-2 text-[8px] sm:text-[9px] text-gray-500 uppercase tracking-[0.2em] mb-2 sm:mb-4 font-bold">
                                 <span>{category}</span>
-                                <span>•</span>
-                                <span>{product.volume}</span>
+                                {isSafe(product.volume) && (
+                                    <>
+                                        <span>•</span>
+                                        <span>{product.volume}</span>
+                                    </>
+                                )}
                             </div>
-                            <p class="text-xs sm:text-sm text-gray-500 font-light leading-relaxed line-clamp-2 mb-4 sm:mb-6 max-w-[280px] mx-auto hidden sm:block">
-                                {product.notes}
-                            </p>
                             
-                            <!-- Mobile fallback button -->
+                            <!-- SAFELY AVOID N/A VALUE FOR SCENT NOTES -->
+                            {isSafe(product.notes) && (
+                                <p class="text-xs sm:text-sm text-gray-500 font-light leading-relaxed line-clamp-2 mb-4 sm:mb-6 max-w-[280px] mx-auto hidden sm:block">
+                                    {product.notes}
+                                </p>
+                            )}
+                            
+                            {/* Mobile fallback button (WITH EXPLICIT PRICE NOW DISPLAYED) */}
                             <button 
-                                @click.stop={`$store.cart.add({ id: ${product.id}, name: '${product.name}', price: ${product.price}, volume: '${product.volume}' }); isCartOpen = true;`}
-                                class="lg:hidden w-full border border-gray-200 text-gray-900 py-2.5 sm:py-3 uppercase text-[9px] sm:text-[10px] font-bold tracking-[0.2em] hover:bg-gray-50"
+                                @click.stop={onCartAdd}
+                                disabled={isOutOfStock}
+                                class={`lg:hidden w-full border py-2.5 sm:py-3 uppercase text-[9px] sm:text-[10px] font-bold tracking-[0.2em] transition-colors mt-2 ${isOutOfStock ? 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed' : 'border-gray-200 text-gray-900 hover:bg-gray-50'}`}
                             >
-                                Add to Bag
+                                {isOutOfStock ? 'Sold Out' : `Add to Bag — ₹${productPrice.toLocaleString('en-IN')}`}
                             </button>
                         </div>
                     </div>
                 );
             })}
             
-            <!-- Empty State for Filters -->
-            <div x-show={`!${JSON.stringify(products || [])}.some(p => { 
-                const cat = (p.category || 'Classic').trim().toLowerCase();
-                return filter === 'All' || cat === filter.toLowerCase();
-            })`} style="display: none;" class="col-span-full py-12 text-center text-gray-400 font-serif italic text-lg">
+            {/* Empty State for Filters */}
+            <div x-show="!categories.some(cat => filter === 'All' || cat === filter.toLowerCase())" style="display: none;" class="col-span-full py-12 text-center text-gray-400 font-serif italic text-lg">
                 No fragrances found in this collection.
             </div>
 
