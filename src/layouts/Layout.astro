@@ -11,8 +11,8 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{title}</title>
     
-    <!-- We removed the unreliable cdn.tailwindcss.com script here -->
-    <!-- Astro's local Tailwind integration will inject your secure, offline-safe CSS automatically -->
+    <!-- Robust, immediate Tailwind CSS engine for flawless rendering on all screens -->
+    <script is:inline src="https://cdn.tailwindcss.com"></script>
     <script is:inline defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     
     <script is:inline>
@@ -83,7 +83,7 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
                 },
                 
                 updateQuantity(id, change) {
-                    const item = this.items.find(i => i.id === id);
+                    const item = this.items.find(i => id === id);
                     if (item) {
                         item.quantity += change;
                         if (item.quantity <= 0) this.remove(id);
