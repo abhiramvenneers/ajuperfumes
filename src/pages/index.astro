@@ -92,7 +92,6 @@ const escapeAttr = (str) => {
                     } else if (hash === 'accessories') {
                         filter = 'Accessories';
                     } else {
-                        // Standard fallback or custom matching
                         filter = 'All'; 
                     }
                 };
@@ -111,7 +110,6 @@ const escapeAttr = (str) => {
                     All Objects
                 </button>
                 
-                <!-- Support checking different classes -->
                 <button @click="filter = 'Fragrances'; window.location.hash = 'fragrances'" 
                         :class="filter === 'Fragrances' || filter === 'Classic' || filter === 'Premium' ? 'text-black border-b border-black' : 'text-gray-400 border-transparent hover:text-black'" 
                         class="pb-1 uppercase text-[10px] sm:text-[11px] font-bold tracking-[0.2em] transition-colors">
@@ -139,6 +137,33 @@ const escapeAttr = (str) => {
                 const productName = product.name || 'Premium Item';
                 const productPrice = Number(product.price || 0);
                 
+                // Parse options / variants on Server-Side to inject into local Alpine state securely
+                const rawVolumeStr = product.volume || '';
+                let parsedVariants = [];
+                let hasVariants = false;
+                
+                if (rawVolumeStr.includes(',')) {
+                    hasVariants = true;
+                    parsedVariants = rawVolumeStr.split(',').map(v => {
+                        const trimV = v.trim();
+                        if (trimV.includes(':')) {
+                            const parts = trimV.split(':');
+                            return {
+                                label: parts[0].trim(),
+                                price: Number(parts[1].trim()) || productPrice
+                            };
+                        } else {
+                            return {
+                                label: trimV,
+                                price: productPrice
+                            };
+                        }
+                    });
+                }
+                
+                const defaultPrice = parsedVariants.length > 0 ? parsedVariants[0].price : productPrice;
+                const variantsJson = JSON.stringify(parsedVariants).replace(/'/g, "\\'");
+                
                 // Safe Alpine bindings
                 let xShow = '';
                 if (isAccessory) {
@@ -151,8 +176,6 @@ const escapeAttr = (str) => {
                 const safeImageUrl = escapeAttr(imageUrl);
                 const safeVolume = isSafe(product.volume) ? escapeAttr(product.volume) : '';
                 
-                const onCartAdd = `$store.cart.add({ id: ${product.id || 0}, name: '${safeName}', price: ${productPrice}, volume: '${safeVolume}', image_url: '${safeImageUrl}' })`;
-                
                 // Inventory Logic
                 const stock = Number(product.stock_quantity || 0);
                 const isOutOfStock = stock <= 0;
@@ -160,8 +183,13 @@ const escapeAttr = (str) => {
                 
                 return (
                     <div 
-                        class="group flex flex-col cursor-pointer animate-none"
+                        class="group flex flex-col cursor-pointer animate-none bg-white p-2 rounded-sm border border-transparent hover:border-gray-100 transition-all duration-300"
                         x-show={xShow}
+                        x-data={`{
+                            variants: ${variantsJson},
+                            selectedVariant: '${parsedVariants.length > 0 ? parsedVariants[0].label.replace(/'/g, "\\'") : ""}',
+                            currentPrice: ${defaultPrice}
+                        }`}
                         x-transition:enter="transition-opacity duration-500 ease-out"
                         x-transition:enter-start="opacity-0 translate-y-4"
                         x-transition:enter-end="opacity-100 translate-y-0"
@@ -195,49 +223,74 @@ const escapeAttr = (str) => {
                                 </span>
                             )}
                             
-                            {/* Slide-up Add to Cart (Desktop) */}
+                            {/* Slide-up Add to Cart (Desktop with reactive price state) */}
                             <div class="hidden lg:block absolute inset-x-0 bottom-0 p-6 translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] z-30">
                                 <button 
-                                    @click.stop={onCartAdd}
+                                    @click.stop={`$store.cart.add({ id: ${product.id || 0}, name: '${safeName}', price: currentPrice, volume: selectedVariant || '${safeVolume}', image_url: '${safeImageUrl}' })`}
                                     disabled={isOutOfStock}
-                                    class={`w-full py-4 uppercase text-[10px] font-bold tracking-[0.2em] transition-colors duration-300 shadow-xl ${isOutOfStock ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-white text-black hover:bg-black hover:text-white'}`}
+                                    class={`w-full py-4 uppercase text-[10px] font-bold tracking-[0.2em] transition-colors duration-300 shadow-xl \${isOutOfStock ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-white text-black hover:bg-black hover:text-white'}`}
                                 >
-                                    {isOutOfStock ? 'Sold Out' : `Add to Bag — ₹${productPrice.toLocaleString('en-IN')}`}
+                                    {isOutOfStock ? 'Sold Out' : (
+                                        <span x-text="'Add to Bag — ₹' + Number(currentPrice).toLocaleString('en-IN')">
+                                            Add to Bag — ₹{defaultPrice.toLocaleString('en-IN')}
+                                        </span>
+                                    )}
                                 </button>
                             </div>
                         </div>
 
                         {/* Minimalist Typography */}
-                        <div class="text-center px-1 sm:px-2">
-                            <h3 class="font-serif text-base sm:text-xl font-medium text-gray-900 mb-1 sm:mb-2 leading-tight">
-                                {productName}
-                            </h3>
-                            
-                            <!-- SAFELY AVOID N/A VALUE FOR VOLUME / SPECIFICATIONS -->
-                            <div class="flex items-center justify-center gap-1 sm:gap-2 text-[8px] sm:text-[9px] text-gray-500 uppercase tracking-[0.2em] mb-2 sm:mb-4 font-bold">
-                                <span>{isAccessory ? 'Accessory' : categoryNormalized}</span>
-                                {isSafe(product.volume) && (
-                                    <>
-                                        <span>•</span>
-                                        <span>{product.volume}</span>
-                                    </>
+                        <div class="text-center px-1 sm:px-2 flex-grow flex flex-col justify-between">
+                            <div>
+                                <h3 class="font-serif text-base sm:text-xl font-medium text-gray-900 mb-1 sm:mb-2 leading-tight">
+                                    {productName}
+                                </h3>
+                                
+                                {/* RECTIVE DROPDOWN / STATIC OPTION MATRIX */}
+                                {hasVariants ? (
+                                    <div class="mt-2 mb-3 max-w-[220px] mx-auto relative z-20" @click.stop="">
+                                        <select 
+                                            x-model="selectedVariant"
+                                            @change="const found = variants.find(v => v.label === selectedVariant); if (found) { currentPrice = found.price; }"
+                                            class="w-full bg-white border border-gray-200 text-[10px] font-bold uppercase tracking-wider py-2 px-3 focus:outline-none focus:border-black rounded-sm appearance-none text-center cursor-pointer"
+                                            style="background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23666666%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%0-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E'); background-repeat: no-repeat; background-position: right 0.75rem center; background-size: 0.5rem auto; padding-right: 2rem;"
+                                        >
+                                            {parsedVariants.map(v => (
+                                                <option value={v.label}>{v.label} {v.price !== productPrice ? `(₹${v.price.toLocaleString('en-IN')})` : ''}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                ) : (
+                                    <div class="flex items-center justify-center gap-1 sm:gap-2 text-[8px] sm:text-[9px] text-gray-500 uppercase tracking-[0.2em] mb-2 sm:mb-4 font-bold">
+                                        <span>{isAccessory ? 'Accessory' : categoryNormalized}</span>
+                                        {isSafe(product.volume) && (
+                                            <>
+                                                <span>•</span>
+                                                <span>{product.volume}</span>
+                                            </>
+                                        )}
+                                    </div>
+                                )}
+                                
+                                <!-- DESCRIPTIVE TEXT NOTES -->
+                                {isSafe(product.notes) && (
+                                    <p class="text-xs sm:text-sm text-gray-500 font-light leading-relaxed line-clamp-2 mb-4 sm:mb-6 max-w-[280px] mx-auto hidden sm:block">
+                                        {product.notes}
+                                    </p>
                                 )}
                             </div>
                             
-                            <!-- DESCRIPTIVE TEXT NOTES / SPEC DETAIL -->
-                            {isSafe(product.notes) && (
-                                <p class="text-xs sm:text-sm text-gray-500 font-light leading-relaxed line-clamp-2 mb-4 sm:mb-6 max-w-[280px] mx-auto hidden sm:block">
-                                    {product.notes}
-                                </p>
-                            )}
-                            
-                            {/* Mobile fallback button (WITH EXPLICIT PRICE DISPLAYED) */}
+                            {/* Mobile fallback button (WITH EXPLICIT PRICE NOW DYNAMICALLY STATE-BOUND) */}
                             <button 
-                                @click.stop={onCartAdd}
+                                @click.stop={`$store.cart.add({ id: ${product.id || 0}, name: '${safeName}', price: currentPrice, volume: selectedVariant || '${safeVolume}', image_url: '${safeImageUrl}' })`}
                                 disabled={isOutOfStock}
-                                class={`lg:hidden w-full border py-2.5 sm:py-3 uppercase text-[9px] sm:text-[10px] font-bold tracking-[0.2em] transition-colors mt-2 ${isOutOfStock ? 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed' : 'border-gray-200 text-gray-900 hover:bg-gray-50'}`}
+                                class={`lg:hidden w-full border py-2.5 sm:py-3 uppercase text-[9px] sm:text-[10px] font-bold tracking-[0.2em] transition-colors mt-2 \${isOutOfStock ? 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed' : 'border-gray-200 text-gray-900 hover:bg-gray-50'}`}
                             >
-                                {isOutOfStock ? 'Sold Out' : `Add to Bag — ₹${productPrice.toLocaleString('en-IN')}`}
+                                {isOutOfStock ? 'Sold Out' : (
+                                    <span x-text="'Add to Bag — ₹' + Number(currentPrice).toLocaleString('en-IN')">
+                                        Add to Bag — ₹{defaultPrice.toLocaleString('en-IN')}
+                                    </span>
+                                )}
                             </button>
                         </div>
                     </div>
