@@ -11,7 +11,8 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{title}</title>
     
-    <script is:inline src="https://cdn.tailwindcss.com"></script>
+    <!-- We removed the unreliable cdn.tailwindcss.com script here -->
+    <!-- Astro's local Tailwind integration will inject your secure, offline-safe CSS automatically -->
     <script is:inline defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     
     <script is:inline>
@@ -27,7 +28,7 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
                 remove(id) { this.items = this.items.filter(n => n.id !== id); }
             });
 
-            // Cart Store (Upgraded with Item 4.1: Cloud Sync Support)
+            // Cart Store (Upgraded with Cloud Sync Support)
             Alpine.store('cart', {
                 items: JSON.parse(localStorage.getItem('cartItems') || '[]'),
                 
@@ -42,9 +43,36 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
                     }
                 },
                 
+                parsePrice(val) {
+                    if (typeof val === 'number') return val;
+                    if (!val) return 0;
+                    const parsed = parseFloat(String(val).replace(/[^\d.]/g, ''));
+                    return isNaN(parsed) ? 0 : parsed;
+                },
+
+                isSafeVolume(vol) {
+                    return vol && vol.trim() && vol.trim().toUpperCase() !== 'N/A';
+                },
+                
                 add(product) {
+                    let imageUrl = product.image_url || '';
+                    if (imageUrl.includes(',')) {
+                        imageUrl = imageUrl.split(',')[0].trim();
+                    }
+                    const cleanVolume = (product.volume && product.volume.trim().toUpperCase() !== 'N/A') ? product.volume : '';
+
                     const existing = this.items.find(i => i.id === product.id);
-                    if (existing) { existing.quantity++; } else { this.items.push({ ...product, quantity: 1 }); }
+                    if (existing) { 
+                        existing.quantity++; 
+                    } else { 
+                        this.items.push({ 
+                            ...product, 
+                            price: this.parsePrice(product.price),
+                            volume: cleanVolume,
+                            image_url: imageUrl,
+                            quantity: 1 
+                        }); 
+                    }
                     this.save(true);
                     Alpine.store('notifications').add(`${product.name} added to bag`);
                 },
@@ -85,8 +113,12 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
                     }
                 },
                 
-                get total() { return this.items.reduce((sum, item) => sum + (item.price * item.quantity), 0); },
-                get count() { return this.items.reduce((sum, item) => sum + item.quantity, 0); }
+                get total() { 
+                    return this.items.reduce((sum, item) => sum + (this.parsePrice(item.price) * item.quantity), 0); 
+                },
+                get count() { 
+                    return this.items.reduce((sum, item) => sum + item.quantity, 0); 
+                }
             });
 
             // Auth Store
@@ -118,7 +150,7 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
                     authStore.user = session?.user || null;
                     authStore.email = session?.user?.email || '';
                     
-                    // Item 4.1 Sync trigger: Extract and sync cloud-saved cart state
+                    // Sync trigger: Extract and sync cloud-saved cart state
                     if (session?.user?.user_metadata?.cart) {
                         cartStore.mergeCloudCart(session.user.user_metadata.cart);
                     }
@@ -235,7 +267,7 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
             </div>
         </header>
 
-        <!-- Elegant Navigation Drawer -->
+        <!-- Sliding Navigation Drawer -->
         <nav x-show="isMenuOpen" 
              x-transition:enter="transition ease-out duration-500 transform"
              x-transition:enter-start="-translate-x-full"
@@ -260,7 +292,6 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
                 <a href="/#classic" @click="isMenuOpen = false" class="block hover:text-gray-400 transition-colors">Classic Scents</a>
                 
                 <div class="pt-12 border-t border-gray-100 mt-12 font-sans text-xs">
-                    <!-- Account Section in Mobile Menu -->
                     <p class="text-[10px] text-gray-400 tracking-widest font-bold uppercase mb-6">Account</p>
                     
                     <div x-show="!$store.auth.user" class="mb-8">
@@ -279,7 +310,6 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
                         </button>
                     </div>
 
-                    <!-- Client Care Section -->
                     <p class="text-[10px] text-gray-400 tracking-widest font-bold uppercase mt-8 mb-6">Client Care</p>
                     <div class="space-y-6">
                         <a href="https://wa.me/918075304432" target="_blank" class="flex items-center gap-3 font-medium uppercase tracking-wider hover:text-gray-500 transition-colors">WhatsApp Assistance</a>
@@ -290,7 +320,7 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
             </div>
         </nav>
 
-        <!-- Refined Shopping Cart Drawer -->
+        <!-- Sliding Shopping Cart Drawer -->
         <div x-show="isCartOpen" 
              x-transition:enter="transition ease-out duration-500 transform"
              x-transition:enter-start="translate-x-full"
@@ -316,8 +346,16 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
                 <template x-for="item in $store.cart.items" :key="item.id">
                     <div class="flex items-center gap-6 mb-8 pb-8 border-b border-gray-100 last:border-0 last:mb-0 last:pb-0 group">
                         
-                        <div class="w-24 h-32 bg-[#f8f8f8] flex items-center justify-center relative overflow-hidden">
-                            <span class="z-10 text-gray-400 font-serif italic text-sm text-center px-2" x-text="item.name.split(' ')[0]"></span>
+                        <!-- PREMIUM CACHED IMAGE LOADER WITH FALLBACKS (Resolved Photo Display) -->
+                        <div class="w-24 h-32 bg-[#f8f8f8] flex items-center justify-center relative overflow-hidden flex-shrink-0">
+                            <img x-show="item.image_url" 
+                                 :src="item.image_url" 
+                                 class="w-full h-full object-cover absolute inset-0 z-0" 
+                                 :alt="item.name" 
+                                 @error="item.image_url = ''">
+                            <span x-show="!item.image_url" 
+                                  class="z-10 text-gray-400 font-serif italic text-sm text-center px-2" 
+                                  x-text="item.name.split(' ')[0]"></span>
                             <div class="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                         </div>
                         
@@ -329,16 +367,22 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                                     </button>
                                 </div>
-                                <span class="text-[10px] text-gray-500 uppercase tracking-[0.2em] font-bold block mt-2" x-text="item.volume + ' • ₹' + item.price.toLocaleString()"></span>
+                                
+                                <!-- EXPLICIT N/A SAFE STRING CONDITIONAL (Resolved N/A Volume Display) -->
+                                <span class="text-[10px] text-gray-500 uppercase tracking-[0.2em] font-bold block mt-2" 
+                                      x-text="($store.cart.isSafeVolume(item.volume) ? item.volume + ' • ' : '') + '₹' + $store.cart.parsePrice(item.price).toLocaleString('en-IN')">
+                                </span>
                             </div>
                             
                             <div class="flex justify-between items-end mt-4">
-                                <div class="flex items-center border border-gray-200 w-fit">
+                                <div class="flex items-center border border-gray-200 w-fit bg-white">
                                     <button @click="$store.cart.updateQuantity(item.id, -1)" class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-black transition-colors">-</button>
                                     <span class="font-medium text-xs w-8 text-center text-gray-900" x-text="item.quantity"></span>
                                     <button @click="$store.cart.updateQuantity(item.id, 1)" class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-black transition-colors">+</button>
                                 </div>
-                                <span class="font-serif font-semibold text-lg" x-text="'₹' + (item.price * item.quantity).toLocaleString()"></span>
+                                
+                                <!-- SECURE DYNAMIC DOUBLE MULTIPLICATION AND FORMATTING (Resolved Price Display) -->
+                                <span class="font-serif font-semibold text-lg" x-text="'₹' + ($store.cart.parsePrice(item.price) * item.quantity).toLocaleString('en-IN')"></span>
                             </div>
                         </div>
                     </div>
@@ -356,7 +400,8 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
             <div x-show="$store.cart.items.length > 0" class="p-8 border-t border-gray-100 bg-white" style="display: none;">
                 <div class="flex justify-between items-center mb-6">
                     <span class="text-gray-900 font-serif font-medium text-lg">Subtotal</span>
-                    <span class="font-serif font-semibold text-xl" x-text="'₹' + $store.cart.total.toLocaleString()"></span>
+                    <!-- SECURE TOTAL DYNAMIC INTEGER CONVERSION (Resolved Price Display) -->
+                    <span class="font-serif font-semibold text-xl" x-text="'₹' + Number($store.cart.total || 0).toLocaleString('en-IN')"></span>
                 </div>
                 <p class="text-[10px] text-gray-500 uppercase tracking-widest text-center mb-6">Complimentary shipping on all orders.</p>
                 <a href="/checkout" class="block text-center w-full bg-black text-white py-4 uppercase text-[11px] font-bold tracking-[0.2em] hover:bg-gray-800 transition-colors shadow-xl shadow-black/10">Secure Checkout</a>
@@ -390,7 +435,7 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
                 </div>
             </div>
             
-            <div class="max-w-[1400px] mx-auto mt-24 pt-8 border-t border-gray-900 flex flex-col md:flex-row justify-between items-center gap-6 text-[10px] text-gray-600 uppercase tracking-widest font-bold">
+            <div class="max-w-[1400px] mx-auto mt-24 pt-8 border-t border-gray-100 flex flex-col md:flex-row justify-between items-center gap-6 text-[10px] text-gray-600 uppercase tracking-widest font-bold">
                 <p>&copy; 2026 Aju Perfumes. All Rights Reserved.</p>
                 <div class="space-x-8">
                     <a href="#" class="hover:text-white transition-colors">Privacy Policy</a>
