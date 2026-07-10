@@ -1,5 +1,5 @@
 ---
-const { title = "Aju Perfumes | Premium Fragrances" } = Astro.props;
+const { title = "Aju | Premium Fragrances & Accessories" } = Astro.props;
 const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
 ---
@@ -83,7 +83,7 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
                 },
                 
                 updateQuantity(id, change) {
-                    const item = this.items.find(i => id === id);
+                    const item = this.items.find(i => i.id === id);
                     if (item) {
                         item.quantity += change;
                         if (item.quantity <= 0) this.remove(id);
@@ -135,56 +135,58 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
     <!-- Securely connect Supabase Auth to Alpine UI on the client-side -->
     <script is:inline src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script is:inline define:vars={{ supabaseUrl, supabaseAnonKey }}>
-        // Initialize Supabase client globally
-        const { createClient } = window.supabase;
-        const supabase = createClient(supabaseUrl, supabaseAnonKey);
-        window.supabase = supabase; // Shared instance for login & checkout pages
+        (function() {
+            // Initialize Supabase client globally inside an IIFE to prevent variable redeclaration crashes
+            const { createClient } = window.supabase;
+            const supabaseInstance = createClient(supabaseUrl, supabaseAnonKey);
+            window.supabase = supabaseInstance; // Shared instance for login, admin, & checkout pages
 
-        // Bulletproof synchronization: Poll until Alpine is ready, then write state
-        const updateAlpineAuth = (session) => {
-            const checkAlpine = setInterval(() => {
-                if (window.Alpine && window.Alpine.store('auth') && window.Alpine.store('cart')) {
-                    const authStore = window.Alpine.store('auth');
-                    const cartStore = window.Alpine.store('cart');
-                    
-                    authStore.user = session?.user || null;
-                    authStore.email = session?.user?.email || '';
-                    
-                    // Sync trigger: Extract and sync cloud-saved cart state
-                    if (session?.user?.user_metadata?.cart) {
-                        cartStore.mergeCloudCart(session.user.user_metadata.cart);
+            // Bulletproof synchronization: Poll until Alpine is ready, then write state
+            const updateAlpineAuth = (session) => {
+                const checkAlpine = setInterval(() => {
+                    if (window.Alpine && window.Alpine.store('auth') && window.Alpine.store('cart')) {
+                        const authStore = window.Alpine.store('auth');
+                        const cartStore = window.Alpine.store('cart');
+                        
+                        authStore.user = session?.user || null;
+                        authStore.email = session?.user?.email || '';
+                        
+                        // Sync trigger: Extract and sync cloud-saved cart state
+                        if (session?.user?.user_metadata?.cart) {
+                            cartStore.mergeCloudCart(session.user.user_metadata.cart);
+                        }
+                        
+                        clearInterval(checkAlpine);
                     }
-                    
-                    clearInterval(checkAlpine);
+                }, 30);
+            };
+
+            const initAuth = async () => {
+                // 1. Immediately fetch current session (handles redirect landing)
+                const { data: { session } } = await supabaseInstance.auth.getSession();
+                updateAlpineAuth(session);
+
+                // 2. Clear query codes/tokens from the URL bar cleanly for a luxury look
+                if (session && (window.location.search.includes('code=') || window.location.hash.includes('access_token='))) {
+                    const cleanUrl = window.location.pathname + window.location.hash.replace(/#access_token=.*/, '');
+                    window.history.replaceState({}, document.title, cleanUrl);
                 }
-            }, 30);
-        };
 
-        const initAuth = async () => {
-            // 1. Immediately fetch current session (handles redirect landing)
-            const { data: { session } } = await supabase.auth.getSession();
-            updateAlpineAuth(session);
+                // 3. Keep a live subscription active for real-time authentication state updates
+                supabaseInstance.auth.onAuthStateChange((_event, curSession) => {
+                    updateAlpineAuth(curSession);
+                });
+            };
 
-            // 2. Clear query codes/tokens from the URL bar cleanly for a luxury look
-            if (session && (window.location.search.includes('code=') || window.location.hash.includes('access_token='))) {
-                const cleanUrl = window.location.pathname + window.location.hash.replace(/#access_token=.*/, '');
-                window.history.replaceState({}, document.title, cleanUrl);
-            }
+            // Run immediately. Do not wait for alpine:initialized events!
+            initAuth();
 
-            // 3. Keep a live subscription active for real-time authentication state updates
-            supabase.auth.onAuthStateChange((_event, curSession) => {
-                updateAlpineAuth(curSession);
+            window.addEventListener('app:logout', async () => {
+                await supabaseInstance.auth.signOut();
+                window.Alpine.store('notifications').add('Successfully signed out');
+                setTimeout(() => { window.location.reload(); }, 1000);
             });
-        };
-
-        // Run immediately. Do not wait for alpine:initialized events!
-        initAuth();
-
-        window.addEventListener('app:logout', async () => {
-            await supabase.auth.signOut();
-            window.Alpine.store('notifications').add('Successfully signed out');
-            setTimeout(() => { window.location.reload(); }, 1000);
-        });
+        })();
     </script>
     
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -267,7 +269,7 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
             </div>
         </header>
 
-        <!-- Sliding Navigation Drawer -->
+        <!-- Sliding Navigation Drawer (Agnostic Lifestyle Categories) -->
         <nav x-show="isMenuOpen" 
              x-transition:enter="transition ease-out duration-500 transform"
              x-transition:enter-start="-translate-x-full"
@@ -287,9 +289,9 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
             
             <div class="p-10 space-y-8 flex-1 overflow-y-auto font-serif text-3xl font-medium tracking-wide text-gray-900">
                 <a href="/" @click="isMenuOpen = false" class="block hover:text-gray-400 transition-colors">Home</a>
-                <a href="/#shop" @click="isMenuOpen = false" class="block hover:text-gray-400 transition-colors">All Fragrances</a>
-                <a href="/#premium" @click="isMenuOpen = false" class="block hover:text-gray-400 transition-colors">Premium Line</a>
-                <a href="/#classic" @click="isMenuOpen = false" class="block hover:text-gray-400 transition-colors">Classic Scents</a>
+                <a href="/#shop" @click="isMenuOpen = false" class="block hover:text-gray-400 transition-colors">All Products</a>
+                <a href="/#fragrances" @click="isMenuOpen = false; window.location.hash = 'fragrances'" class="block hover:text-gray-400 transition-colors">Fine Fragrances</a>
+                <a href="/#accessories" @click="isMenuOpen = false; window.location.hash = 'accessories'" class="block hover:text-gray-400 transition-colors">Premium Accessories</a>
                 
                 <div class="pt-12 border-t border-gray-100 mt-12 font-sans text-xs">
                     <p class="text-[10px] text-gray-400 tracking-widest font-bold uppercase mb-6">Account</p>
@@ -320,7 +322,7 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
             </div>
         </nav>
 
-        <!-- Sliding Shopping Cart Drawer -->
+        <!-- Sliding Shopping Cart Drawer (Agnostic Item Representation) -->
         <div x-show="isCartOpen" 
              x-transition:enter="transition ease-out duration-500 transform"
              x-transition:enter-start="translate-x-full"
@@ -346,7 +348,6 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
                 <template x-for="item in $store.cart.items" :key="item.id">
                     <div class="flex items-center gap-6 mb-8 pb-8 border-b border-gray-100 last:border-0 last:mb-0 last:pb-0 group">
                         
-                        <!-- PREMIUM CACHED IMAGE LOADER WITH FALLBACKS (Resolved Photo Display) -->
                         <div class="w-24 h-32 bg-[#f8f8f8] flex items-center justify-center relative overflow-hidden flex-shrink-0">
                             <img x-show="item.image_url" 
                                  :src="item.image_url" 
@@ -368,7 +369,7 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
                                     </button>
                                 </div>
                                 
-                                <!-- EXPLICIT N/A SAFE STRING CONDITIONAL (Resolved N/A Volume Display) -->
+                                <!-- EXPLICIT N/A SAFE STRING CONDITIONAL (Resolved N/A Volume/Spec Display) -->
                                 <span class="text-[10px] text-gray-500 uppercase tracking-[0.2em] font-bold block mt-2" 
                                       x-text="($store.cart.isSafeVolume(item.volume) ? item.volume + ' • ' : '') + '₹' + $store.cart.parsePrice(item.price).toLocaleString('en-IN')">
                                 </span>
@@ -381,7 +382,6 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
                                     <button @click="$store.cart.updateQuantity(item.id, 1)" class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-black transition-colors">+</button>
                                 </div>
                                 
-                                <!-- SECURE DYNAMIC DOUBLE MULTIPLICATION AND FORMATTING (Resolved Price Display) -->
                                 <span class="font-serif font-semibold text-lg" x-text="'₹' + ($store.cart.parsePrice(item.price) * item.quantity).toLocaleString('en-IN')"></span>
                             </div>
                         </div>
@@ -391,8 +391,8 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
                 <!-- Empty State -->
                 <div x-show="$store.cart.items.length === 0" class="h-full flex flex-col items-center justify-center text-center pb-20">
                     <p class="text-gray-900 font-serif text-3xl mb-4 italic">Empty.</p>
-                    <p class="text-gray-500 text-sm mb-8 font-light max-w-[200px]">Your bag awaits its first signature scent.</p>
-                    <button @click="isCartOpen = false" class="text-[10px] font-bold uppercase tracking-[0.2em] border-b border-black pb-1 hover:text-gray-500 hover:border-gray-500 transition-all">Explore Collection</button>
+                    <p class="text-gray-500 text-sm mb-8 font-light max-w-[200px]">Your bag awaits its first lifestyle acquisition.</p>
+                    <button @click="isCartOpen = false" class="text-[10px] font-bold uppercase tracking-[0.2em] border-b border-black pb-1 hover:text-gray-500 hover:border-gray-500 transition-all">Explore Collections</button>
                 </div>
             </div>
             
@@ -400,7 +400,6 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
             <div x-show="$store.cart.items.length > 0" class="p-8 border-t border-gray-100 bg-white" style="display: none;">
                 <div class="flex justify-between items-center mb-6">
                     <span class="text-gray-900 font-serif font-medium text-lg">Subtotal</span>
-                    <!-- SECURE TOTAL DYNAMIC INTEGER CONVERSION (Resolved Price Display) -->
                     <span class="font-serif font-semibold text-xl" x-text="'₹' + Number($store.cart.total || 0).toLocaleString('en-IN')"></span>
                 </div>
                 <p class="text-[10px] text-gray-500 uppercase tracking-widest text-center mb-6">Complimentary shipping on all orders.</p>
@@ -418,7 +417,7 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
                 <div class="md:col-span-2">
                     <h3 class="font-serif text-3xl md:text-4xl font-medium tracking-wider uppercase mb-6">Aju</h3>
                     <p class="text-gray-400 text-sm leading-relaxed max-w-sm mx-auto md:mx-0 font-light">
-                        Elevating your presence with meticulously crafted, long-lasting premium fragrances. Designed for the modern individual.
+                        Elevating your lifestyle with meticulously crafted long-lasting fragrances and premium everyday accessories. Designed for the modern individual.
                     </p>
                 </div>
                 <div class="flex flex-col space-y-5">
@@ -428,15 +427,15 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
                     <a href="mailto:perfumesaju@gmail.com" class="text-xs tracking-wider uppercase text-gray-300 hover:text-white transition-colors">Email Us</a>
                 </div>
                 <div class="flex flex-col space-y-5">
-                    <h4 class="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-500 mb-2">The House</h4>
+                    <h4 class="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-500 mb-2">The House Departments</h4>
                     <a href="/#shop" class="text-xs tracking-wider uppercase text-gray-300 hover:text-white transition-colors">All Collections</a>
-                    <a href="/#premium" class="text-xs tracking-wider uppercase text-gray-300 hover:text-white transition-colors">Premium Line</a>
-                    <a href="/#classic" class="text-xs tracking-wider uppercase text-gray-300 hover:text-white transition-colors">Classic Scents</a>
+                    <a href="/#fragrances" class="text-xs tracking-wider uppercase text-gray-300 hover:text-white transition-colors">Fine Fragrances</a>
+                    <a href="/#accessories" class="text-xs tracking-wider uppercase text-gray-300 hover:text-white transition-colors">Premium Accessories</a>
                 </div>
             </div>
             
             <div class="max-w-[1400px] mx-auto mt-24 pt-8 border-t border-gray-100 flex flex-col md:flex-row justify-between items-center gap-6 text-[10px] text-gray-600 uppercase tracking-widest font-bold">
-                <p>&copy; 2026 Aju Perfumes. All Rights Reserved.</p>
+                <p>&copy; 2026 Aju House. All Rights Reserved.</p>
                 <div class="space-x-8">
                     <a href="#" class="hover:text-white transition-colors">Privacy Policy</a>
                     <a href="#" class="hover:text-white transition-colors">Terms of Service</a>

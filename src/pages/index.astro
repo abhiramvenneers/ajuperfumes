@@ -3,16 +3,19 @@ import Layout from '../layouts/Layout.astro';
 import { supabase } from '../lib/supabase.js';
 
 const { data: products, error } = await supabase
-  .from('perfumes')
+  .from('perfumes') // Mapping into the existing backend structure safely
   .select('*')
   .order('id');
 
-if (error) console.error('Error fetching perfumes:', error.message);
+if (error) console.error('Error fetching inventory catalog:', error.message);
 
-// Reverting JSON.stringify to manual string construction using SINGLE quotes. 
-// This prevents breaking the HTML double-quote boundaries!
-const categories = Array.from(new Set((products || []).map(p => (p.category || 'Classic').trim())));
-const categoryList = categories.map(c => `'${c}'`).join(', ');
+// Safely generate categories list. Support both 'Fragrances', 'Accessories' and legacy classifications
+const rawCategories = Array.from(new Set((products || []).map(p => {
+    const cat = (p.category || 'Classic').trim();
+    return cat.charAt(0).toUpperCase() + cat.slice(1).toLowerCase();
+})));
+
+const categoryList = rawCategories.map(c => `'${c}'`).join(', ');
 const sectionXData = `{ filter: 'All', categories: [${categoryList}] }`;
 
 // Robust helper function to catch any variation of 'N/A', 'n/a', or empty spaces
@@ -29,7 +32,7 @@ const escapeAttr = (str) => {
 };
 ---
 
-<Layout title="Aju Perfumes | The Art of Fine Fragrance">
+<Layout title="Aju | Crafted Fragrances & Premium Accessories">
     
     <!-- Self-Healing Local Storage Script for returning Laptop browsers -->
     <script is:inline>
@@ -39,11 +42,10 @@ const escapeAttr = (str) => {
                 if (stored) {
                     const parsed = JSON.parse(stored);
                     if (Array.isArray(parsed)) {
-                        // Inspect if any stored item contains legacy structure or missing parameters
                         const needsUpgrade = parsed.some(item => !item.hasOwnProperty('image_url') || item.price === undefined || item.volume === 'N/A');
                         if (needsUpgrade) {
                             console.log('Stale testing metadata detected. Self-healing client local storage...');
-                            localStorage.removeItem('cartItems'); // Clear out corrupted legacy arrays cleanly
+                            localStorage.removeItem('cartItems');
                         }
                     }
                 }
@@ -53,43 +55,44 @@ const escapeAttr = (str) => {
         })();
     </script>
 
-    <!-- Immersive Hero Section -->
+    <!-- Unified Lifestyle Hero Section -->
     <section class="relative h-[90vh] flex items-center justify-center overflow-hidden bg-[#0a0a0a]">
         <!-- Gradient Mesh Background for Luxury Vibe -->
         <div class="absolute inset-0">
             <div class="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-gray-800 blur-[120px] opacity-30"></div>
-            <div class="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-gray-700 blur-[120px] opacity-20"></div>
+            <div class="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-neutral-800 blur-[120px] opacity-20"></div>
         </div>
         
         <div class="relative z-10 text-center px-6 max-w-5xl mx-auto flex flex-col items-center">
-            <span class="text-white/60 uppercase tracking-[0.4em] text-[10px] font-bold mb-8 border border-white/20 px-6 py-2 rounded-full backdrop-blur-sm">New Arrivals</span>
+            <span class="text-white/60 uppercase tracking-[0.4em] text-[10px] font-bold mb-8 border border-white/20 px-6 py-2 rounded-full backdrop-blur-sm">Aju House Curation</span>
             
             <h1 class="text-5xl sm:text-7xl lg:text-[6rem] text-white font-serif mb-8 leading-[1.1] font-medium tracking-tight">
-                The Art of <br>
-                <span class="italic font-light text-gray-300">Fine Fragrance</span>
+                Crafted Scent. <br>
+                <span class="italic font-light text-gray-300">Refined Objects.</span>
             </h1>
             
             <p class="text-base sm:text-lg text-gray-400 mb-12 font-light max-w-xl leading-relaxed mx-auto">
-                Immerse yourself in our meticulously curated collection of premium scents, designed to leave an unforgettable, lingering impression.
+                Immerse yourself in our signature hand-bottled perfumes and highly durable, minimal mobile accessories. Built for the modern aesthetic.
             </p>
             
             <a href="#shop" class="bg-white text-black px-12 py-5 uppercase text-[11px] font-bold tracking-[0.25em] hover:bg-gray-200 transition-all duration-500 rounded-sm shadow-[0_0_40px_rgba(255,255,255,0.15)] hover:shadow-[0_0_60px_rgba(255,255,255,0.25)]">
-                Explore Collection
+                Explore Curation
             </a>
         </div>
     </section>
 
-    <!-- Refined Product Grid Section -->
+    <!-- Dynamic Lifestyle Grid Filter Section -->
     <section id="shop" class="py-24 sm:py-32 px-4 sm:px-6 lg:px-12 max-w-[1400px] mx-auto" 
              x-data={sectionXData} 
              x-init="
                 const updateFilter = () => {
                     const hash = window.location.hash.substring(1).toLowerCase();
-                    if (hash === 'premium') {
-                        filter = 'Premium';
-                    } else if (hash === 'classic') {
-                        filter = 'Classic';
+                    if (hash === 'fragrances') {
+                        filter = 'Classic'; // Auto-routes legacy categories or 'Classic/Premium' perfumes
+                    } else if (hash === 'accessories') {
+                        filter = 'Accessories';
                     } else {
+                        // Standard fallback or custom matching
                         filter = 'All'; 
                     }
                 };
@@ -98,24 +101,27 @@ const escapeAttr = (str) => {
              ">
         
         <div class="flex flex-col md:flex-row justify-between items-center md:items-end mb-12 sm:mb-20 border-b border-gray-200 pb-8 gap-6 sm:gap-8">
-            <h2 class="text-3xl sm:text-4xl md:text-5xl font-serif font-medium tracking-tight text-gray-900 text-center md:text-left">Signature Scents</h2>
+            <h2 class="text-3xl sm:text-4xl md:text-5xl font-serif font-medium tracking-tight text-gray-900 text-center md:text-left">The Collection</h2>
             
-            <!-- Elegant Tabs -->
-            <div class="flex gap-6 sm:gap-12">
+            <!-- Dynamic Category Navigation Tabs -->
+            <div class="flex flex-wrap gap-4 justify-center sm:gap-12">
                 <button @click="filter = 'All'; window.location.hash = 'shop'" 
                         :class="filter === 'All' ? 'text-black border-b border-black' : 'text-gray-400 border-transparent hover:text-black'" 
                         class="pb-1 uppercase text-[10px] sm:text-[11px] font-bold tracking-[0.2em] transition-colors">
-                    All
+                    All Objects
                 </button>
-                <button @click="filter = 'Premium'; window.location.hash = 'premium'" 
-                        :class="filter === 'Premium' ? 'text-black border-b border-black' : 'text-gray-400 border-transparent hover:text-black'" 
+                
+                <!-- Support checking different classes -->
+                <button @click="filter = 'Fragrances'; window.location.hash = 'fragrances'" 
+                        :class="filter === 'Fragrances' || filter === 'Classic' || filter === 'Premium' ? 'text-black border-b border-black' : 'text-gray-400 border-transparent hover:text-black'" 
                         class="pb-1 uppercase text-[10px] sm:text-[11px] font-bold tracking-[0.2em] transition-colors">
-                    Premium
+                    Fragrances
                 </button>
-                <button @click="filter = 'Classic'; window.location.hash = 'classic'" 
-                        :class="filter === 'Classic' ? 'text-black border-b border-black' : 'text-gray-400 border-transparent hover:text-black'" 
+
+                <button @click="filter = 'Accessories'; window.location.hash = 'accessories'" 
+                        :class="filter === 'Accessories' ? 'text-black border-b border-black' : 'text-gray-400 border-transparent hover:text-black'" 
                         class="pb-1 uppercase text-[10px] sm:text-[11px] font-bold tracking-[0.2em] transition-colors">
-                    Classic
+                    Accessories
                 </button>
             </div>
         </div>
@@ -123,17 +129,24 @@ const escapeAttr = (str) => {
         <div class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-4 sm:gap-x-12 gap-y-12 sm:gap-y-24">
             
             {(products || []).map((product) => {
-                // Formatting Categories
                 const rawCategory = product.category || 'Classic';
-                const category = rawCategory.toString().trim().charAt(0).toUpperCase() + rawCategory.toString().trim().slice(1).toLowerCase();
-                const imageUrl = product.image_url ? String(product.image_url).split(',')[0].trim() : '';
+                const categoryNormalized = rawCategory.toString().trim().charAt(0).toUpperCase() + rawCategory.toString().trim().slice(1).toLowerCase();
                 
-                // CRITICAL FAIL-SAFES: Preventing Null Database Values from crashing the server render
-                const productName = product.name || 'Signature Fragrance';
+                // Determine layout alignment based on category grouping
+                const isAccessory = categoryNormalized.includes('Accessory') || categoryNormalized.includes('Accessories');
+                
+                const imageUrl = product.image_url ? String(product.image_url).split(',')[0].trim() : '';
+                const productName = product.name || 'Premium Item';
                 const productPrice = Number(product.price || 0);
                 
                 // Safe Alpine bindings
-                const xShow = `filter === 'All' || filter === '${category}'`;
+                let xShow = '';
+                if (isAccessory) {
+                    xShow = `filter === 'All' || filter === 'Accessories'`;
+                } else {
+                    xShow = `filter === 'All' || filter === 'Fragrances' || filter === '${categoryNormalized}'`;
+                }
+
                 const safeName = escapeAttr(productName);
                 const safeImageUrl = escapeAttr(imageUrl);
                 const safeVolume = isSafe(product.volume) ? escapeAttr(product.volume) : '';
@@ -147,9 +160,9 @@ const escapeAttr = (str) => {
                 
                 return (
                     <div 
-                        class="group flex flex-col cursor-pointer"
+                        class="group flex flex-col cursor-pointer animate-none"
                         x-show={xShow}
-                        x-transition:enter="transition-opacity duration-700 ease-out"
+                        x-transition:enter="transition-opacity duration-500 ease-out"
                         x-transition:enter-start="opacity-0 translate-y-4"
                         x-transition:enter-end="opacity-100 translate-y-0"
                     >
@@ -200,9 +213,9 @@ const escapeAttr = (str) => {
                                 {productName}
                             </h3>
                             
-                            <!-- SAFELY AVOID N/A VALUE FOR VOLUME -->
+                            <!-- SAFELY AVOID N/A VALUE FOR VOLUME / SPECIFICATIONS -->
                             <div class="flex items-center justify-center gap-1 sm:gap-2 text-[8px] sm:text-[9px] text-gray-500 uppercase tracking-[0.2em] mb-2 sm:mb-4 font-bold">
-                                <span>{category}</span>
+                                <span>{isAccessory ? 'Accessory' : categoryNormalized}</span>
                                 {isSafe(product.volume) && (
                                     <>
                                         <span>•</span>
@@ -211,14 +224,14 @@ const escapeAttr = (str) => {
                                 )}
                             </div>
                             
-                            <!-- SAFELY AVOID N/A VALUE FOR SCENT NOTES -->
+                            <!-- DESCRIPTIVE TEXT NOTES / SPEC DETAIL -->
                             {isSafe(product.notes) && (
                                 <p class="text-xs sm:text-sm text-gray-500 font-light leading-relaxed line-clamp-2 mb-4 sm:mb-6 max-w-[280px] mx-auto hidden sm:block">
                                     {product.notes}
                                 </p>
                             )}
                             
-                            {/* Mobile fallback button (WITH EXPLICIT PRICE NOW DISPLAYED) */}
+                            {/* Mobile fallback button (WITH EXPLICIT PRICE DISPLAYED) */}
                             <button 
                                 @click.stop={onCartAdd}
                                 disabled={isOutOfStock}
@@ -232,8 +245,8 @@ const escapeAttr = (str) => {
             })}
             
             {/* Empty State for Filters */}
-            <div x-show="!categories.some(cat => filter === 'All' || cat === filter.toLowerCase())" style="display: none;" class="col-span-full py-12 text-center text-gray-400 font-serif italic text-lg">
-                No fragrances found in this collection.
+            <div x-show="!categories.some(cat => filter === 'All' || (filter === 'Fragrances' && (cat === 'Classic' || cat === 'Premium')) || cat === filter)" style="display: none;" class="col-span-full py-12 text-center text-gray-400 font-serif italic text-lg">
+                No products found in this collection.
             </div>
 
         </div>
