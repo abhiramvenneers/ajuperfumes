@@ -541,9 +541,25 @@ export const prerender = false;
                             
                             <!-- Renamed Volume Label & Dynamic Placeholder supporting lifestyle expansions -->
                             <div class="col-span-1 sm:col-span-2">
-                                <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Volume / Specification</label>
-                                <input type="text" x-model="productForm.volume" placeholder="e.g. 50ml, 100ml, iPhone 16 Pro, Black, 20W" class="w-full p-3.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-black focus:border-black transition-all">
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Volume / Specification Options</label>
+                                <input type="text" x-model="productForm.volume" placeholder="e.g. 50ml, 100ml or iPhone 15, iPhone 16, OnePlus 12" class="w-full p-3.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-black focus:border-black transition-all">
+                                <p class="text-[9px] text-gray-400 mt-1.5 leading-relaxed font-light">
+                                    <strong>Tip for Cases & Screen Guards:</strong> Type the compatible models separated by commas (e.g. <em>iPhone 15, iPhone 16, OnePlus 12</em>). The website will automatically convert this into a dropdown list for the customer to select their exact phone model before buying!
+                                </p>
+                                
+                                <!-- Live Dropdown Preview for Admin -->
+                                <template x-if="productForm.volume && productForm.volume.includes(',')">
+                                    <div class="mt-3 p-3 bg-gray-50 border border-dashed border-gray-200 rounded-lg">
+                                        <span class="text-[8px] uppercase tracking-wider text-gray-400 font-bold block mb-1">Storefront Dropdown Preview</span>
+                                        <select class="w-full p-2.5 bg-white border border-gray-200 rounded-md text-xs focus:ring-1 focus:ring-black focus:border-black outline-none">
+                                            <template x-for="opt in productForm.volume.split(',').map(s => s.trim())" :key="opt">
+                                                <option x-text="opt"></option>
+                                            </template>
+                                        </select>
+                                    </div>
+                                </template>
                             </div>
+                            
                             <div class="col-span-1 sm:col-span-2">
                                 <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Product Description / Notes</label>
                                 <textarea x-model="productForm.notes" rows="3" class="w-full p-3.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-black focus:border-black transition-all resize-none"></textarea>
