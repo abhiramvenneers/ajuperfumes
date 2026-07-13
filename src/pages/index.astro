@@ -18,6 +18,9 @@ const rawCategories = Array.from(new Set((products || []).map(p => {
 const categoryList = rawCategories.map(c => `'${c}'`).join(', ');
 const sectionXData = `{ filter: 'All', categories: [${categoryList}] }`;
 
+// Filter products to showcase in the "Curated Highlights" sliding gallery
+const sliderProducts = (products || []).slice(0, 6); // Curates top 6 items automatically
+
 // Robust helper function to catch any variation of 'N/A', 'n/a', or empty spaces
 const isSafe = (val) => {
     if (!val) return false;
@@ -81,7 +84,150 @@ const escapeAttr = (str) => {
         </div>
     </section>
 
-    <!-- Dynamic Lifestyle Grid Filter Section -->
+    <!-- LUXURY TOUCH-ENABLED CURATED SLIDER SECTION -->
+    <section class="py-24 sm:py-32 bg-[#fafafa] border-b border-gray-100 overflow-hidden" 
+             x-data="{
+                scrollLeft() {
+                    this.$refs.sliderContainer.scrollBy({ left: -320, behavior: 'smooth' });
+                },
+                scrollRight() {
+                    this.$refs.sliderContainer.scrollBy({ left: 320, behavior: 'smooth' });
+                }
+             }">
+        <div class="max-w-[1400px] mx-auto px-6 lg:px-12">
+            
+            <div class="flex justify-between items-end mb-12 sm:mb-16">
+                <div>
+                    <span class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-2">Signature Gallery</span>
+                    <h2 class="text-3xl sm:text-4xl font-serif font-medium tracking-tight text-gray-900">Curated Masterpieces</h2>
+                </div>
+                
+                <!-- Minimalist Navigation Controls -->
+                <div class="flex gap-4">
+                    <button @click="scrollLeft()" class="w-12 h-12 rounded-full border border-gray-200 bg-white flex items-center justify-center text-gray-600 hover:text-black hover:border-black active:scale-95 transition-all shadow-sm focus:outline-none">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 19l-7-7 7-7"></path></svg>
+                    </button>
+                    <button @click="scrollRight()" class="w-12 h-12 rounded-full border border-gray-200 bg-white flex items-center justify-center text-gray-600 hover:text-black hover:border-black active:scale-95 transition-all shadow-sm focus:outline-none">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5l7 7-7 7"></path></svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Dynamic Horizontal Sliding Container -->
+            <div x-ref="sliderContainer" class="flex gap-6 sm:gap-8 overflow-x-auto no-scrollbar snap-x snap-mandatory scroll-smooth pb-8">
+                {sliderProducts.map((product) => {
+                    const rawCategory = product.category || 'Classic';
+                    const categoryNormalized = rawCategory.toString().trim().charAt(0).toUpperCase() + rawCategory.toString().trim().slice(1).toLowerCase();
+                    const isAccessory = categoryNormalized.includes('Accessory') || categoryNormalized.includes('Accessories');
+                    
+                    const imageUrl = product.image_url ? String(product.image_url).split(',')[0].trim() : '';
+                    const productName = product.name || 'Premium Item';
+                    const productPrice = Number(product.price || 0);
+
+                    // Option / Variant Parsing
+                    const rawVolumeStr = product.volume || '';
+                    let parsedVariants = [];
+                    let hasVariants = false;
+                    
+                    if (rawVolumeStr.includes(',')) {
+                        hasVariants = true;
+                        parsedVariants = rawVolumeStr.split(',').map(v => {
+                            const trimV = v.trim();
+                            if (trimV.includes(':')) {
+                                const parts = trimV.split(':');
+                                const parsedPrice = parseFloat(parts[1].replace(/[^\d.]/g, ''));
+                                return {
+                                    label: parts[0].trim(),
+                                    price: !isNaN(parsedPrice) ? parsedPrice : productPrice
+                                };
+                            } else {
+                                return {
+                                    label: trimV,
+                                    price: productPrice
+                                };
+                            }
+                        });
+                    }
+
+                    const defaultPrice = parsedVariants.length > 0 ? parsedVariants[0].price : productPrice;
+                    const variantsJson = JSON.stringify(parsedVariants).replace(/'/g, "\\'");
+                    const safeName = escapeAttr(productName);
+                    const safeImageUrl = escapeAttr(imageUrl);
+                    const safeVolume = isSafe(product.volume) ? escapeAttr(product.volume) : '';
+
+                    const stock = Number(product.stock_quantity || 0);
+                    const isOutOfStock = stock <= 0;
+                    const isLowStock = stock > 0 && stock <= 5;
+
+                    return (
+                        <div class="snap-start w-[280px] sm:w-[320px] shrink-0 bg-white border border-gray-100 rounded-lg p-3 hover:shadow-xl hover:shadow-gray-200/50 transition-all duration-300"
+                             x-data={`{
+                                variants: ${variantsJson},
+                                selectedVariant: '${parsedVariants.length > 0 ? parsedVariants[0].label.replace(/'/g, "\\'") : ""}',
+                                currentPrice: ${defaultPrice}
+                             }`}>
+                            
+                            {/* Slide Image */}
+                            <div class="aspect-[3/4] w-full bg-[#fcfcfc] rounded-md relative mb-6 overflow-hidden flex items-center justify-center">
+                                {isOutOfStock && (
+                                    <span class="absolute top-3 right-3 bg-red-600 text-white px-2.5 py-1 text-[8px] font-bold uppercase tracking-widest z-20 shadow-sm rounded-sm">Out of Stock</span>
+                                )}
+                                {isLowStock && (
+                                    <span class="absolute top-3 right-3 bg-amber-100 text-amber-800 px-2.5 py-1 text-[8px] font-bold uppercase tracking-widest z-20 shadow-sm border border-amber-200 rounded-sm">Few Stock Left</span>
+                                )}
+
+                                {imageUrl ? (
+                                    <img src={imageUrl} alt={productName} class="w-full h-full object-cover transition-transform duration-700 hover:scale-105" />
+                                ) : (
+                                    <span class="text-gray-300 font-serif italic text-xl px-4 text-center">{productName.split(' ')[0]}</span>
+                                )}
+                            </div>
+
+                            {/* Details & Selectors */}
+                            <div class="text-center">
+                                <h3 class="font-serif text-base sm:text-lg font-medium text-gray-900 truncate mb-1">{productName}</h3>
+                                
+                                {hasVariants ? (
+                                    <div class="my-2 max-w-[200px] mx-auto">
+                                        <select 
+                                            x-model="selectedVariant"
+                                            @change="const found = variants.find(v => v.label === selectedVariant); if (found) { currentPrice = found.price; }"
+                                            class="w-full bg-gray-50 border border-gray-200 text-[9px] font-bold uppercase tracking-wider py-1.5 px-2 focus:outline-none rounded-sm"
+                                        >
+                                            {parsedVariants.map(v => (
+                                                <option value={v.label}>{v.label} (₹{v.price.toLocaleString('en-IN')})</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                ) : (
+                                    <div class="text-[8px] sm:text-[9px] text-gray-500 uppercase tracking-widest mb-3 font-bold">
+                                        <span>{isAccessory ? 'Accessory' : categoryNormalized}</span>
+                                        {isSafe(product.volume) && ` • ${product.volume}`}
+                                    </div>
+                                )}
+
+                                <button 
+                                    @click.stop={`$store.cart.add({ id: ${product.id || 0}, name: '${safeName}', price: currentPrice, volume: selectedVariant || '${safeVolume}', image_url: '${safeImageUrl}' })`}
+                                    disabled={isOutOfStock}
+                                    class={`w-full py-3 mt-3 uppercase text-[9px] sm:text-[10px] font-bold tracking-[0.2em] rounded-sm transition-colors ${isOutOfStock ? 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200' : 'bg-black text-white hover:bg-neutral-800'}`}
+                                >
+                                    {isOutOfStock ? 'Sold Out' : (
+                                        <span x-text="'Add — ₹' + Number(currentPrice).toLocaleString('en-IN')">
+                                            Add — ₹{defaultPrice.toLocaleString('en-IN')}
+                                        </span>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+            
+            <p class="text-center text-[10px] text-gray-400 uppercase tracking-widest font-semibold mt-4">Swipe or drag left / right to browse the catalog</p>
+        </div>
+    </section>
+
+    <!-- Refined Product Grid Section -->
     <section id="shop" class="py-24 sm:py-32 px-4 sm:px-6 lg:px-12 max-w-[1400px] mx-auto" 
              x-data={sectionXData} 
              x-init="
@@ -100,7 +246,7 @@ const escapeAttr = (str) => {
              ">
         
         <div class="flex flex-col md:flex-row justify-between items-center md:items-end mb-12 sm:mb-20 border-b border-gray-200 pb-8 gap-6 sm:gap-8">
-            <h2 class="text-3xl sm:text-4xl md:text-5xl font-serif font-medium tracking-tight text-gray-900 text-center md:text-left">The Collection</h2>
+            <h2 class="text-3xl sm:text-4xl md:text-5xl font-serif font-medium tracking-tight text-gray-900 text-center md:text-left">The Full Collection</h2>
             
             <!-- Dynamic Category Navigation Tabs -->
             <div class="flex flex-wrap gap-4 justify-center sm:gap-12">
@@ -148,9 +294,10 @@ const escapeAttr = (str) => {
                         const trimV = v.trim();
                         if (trimV.includes(':')) {
                             const parts = trimV.split(':');
+                            const parsedPrice = parseFloat(parts[1].replace(/[^\d.]/g, ''));
                             return {
                                 label: parts[0].trim(),
-                                price: Number(parts[1].trim()) || productPrice
+                                price: !isNaN(parsedPrice) ? parsedPrice : productPrice
                             };
                         } else {
                             return {
@@ -228,7 +375,7 @@ const escapeAttr = (str) => {
                                 <button 
                                     @click.stop={`$store.cart.add({ id: ${product.id || 0}, name: '${safeName}', price: currentPrice, volume: selectedVariant || '${safeVolume}', image_url: '${safeImageUrl}' })`}
                                     disabled={isOutOfStock}
-                                    class={`w-full py-4 uppercase text-[10px] font-bold tracking-[0.2em] transition-colors duration-300 shadow-xl \${isOutOfStock ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-white text-black hover:bg-black hover:text-white'}`}
+                                    class={`w-full py-4 uppercase text-[10px] font-bold tracking-[0.2em] transition-colors duration-300 shadow-xl ${isOutOfStock ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-white text-black hover:bg-black hover:text-white'}`}
                                 >
                                     {isOutOfStock ? 'Sold Out' : (
                                         <span x-text="'Add to Bag — ₹' + Number(currentPrice).toLocaleString('en-IN')">
@@ -256,7 +403,7 @@ const escapeAttr = (str) => {
                                             style="background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23666666%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%0-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E'); background-repeat: no-repeat; background-position: right 0.75rem center; background-size: 0.5rem auto; padding-right: 2rem;"
                                         >
                                             {parsedVariants.map(v => (
-                                                <option value={v.label}>{v.label} {v.price !== productPrice ? `(₹${v.price.toLocaleString('en-IN')})` : ''}</option>
+                                                <option value={v.label}>{v.label} (₹{v.price.toLocaleString('en-IN')})</option>
                                             ))}
                                         </select>
                                     </div>
@@ -284,7 +431,7 @@ const escapeAttr = (str) => {
                             <button 
                                 @click.stop={`$store.cart.add({ id: ${product.id || 0}, name: '${safeName}', price: currentPrice, volume: selectedVariant || '${safeVolume}', image_url: '${safeImageUrl}' })`}
                                 disabled={isOutOfStock}
-                                class={`lg:hidden w-full border py-2.5 sm:py-3 uppercase text-[9px] sm:text-[10px] font-bold tracking-[0.2em] transition-colors mt-2 \${isOutOfStock ? 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed' : 'border-gray-200 text-gray-900 hover:bg-gray-50'}`}
+                                class={`lg:hidden w-full border py-2.5 sm:py-3 uppercase text-[9px] sm:text-[10px] font-bold tracking-[0.2em] transition-colors mt-2 ${isOutOfStock ? 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed' : 'border-gray-200 text-gray-900 hover:bg-gray-50'}`}
                             >
                                 {isOutOfStock ? 'Sold Out' : (
                                     <span x-text="'Add to Bag — ₹' + Number(currentPrice).toLocaleString('en-IN')">
