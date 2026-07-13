@@ -84,17 +84,13 @@ const escapeAttr = (str) => {
         </div>
     </section>
 
-    <!-- LUXURY AUTO-PLAYING CURATED SLIDER SECTION -->
+    <!-- LUXURY MANUAL-SCROLL CURATED SLIDER SECTION -->
     <section class="py-24 sm:py-32 bg-[#fafafa] border-b border-gray-100 overflow-hidden" 
              x-data="{
-                autoplayInterval: null,
                 scrollLeft() {
-                    this.stopAutoplay();
                     this.$refs.sliderContainer.scrollBy({ left: -320, behavior: 'smooth' });
-                    this.startAutoplay();
                 },
                 scrollRight() {
-                    this.stopAutoplay();
                     const el = this.$refs.sliderContainer;
                     if (!el) return;
                     // Reset to beginning if at the end of scroll
@@ -103,30 +99,8 @@ const escapeAttr = (str) => {
                     } else {
                         el.scrollBy({ left: 320, behavior: 'smooth' });
                     }
-                    this.startAutoplay();
-                },
-                startAutoplay() {
-                    this.stopAutoplay();
-                    this.autoplayInterval = setInterval(() => {
-                        const el = this.$refs.sliderContainer;
-                        if (!el) return;
-                        if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 30) {
-                            el.scrollTo({ left: 0, behavior: 'smooth' });
-                        } else {
-                            el.scrollBy({ left: 320, behavior: 'smooth' });
-                        }
-                    }, 4000); // Transitions automatically every 4 seconds
-                },
-                stopAutoplay() {
-                    if (this.autoplayInterval) {
-                        clearInterval(this.autoplayInterval);
-                        this.autoplayInterval = null;
-                    }
                 }
-             }"
-             x-init="startAutoplay()"
-             @mouseenter="stopAutoplay()"
-             @mouseleave="startAutoplay()">
+             }">
         <div class="max-w-[1400px] mx-auto px-6 lg:px-12">
             
             <div class="flex justify-between items-end mb-12 sm:mb-16">
