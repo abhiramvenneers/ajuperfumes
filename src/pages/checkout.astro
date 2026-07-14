@@ -109,6 +109,28 @@ const publicRazorpayKeyId = import.meta.env.PUBLIC_RAZORPAY_KEY_ID || '';
                         theme: {
                             color: '#000000'
                         },
+                        // Direct Custom display rules restricting options strictly to UPI and Cards
+                        config: {
+                            display: {
+                                blocks: {
+                                    payment_methods: {
+                                        name: 'Select Payment Method',
+                                        instruments: [
+                                            {
+                                                method: 'upi'
+                                            },
+                                            {
+                                                method: 'card'
+                                            }
+                                        ]
+                                    }
+                                },
+                                sequence: ['block.payment_methods'],
+                                preferences: {
+                                    show_default_blocks: false
+                                }
+                            }
+                        },
                         modal: {
                             ondismiss: () => {
                                 this.isProcessing = false;
