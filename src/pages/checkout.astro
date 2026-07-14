@@ -1,4 +1,5 @@
 ---
+export const prerender = false;
 import Layout from '../layouts/Layout.astro';
 
 // Pull the public Razorpay Key ID safely during rendering to feed securely to the client script
@@ -102,7 +103,7 @@ const publicRazorpayKeyId = import.meta.env.PUBLIC_RAZORPAY_KEY_ID || '';
                             await this.finalizeOrder(response.razorpay_payment_id);
                         },
                         prefill: {
-                            name: `${this.profile.firstName} ${this.profile.lastName}`,
+                            name: this.profile.firstName + ' ' + this.profile.lastName,
                             email: this.profile.email
                         },
                         theme: {
@@ -117,7 +118,7 @@ const publicRazorpayKeyId = import.meta.env.PUBLIC_RAZORPAY_KEY_ID || '';
 
                     const rzp = new window.Razorpay(options);
                     rzp.on('payment.failed', (response) => {
-                        this.errorMessage = `Payment declined: ${response.error.description}`;
+                        this.errorMessage = 'Payment declined: ' + response.error.description;
                         this.isProcessing = false;
                     });
 
@@ -143,12 +144,12 @@ const publicRazorpayKeyId = import.meta.env.PUBLIC_RAZORPAY_KEY_ID || '';
                 const lastName = (formData.get('lastName') || formData.get('last_name') || '').trim();
                 
                 // Attach verified Razorpay payment receipt ID as trace log
-                const paymentTracker = ` [PAID VIA RAZORPAY | Payment ID: ${paymentId}]`;
+                const paymentTracker = ' [PAID VIA RAZORPAY | Payment ID: ' + paymentId + ']';
 
                 const orderData = {
-                    customer_name: `${firstName} ${lastName}`,
+                    customer_name: firstName + ' ' + lastName,
                     customer_email: (formData.get('email') || '').trim(),
-                    shipping_address: `${formData.get('address')}, ${formData.get('city')} - ${formData.get('pincode')}${paymentTracker}`,
+                    shipping_address: formData.get('address') + ', ' + formData.get('city') + ' - ' + formData.get('pincode') + paymentTracker,
                     total_amount: this.$store.cart.total,
                     items: this.$store.cart.items,
                     user_id: activeUser ? activeUser.id : null
@@ -189,7 +190,7 @@ const publicRazorpayKeyId = import.meta.env.PUBLIC_RAZORPAY_KEY_ID || '';
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                     
                 } catch (err) {
-                    this.errorMessage = `System Error during final processing: ${err.message}. Please contact client care with payment ID: ${paymentId}`;
+                    this.errorMessage = 'System Error during final processing: ' + err.message + '. Please contact client care with payment ID: ' + paymentId;
                     this.isProcessing = false;
                 }
             }
@@ -216,7 +217,7 @@ const publicRazorpayKeyId = import.meta.env.PUBLIC_RAZORPAY_KEY_ID || '';
         </div>
 
         <!-- Checkout Form Layout -->
-        <div x-show="!isSuccess" class="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-24 items-start">
+        <div x-show="!isSuccess" class="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-24 items-start" x-transition:enter="transition ease-out duration-500">
             
             <!-- Form Side (Left) -->
             <div class="lg:col-span-7">
