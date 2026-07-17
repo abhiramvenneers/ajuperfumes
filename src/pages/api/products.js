@@ -11,12 +11,14 @@ export async function POST({ request }) {
         const body = await request.json();
         const { action, id, name, category, image_url, notes, variants } = body;
 
-        // 1. Extract the Authorization bearer token sent by the Admin Panel
+        // 1. Extract the Authorization bearer token sent by the Admin Panel (Case-insensitive check)
         const authHeader = request.headers.get('Authorization') || '';
-        const token = authHeader.replace('Bearer ', '').trim();
+        const token = authHeader.replace(/^[Bb]earer\s+/, '').trim();
 
         if (!token) {
-            return new Response(JSON.stringify({ error: "Unauthorized: Missing authentication token" }), { status: 401 });
+            return new Response(JSON.stringify({ 
+                error: "Unauthorized: Missing administrative security token. Please sign out and sign back in on perfumesaju@gmail.com." 
+            }), { status: 401, headers: { 'Content-Type': 'application/json' } });
         }
 
         const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;

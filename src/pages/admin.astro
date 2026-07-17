@@ -641,6 +641,34 @@ export const prerender = false;
                 }
             };
 
+            // BULLETPROOF TOKEN CRAWLER UTILITY
+            state.getSecurityToken = async function() {
+                let token = '';
+                try {
+                    const { data: { session } } = await supabase.auth.getSession();
+                    token = session?.access_token || '';
+                } catch (e) {
+                    console.warn('Primary session token query skipped. Initiating storage crawls...', e);
+                }
+
+                // Crawl localStorage keys as backup in case of client desync or private sandboxing
+                if (!token) {
+                    for (let i = 0; i < localStorage.length; i++) {
+                        const key = localStorage.key(i);
+                        if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
+                            try {
+                                const parsed = JSON.parse(localStorage.getItem(key) || '{}');
+                                token = parsed?.access_token || '';
+                                break;
+                            } catch (e) {
+                                console.error('LocalStorage parsing crawl error:', e);
+                            }
+                        }
+                    }
+                }
+                return token;
+            };
+
             state.saveProduct = async function() {
                 if (this.productForm.variants.length === 0) {
                     alert("Please add at least one variant row (Step 2) with labels, price, and stock levels before saving.");
@@ -662,9 +690,12 @@ export const prerender = false;
                     variants: this.productForm.variants
                 };
                 
-                // Fetch current user secure auth access token (JWT)
-                const { data: { session } } = await supabase.auth.getSession();
-                const token = session?.access_token || '';
+                const token = await this.getSecurityToken();
+
+                if (!token) {
+                    this.showNotification('Security token missing. Please sign out and sign back in to refresh your admin session.', 'error');
+                    return;
+                }
 
                 const res = await fetch('/api/products', {
                     method: 'POST', 
@@ -690,9 +721,12 @@ export const prerender = false;
                 const confirmation = confirm('Are you sure you want to permanently delete this product? All of its variants will be removed.');
                 if (!confirmation) return;
 
-                // Fetch current user secure auth access token (JWT)
-                const { data: { session } } = await supabase.auth.getSession();
-                const token = session?.access_token || '';
+                const token = await this.getSecurityToken();
+
+                if (!token) {
+                    this.showNotification('Security token missing. Please sign out and sign back in.', 'error');
+                    return;
+                }
 
                 const res = await fetch('/api/products', {
                     method: 'POST', 
