@@ -33,7 +33,7 @@ export const prerender = false;
                 products: [],
                 authForm: { email: '', password: '' },
                 
-                // New Re-Structured Two-Step Form Fields
+                // Re-Structured Two-Step Form Fields
                 productForm: { 
                     id: null, 
                     name: '', 
@@ -147,7 +147,7 @@ export const prerender = false;
                         '.footer { border-top: 1px solid #eee; padding-top: 20px; margin-top: 60px; text-align: center; font-family: sans-serif; font-size: 11px; color: #aaa; letter-spacing: 0.05em; }',
                         '</sty' + 'le></head><body>',
                         '<div class="invoice-card">',
-                        '<div class="header"><div><h1 class="logo">AJU</h1><div class="invoice-title">Official Merchant Invoice</div></div>',
+                        '<div class="header"><div><h1 class="logo">AJU</h1><div class="invoice-title">Official Invoice</div></div>',
                         '<div class="meta-details"><p style="margin: 0; font-weight: bold; color: #111;">Order Ref: #000' + order.id + '</p>',
                         '<p style="margin: 3px 0 0 0;">Date: ' + orderDate + '</p>',
                         '<p style="margin: 3px 0 0 0;">Payment: Verified Transaction</p></div></div>',
@@ -155,9 +155,9 @@ export const prerender = false;
                         '<strong>' + (order.customer_name || '') + '</strong><p>' + (order.customer_email || '') + '</p>',
                         '<p>' + safeAddress + '</p></div>',
                         '<div class="address-box" style="text-align: right;"><div class="section-title" style="text-align: right;">Merchant House</div>',
-                        '<strong>Aju House</strong><p>perfumesaju@gmail.com</p><p>Kerala, India</p><p>Contact: +91 8075304432</p></div></div>',
-                        '<div class="section-title">Purchased Items</div><table><thead><tr>',
-                        '<th style="width: 60%;">Product Details</th><th style="width: 15%; text-align: center;">Qty</th><th style="width: 25%; text-align: right;">Amount</th>',
+                        '<strong>Aju Perfumes</strong><p>perfumesaju@gmail.com</p><p>Kerala, India</p><p>Contact: +91 8075304432</p></div></div>',
+                        '<div class="section-title">Purchased Fragrances</div><table><thead><tr>',
+                        '<th style="width: 60%;">Fragrance Details</th><th style="width: 15%; text-align: center;">Qty</th><th style="width: 25%; text-align: right;">Amount</th>',
                         '</tr></thead><tbody>' + itemsHtml + '</tbody></table>',
                         '<table class="totals-table"><tr><td style="color: #777; padding: 6px 0;">Subtotal</td>',
                         '<td style="text-align: right; font-weight: 500;">₹' + totalAmt + '</td></tr>',
@@ -165,7 +165,7 @@ export const prerender = false;
                         '<td style="text-align: right; color: #22c55e; font-weight: bold; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;">Complimentary</td></tr>',
                         '<tr class="grand-total"><td style="color: #111; font-weight: normal; padding-top: 15px; font-size: 16px;">Total Amount</td>',
                         '<td style="text-align: right; color: #111; padding-top: 15px; font-size: 16px;">₹' + totalAmt + '</td></tr></table>',
-                        '<div class="footer">Thank you for your appreciation of Aju craftsmanship.</div></div>',
+                        '<div class="footer">Thank you for your appreciation of Aju fine craftsmanship.</div></div>',
                         '<scr' + 'ipt>window.onload = function() { window.print(); setTimeout(function() { window.close(); }, 500); };</scr' + 'ipt>',
                         '</body></html>'
                     ].join('');
@@ -642,6 +642,11 @@ export const prerender = false;
             };
 
             state.saveProduct = async function() {
+                if (this.productForm.variants.length === 0) {
+                    alert("Please add at least one variant row (Step 2) with labels, price, and stock levels before saving.");
+                    return;
+                }
+
                 let finalCategory = this.productForm.category;
                 if (finalCategory === 'CUSTOM') {
                     finalCategory = (this.productForm.customCategoryVal || 'Classic').trim();
@@ -657,9 +662,16 @@ export const prerender = false;
                     variants: this.productForm.variants
                 };
                 
+                // Fetch current user secure auth access token (JWT)
+                const { data: { session } } = await supabase.auth.getSession();
+                const token = session?.access_token || '';
+
                 const res = await fetch('/api/products', {
                     method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
                     body: JSON.stringify(payload)
                 });
                 
@@ -678,9 +690,16 @@ export const prerender = false;
                 const confirmation = confirm('Are you sure you want to permanently delete this product? All of its variants will be removed.');
                 if (!confirmation) return;
 
+                // Fetch current user secure auth access token (JWT)
+                const { data: { session } } = await supabase.auth.getSession();
+                const token = session?.access_token || '';
+
                 const res = await fetch('/api/products', {
                     method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
                     body: JSON.stringify({ action: 'delete', id })
                 });
 
