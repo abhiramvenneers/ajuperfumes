@@ -10,11 +10,11 @@ const { data: products, error } = await supabase
 
 if (error) console.error('Error fetching inventory catalog:', error.message);
 
-// Dynamically generate unique categories
+// Dynamically generate unique categories sorted alphabetically
 const rawCategories = Array.from(new Set((products || []).map(p => {
     const cat = (p.category || 'Classic').trim();
     return cat.charAt(0).toUpperCase() + cat.slice(1).toLowerCase();
-})));
+}))).sort();
 
 const categoryList = rawCategories.map(c => `'${c}'`).join(', ');
 const sectionXData = `{ filter: 'All', categories: [${categoryList}] }`;
@@ -71,7 +71,7 @@ const escapeAttr = (str) => {
                 Immerse yourself in our signature hand-bottled perfumes and highly durable, minimal mobile accessories. Built for the modern aesthetic.
             </p>
             
-            <a href="#shop" class="bg-white text-black px-12 py-5 uppercase text-[11px] font-bold tracking-[0.25em] hover:bg-gray-200 transition-all duration-500 rounded-sm shadow-[0_0_40px_rgba(255,255,255,0.15)] hover:shadow-[0_0_60px_rgba(255,255,255,0.25)]">
+            <a href="#shop" class="bg-white text-black px-12 py-5 uppercase text-[11px] font-bold tracking-[0.2em] hover:bg-gray-200 transition-all duration-500 rounded-sm shadow-[0_0_40px_rgba(255,255,255,0.15)] hover:shadow-[0_0_60px_rgba(255,255,255,0.25)]">
                 Explore Curation
             </a>
         </div>
@@ -117,7 +117,6 @@ const escapeAttr = (str) => {
                 {sliderProducts.map((product) => {
                     const rawCategory = product.category || 'Classic';
                     const categoryNormalized = rawCategory.toString().trim().charAt(0).toUpperCase() + rawCategory.toString().trim().slice(1).toLowerCase();
-                    const isAccessory = categoryNormalized.includes('Accessory') || categoryNormalized.includes('Accessories');
                     
                     const imageUrl = product.image_url ? String(product.image_url).split(',')[0].trim() : '';
                     const productName = product.name || 'Premium Item';
@@ -166,7 +165,7 @@ const escapeAttr = (str) => {
                             <div class="text-center">
                                 <h3 class="font-serif text-base sm:text-lg font-medium text-gray-900 truncate mb-1">{productName}</h3>
                                 
-                                {/* PREMIUM INTERACTIVE PILL SELECTOR FOR VARIANTS */}
+                                <!-- PREMIUM INTERACTIVE PILL SELECTOR FOR VARIANTS -->
                                 <template x-if="variants.length > 1">
                                     <div class="flex flex-wrap gap-1.5 justify-center my-3">
                                         <template x-for="v in variants" :key="v.id">
@@ -185,7 +184,7 @@ const escapeAttr = (str) => {
                                     <div class="text-[8px] sm:text-[9px] text-gray-500 uppercase tracking-widest my-3 font-bold">
                                         <span x-text="selectedLabel"></span>
                                         <span class="text-gray-300 mx-1">•</span>
-                                        <span>{isAccessory ? 'Accessory' : categoryNormalized}</span>
+                                        <span>{categoryNormalized}</span>
                                     </div>
                                 </template>
 
@@ -215,13 +214,20 @@ const escapeAttr = (str) => {
              x-data={sectionXData} 
              x-init="
                 const updateFilter = () => {
-                    const hash = window.location.hash.substring(1).toLowerCase();
-                    if (hash === 'fragrances') {
-                        filter = 'Classic'; 
-                    } else if (hash === 'accessories') {
-                        filter = 'Accessories';
+                    const hash = window.location.hash.substring(1).toLowerCase().trim();
+                    if (!hash || hash === 'shop' || hash === 'all') {
+                        filter = 'All';
+                        return;
+                    }
+                    
+                    const matchedCat = categories.find(cat => cat.toLowerCase().trim() === hash);
+                    if (matchedCat) {
+                        filter = matchedCat;
+                    } else if (hash === 'fragrances') {
+                        // Legacy support for general fragrances group hash
+                        filter = 'Fragrances';
                     } else {
-                        filter = 'All'; 
+                        filter = 'All';
                     }
                 };
                 updateFilter();
@@ -231,7 +237,7 @@ const escapeAttr = (str) => {
         <div class="flex flex-col md:flex-row justify-between items-center md:items-end mb-12 sm:mb-20 border-b border-gray-200 pb-8 gap-6 sm:gap-8">
             <h2 class="text-3xl sm:text-4xl md:text-5xl font-serif font-medium tracking-tight text-gray-900 text-center md:text-left">The Full Collection</h2>
             
-            <!-- Category Tabs -->
+            <!-- Category Tabs (Populated 100% dynamically from active database products) -->
             <div class="flex flex-wrap gap-4 justify-center sm:gap-12">
                 <button @click="filter = 'All'; window.location.hash = 'shop'" 
                         :class="filter === 'All' ? 'text-black border-b border-black' : 'text-gray-400 border-transparent hover:text-black'" 
@@ -239,17 +245,13 @@ const escapeAttr = (str) => {
                     All Objects
                 </button>
                 
-                <button @click="filter = 'Fragrances'; window.location.hash = 'fragrances'" 
-                        :class="filter === 'Fragrances' || filter === 'Classic' || filter === 'Premium' ? 'text-black border-b border-black' : 'text-gray-400 border-transparent hover:text-black'" 
-                        class="pb-1 uppercase text-[10px] sm:text-[11px] font-bold tracking-[0.2em] transition-colors">
-                    Fragrances
-                </button>
-
-                <button @click="filter = 'Accessories'; window.location.hash = 'accessories'" 
-                        :class="filter === 'Accessories' ? 'text-black border-b border-black' : 'text-gray-400 border-transparent hover:text-black'" 
-                        class="pb-1 uppercase text-[10px] sm:text-[11px] font-bold tracking-[0.2em] transition-colors">
-                    Accessories
-                </button>
+                {rawCategories.map(cat => (
+                    <button @click={`filter = '${cat}'; window.location.hash = '${cat.toLowerCase()}'`} 
+                            :class={`filter === '${cat}' ? 'text-black border-b border-black' : 'text-gray-400 border-transparent hover:text-black'`} 
+                            class="pb-1 uppercase text-[10px] sm:text-[11px] font-bold tracking-[0.2em] transition-colors">
+                        {cat}
+                    </button>
+                ))}
             </div>
         </div>
 
@@ -258,7 +260,6 @@ const escapeAttr = (str) => {
             {(products || []).map((product) => {
                 const rawCategory = product.category || 'Classic';
                 const categoryNormalized = rawCategory.toString().trim().charAt(0).toUpperCase() + rawCategory.toString().trim().slice(1).toLowerCase();
-                const isAccessory = categoryNormalized.includes('Accessory') || categoryNormalized.includes('Accessories');
                 
                 const imageUrl = product.image_url ? String(product.image_url).split(',')[0].trim() : '';
                 const productName = product.name || 'Premium Item';
@@ -269,12 +270,8 @@ const escapeAttr = (str) => {
                 const defaultVariant = hasVariants ? dbVariants[0] : { id: null, variant_label: 'Standard', price_override: 0, stock_quantity: 0 };
                 const variantsJson = JSON.stringify(dbVariants).replace(/'/g, "\\'");
 
-                let xShow = '';
-                if (isAccessory) {
-                    xShow = `filter === 'All' || filter === 'Accessories'`;
-                } else {
-                    xShow = `filter === 'All' || filter === 'Fragrances' || filter === '${categoryNormalized}'`;
-                }
+                // Completely dynamic filtering check with backward compatibility for legacy Fragrances group hash
+                let xShow = `filter === 'All' || filter === '${categoryNormalized}' || (filter === 'Fragrances' && ('${categoryNormalized}' === 'Classic' || '${categoryNormalized}' === 'Premium'))`;
 
                 const safeName = escapeAttr(productName);
                 const safeImageUrl = escapeAttr(imageUrl);
@@ -331,7 +328,7 @@ const escapeAttr = (str) => {
                             <div class="hidden lg:block absolute inset-x-0 bottom-0 p-6 translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] z-30">
                                 <button 
                                     @click.stop={`$store.cart.add({ id: '${product.id}', variant_id: selectedVariantId, name: '${safeName}', price: currentPrice, volume: selectedLabel, image_url: '${safeImageUrl}' })`}
-                                    ::disabled="currentStock <= 0"
+                                    :disabled="currentStock <= 0"
                                     class="w-full py-4 uppercase text-[10px] font-bold tracking-[0.2em] transition-colors duration-300 shadow-xl"
                                     :class="currentStock <= 0 ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-white text-black hover:bg-black hover:text-white'"
                                 >
@@ -369,7 +366,7 @@ const escapeAttr = (str) => {
                                     <div class="flex items-center justify-center gap-1 sm:gap-2 text-[8px] sm:text-[9px] text-gray-500 uppercase tracking-[0.2em] mb-2 sm:mb-4 font-bold">
                                         <span x-text="selectedLabel"></span>
                                         <span class="text-gray-300">•</span>
-                                        <span>{isAccessory ? 'Accessory' : categoryNormalized}</span>
+                                        <span>{categoryNormalized}</span>
                                     </div>
                                 </template>
                                 
@@ -383,7 +380,7 @@ const escapeAttr = (str) => {
                             <!-- Mobile Action Button -->
                             <button 
                                 @click.stop={`$store.cart.add({ id: '${product.id}', variant_id: selectedVariantId, name: '${safeName}', price: currentPrice, volume: selectedLabel, image_url: '${safeImageUrl}' })`}
-                                ::disabled="currentStock <= 0"
+                                :disabled="currentStock <= 0"
                                 class="lg:hidden w-full border py-2.5 sm:py-3 uppercase text-[9px] sm:text-[10px] font-bold tracking-[0.2em] transition-colors mt-2"
                                 :class="currentStock <= 0 ? 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed' : 'border-gray-200 text-gray-900 hover:bg-gray-50'"
                             >

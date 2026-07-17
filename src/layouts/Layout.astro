@@ -1,7 +1,19 @@
 ---
+import { supabase } from '../lib/supabase.js';
+
 const { title = "Aju | Premium Fragrances & Accessories" } = Astro.props;
 const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
+
+// Dynamically fetch all products from the database to compile active category filters
+const { data: dbProducts } = await supabase
+  .from('products')
+  .select('category');
+
+const dynamicCategories = Array.from(new Set((dbProducts || []).map(p => {
+    const cat = (p.category || 'Classic').trim();
+    return cat.charAt(0).toUpperCase() + cat.slice(1).toLowerCase();
+}))).sort();
 ---
 
 <!DOCTYPE html>
@@ -279,7 +291,7 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
             </div>
         </header>
 
-        <!-- Sliding Navigation Drawer -->
+        <!-- Sliding Navigation Drawer (Now populated 100% dynamically from active DB items) -->
         <nav x-show="isMenuOpen" 
              x-transition:enter="transition ease-out duration-500 transform"
              x-transition:enter-start="-translate-x-full"
@@ -299,9 +311,20 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
             
             <div class="p-10 space-y-8 flex-1 overflow-y-auto font-serif text-3xl font-medium tracking-wide text-gray-900">
                 <a href="/" @click="isMenuOpen = false" class="block hover:text-gray-400 transition-colors">Home</a>
-                <a href="/#shop" @click="isMenuOpen = false" class="block hover:text-gray-400 transition-colors">All Products</a>
-                <a href="/#fragrances" @click="isMenuOpen = false; window.location.hash = 'fragrances'" class="block hover:text-gray-400 transition-colors">Fine Fragrances</a>
-                <a href="/#accessories" @click="isMenuOpen = false; window.location.hash = 'accessories'" class="block hover:text-gray-400 transition-colors">Premium Accessories</a>
+                <a href="/#shop" @click="isMenuOpen = false; window.location.hash = 'shop'; window.dispatchEvent(new HashChangeEvent('hashchange'));" class="block hover:text-gray-400 transition-colors">All Products</a>
+                
+                {dynamicCategories.map(cat => {
+                    const hashValue = cat.toLowerCase();
+                    return (
+                        <a 
+                            href={`/#${hashValue}`} 
+                            @click={`isMenuOpen = false; window.location.hash = '${hashValue}'; window.dispatchEvent(new HashChangeEvent('hashchange'));`} 
+                            class="block hover:text-gray-400 transition-colors"
+                        >
+                            {cat === 'Classic' || cat === 'Premium' ? cat + ' Fragrances' : cat}
+                        </a>
+                    );
+                })}
                 
                 <div class="pt-12 border-t border-gray-100 mt-12 font-sans text-xs">
                     <p class="text-[10px] text-gray-400 tracking-widest font-bold uppercase mb-6">Account</p>
@@ -374,7 +397,6 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
                             <div>
                                 <div class="flex justify-between items-start">
                                     <span class="font-serif font-medium text-lg text-gray-900 leading-tight" x-text="item.name"></span>
-                                    <!-- Dynamic clean by id + variantId combination -->
                                     <button @click="$store.cart.remove(item.id, item.variant_id)" class="text-gray-300 hover:text-red-500 transition-colors p-1">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                                     </button>
@@ -439,8 +461,9 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
                 <div class="flex flex-col space-y-5">
                     <h4 class="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-500 mb-2">The House Departments</h4>
                     <a href="/#shop" class="text-xs tracking-wider uppercase text-gray-300 hover:text-white transition-colors">All Collections</a>
-                    <a href="/#fragrances" class="text-xs tracking-wider uppercase text-gray-300 hover:text-white transition-colors">Fine Fragrances</a>
-                    <a href="/#accessories" class="text-xs tracking-wider uppercase text-gray-300 hover:text-white transition-colors">Premium Accessories</a>
+                    {dynamicCategories.map(cat => (
+                        <a href={`/#${cat.toLowerCase()}`} class="text-xs tracking-wider uppercase text-gray-300 hover:text-white transition-colors">{cat}</a>
+                    ))}
                 </div>
             </div>
             
