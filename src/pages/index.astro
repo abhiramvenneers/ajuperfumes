@@ -2,14 +2,14 @@
 import Layout from '../layouts/Layout.astro';
 import { supabase } from '../lib/supabase.js';
 
+// Query restructured products alongside their dynamic relational variants
 const { data: products, error } = await supabase
-  .from('perfumes') // Mapping into the existing backend structure safely
-  .select('*')
-  .order('id');
+  .from('products')
+  .select('*, product_variants(*)')
+  .order('created_at', { ascending: false });
 
 if (error) console.error('Error fetching inventory catalog:', error.message);
 
-// Safely generate categories list. Support both 'Fragrances', 'Accessories' and legacy classifications
 const rawCategories = Array.from(new Set((products || []).map(p => {
     const cat = (p.category || 'Classic').trim();
     return cat.charAt(0).toUpperCase() + cat.slice(1).toLowerCase();
@@ -18,17 +18,9 @@ const rawCategories = Array.from(new Set((products || []).map(p => {
 const categoryList = rawCategories.map(c => `'${c}'`).join(', ');
 const sectionXData = `{ filter: 'All', categories: [${categoryList}] }`;
 
-// Filter products to showcase in the "Curated Highlights" sliding gallery
-const sliderProducts = (products || []).slice(0, 6); // Curates top 6 items automatically
+// Curate masterpieces to display on sliding gallery
+const sliderProducts = (products || []).slice(0, 6);
 
-// Robust helper function to catch any variation of 'N/A', 'n/a', or empty spaces
-const isSafe = (val) => {
-    if (!val) return false;
-    const cleaned = String(val).trim().toUpperCase();
-    return cleaned !== 'N/A' && cleaned !== 'NA' && cleaned !== '';
-};
-
-// Strict escaper to prevent database strings from breaking the Alpine JS syntax
 const escapeAttr = (str) => {
     if (!str) return '';
     return String(str).replace(/'/g, "\\'").replace(/"/g, "&quot;");
@@ -37,7 +29,6 @@ const escapeAttr = (str) => {
 
 <Layout title="Aju | Crafted Fragrances & Premium Accessories">
     
-    <!-- Self-Healing Local Storage Script for returning Laptop browsers -->
     <script is:inline>
         (function() {
             try {
@@ -45,9 +36,10 @@ const escapeAttr = (str) => {
                 if (stored) {
                     const parsed = JSON.parse(stored);
                     if (Array.isArray(parsed)) {
-                        const needsUpgrade = parsed.some(item => !item.hasOwnProperty('image_url') || item.price === undefined || item.volume === 'N/A');
+                        // Wipe old table-based structured storage schemas gracefully
+                        const needsUpgrade = parsed.some(item => !item.hasOwnProperty('variant_id'));
                         if (needsUpgrade) {
-                            console.log('Stale testing metadata detected. Self-healing client local storage...');
+                            console.log('Migrating local cart to v2 structured relational variant scheme...');
                             localStorage.removeItem('cartItems');
                         }
                     }
@@ -60,7 +52,6 @@ const escapeAttr = (str) => {
 
     <!-- Unified Lifestyle Hero Section -->
     <section class="relative h-[90vh] flex items-center justify-center overflow-hidden bg-[#0a0a0a]">
-        <!-- Gradient Mesh Background for Luxury Vibe -->
         <div class="absolute inset-0">
             <div class="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-gray-800 blur-[120px] opacity-30"></div>
             <div class="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-neutral-800 blur-[120px] opacity-20"></div>
@@ -93,7 +84,6 @@ const escapeAttr = (str) => {
                 scrollRight() {
                     const el = this.$refs.sliderContainer;
                     if (!el) return;
-                    // Reset to beginning if at the end of scroll
                     if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 30) {
                         el.scrollTo({ left: 0, behavior: 'smooth' });
                     } else {
@@ -129,59 +119,40 @@ const escapeAttr = (str) => {
                     
                     const imageUrl = product.image_url ? String(product.image_url).split(',')[0].trim() : '';
                     const productName = product.name || 'Premium Item';
-                    const productPrice = Number(product.price || 0);
-
-                    // Option / Variant Parsing
-                    const rawVolumeStr = product.volume || '';
-                    let parsedVariants = [];
-                    let hasVariants = false;
                     
-                    if (rawVolumeStr.includes(',')) {
-                        hasVariants = true;
-                        parsedVariants = rawVolumeStr.split(',').map(v => {
-                            const trimV = v.trim();
-                            if (trimV.includes(':')) {
-                                const parts = trimV.split(':');
-                                const parsedPrice = parseFloat(parts[1].replace(/[^\d.]/g, ''));
-                                return {
-                                    label: parts[0].trim(),
-                                    price: !isNaN(parsedPrice) ? parsedPrice : productPrice
-                                };
-                            } else {
-                                return {
-                                    label: trimV,
-                                    price: productPrice
-                                };
-                            }
-                        });
-                    }
-
-                    const defaultPrice = parsedVariants.length > 0 ? parsedVariants[0].price : productPrice;
-                    const variantsJson = JSON.stringify(parsedVariants).replace(/'/g, "\\'");
+                    // Pull variants from database arrays
+                    const dbVariants = product.product_variants || [];
+                    const hasVariants = dbVariants.length > 0;
+                    
+                    const defaultVariant = hasVariants ? dbVariants[0] : { id: null, variant_label: 'Standard', price_override: 0, stock_quantity: 0 };
+                    const variantsJson = JSON.stringify(dbVariants).replace(/'/g, "\\'");
+                    
                     const safeName = escapeAttr(productName);
                     const safeImageUrl = escapeAttr(imageUrl);
-                    const safeVolume = isSafe(product.volume) ? escapeAttr(product.volume) : '';
-
-                    const stock = Number(product.stock_quantity || 0);
-                    const isOutOfStock = stock <= 0;
-                    const isLowStock = stock > 0 && stock <= 5;
 
                     return (
                         <div class="snap-start w-[280px] sm:w-[320px] shrink-0 bg-white border border-gray-100 rounded-lg p-3 hover:shadow-xl hover:shadow-gray-200/50 transition-all duration-300"
                              x-data={`{
                                 variants: ${variantsJson},
-                                selectedVariant: '${parsedVariants.length > 0 ? parsedVariants[0].label.replace(/'/g, "\\'") : ""}',
-                                currentPrice: ${defaultPrice}
+                                selectedVariantId: '${defaultVariant.id || ""}',
+                                selectedLabel: '${defaultVariant.variant_label}',
+                                currentPrice: ${defaultVariant.price_override || 0},
+                                currentStock: ${defaultVariant.stock_quantity || 0},
+                                updateVariant(vId) {
+                                    const found = this.variants.find(v => v.id === vId);
+                                    if (found) {
+                                        this.selectedVariantId = found.id;
+                                        this.selectedLabel = found.variant_label;
+                                        this.currentPrice = found.price_override;
+                                        this.currentStock = found.stock_quantity;
+                                    }
+                                }
                              }`}>
                             
                             {/* Slide Image */}
                             <div class="aspect-[3/4] w-full bg-[#fcfcfc] rounded-md relative mb-6 overflow-hidden flex items-center justify-center">
-                                {isOutOfStock && (
-                                    <span class="absolute top-3 right-3 bg-red-600 text-white px-2.5 py-1 text-[8px] font-bold uppercase tracking-widest z-20 shadow-sm rounded-sm">Out of Stock</span>
-                                )}
-                                {isLowStock && (
-                                    <span class="absolute top-3 right-3 bg-amber-100 text-amber-800 px-2.5 py-1 text-[8px] font-bold uppercase tracking-widest z-20 shadow-sm border border-amber-200 rounded-sm">Few Stock Left</span>
-                                )}
+                                <span x-show="currentStock <= 0" class="absolute top-3 right-3 bg-red-600 text-white px-2.5 py-1 text-[8px] font-bold uppercase tracking-widest z-20 shadow-sm rounded-sm">Out of Stock</span>
+                                <span x-show="currentStock > 0 && currentStock <= 5" class="absolute top-3 right-3 bg-amber-100 text-amber-800 px-2.5 py-1 text-[8px] font-bold uppercase tracking-widest z-20 shadow-sm border border-amber-200 rounded-sm" style="display: none;">Few Stock Left</span>
 
                                 {imageUrl ? (
                                     <img src={imageUrl} alt={productName} class="w-full h-full object-cover transition-transform duration-700 hover:scale-105" />
@@ -197,32 +168,31 @@ const escapeAttr = (str) => {
                                 {hasVariants ? (
                                     <div class="my-2 max-w-[200px] mx-auto">
                                         <select 
-                                            x-model="selectedVariant"
-                                            @change="const found = variants.find(v => v.label === selectedVariant); if (found) { currentPrice = found.price; }"
+                                            x-model="selectedVariantId"
+                                            @change="updateVariant(selectedVariantId)"
                                             class="w-full bg-gray-50 border border-gray-200 text-[9px] font-bold uppercase tracking-wider py-1.5 px-2 focus:outline-none rounded-sm"
                                         >
-                                            {parsedVariants.map(v => (
-                                                <option value={v.label}>{v.label} (₹{v.price.toLocaleString('en-IN')})</option>
+                                            {dbVariants.map(v => (
+                                                <option value={v.id}>{v.variant_label} (₹{Number(v.price_override).toLocaleString('en-IN')})</option>
                                             ))}
                                         </select>
                                     </div>
                                 ) : (
                                     <div class="text-[8px] sm:text-[9px] text-gray-500 uppercase tracking-widest mb-3 font-bold">
                                         <span>{isAccessory ? 'Accessory' : categoryNormalized}</span>
-                                        {isSafe(product.volume) && ` • ${product.volume}`}
                                     </div>
                                 )}
 
                                 <button 
-                                    @click.stop={`$store.cart.add({ id: ${product.id || 0}, name: '${safeName}', price: currentPrice, volume: selectedVariant || '${safeVolume}', image_url: '${safeImageUrl}' })`}
-                                    disabled={isOutOfStock}
-                                    class={`w-full py-3 mt-3 uppercase text-[9px] sm:text-[10px] font-bold tracking-[0.2em] rounded-sm transition-colors ${isOutOfStock ? 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200' : 'bg-black text-white hover:bg-neutral-800'}`}
+                                    @click.stop={`$store.cart.add({ id: '${product.id}', variant_id: selectedVariantId, name: '${safeName}', price: currentPrice, volume: selectedLabel, image_url: '${safeImageUrl}' })`}
+                                    ::disabled="currentStock <= 0"
+                                    class="w-full py-3 mt-3 uppercase text-[9px] sm:text-[10px] font-bold tracking-[0.2em] rounded-sm transition-colors"
+                                    :class="currentStock <= 0 ? 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200' : 'bg-black text-white hover:bg-neutral-800'"
                                 >
-                                    {isOutOfStock ? 'Sold Out' : (
-                                        <span x-text="'Add — ₹' + Number(currentPrice).toLocaleString('en-IN')">
-                                            Add — ₹{defaultPrice.toLocaleString('en-IN')}
-                                        </span>
-                                    )}
+                                    <span x-show="currentStock <= 0">Sold Out</span>
+                                    <span x-show="currentStock > 0" x-text="'Add — ₹' + Number(currentPrice).toLocaleString('en-IN')">
+                                        Add — ₹{defaultVariant.price_override.toLocaleString('en-IN')}
+                                    </span>
                                 </button>
                             </div>
                         </div>
@@ -241,7 +211,7 @@ const escapeAttr = (str) => {
                 const updateFilter = () => {
                     const hash = window.location.hash.substring(1).toLowerCase();
                     if (hash === 'fragrances') {
-                        filter = 'Classic'; // Auto-routes legacy categories or 'Classic/Premium' perfumes
+                        filter = 'Classic'; 
                     } else if (hash === 'accessories') {
                         filter = 'Accessories';
                     } else {
@@ -282,43 +252,17 @@ const escapeAttr = (str) => {
             {(products || []).map((product) => {
                 const rawCategory = product.category || 'Classic';
                 const categoryNormalized = rawCategory.toString().trim().charAt(0).toUpperCase() + rawCategory.toString().trim().slice(1).toLowerCase();
-                
-                // Determine layout alignment based on category grouping
                 const isAccessory = categoryNormalized.includes('Accessory') || categoryNormalized.includes('Accessories');
                 
                 const imageUrl = product.image_url ? String(product.image_url).split(',')[0].trim() : '';
                 const productName = product.name || 'Premium Item';
-                const productPrice = Number(product.price || 0);
                 
-                // Parse options / variants on Server-Side to inject into local Alpine state securely
-                const rawVolumeStr = product.volume || '';
-                let parsedVariants = [];
-                let hasVariants = false;
+                const dbVariants = product.product_variants || [];
+                const hasVariants = dbVariants.length > 0;
                 
-                if (rawVolumeStr.includes(',')) {
-                    hasVariants = true;
-                    parsedVariants = rawVolumeStr.split(',').map(v => {
-                        const trimV = v.trim();
-                        if (trimV.includes(':')) {
-                            const parts = trimV.split(':');
-                            const parsedPrice = parseFloat(parts[1].replace(/[^\d.]/g, ''));
-                            return {
-                                label: parts[0].trim(),
-                                price: !isNaN(parsedPrice) ? parsedPrice : productPrice
-                            };
-                        } else {
-                            return {
-                                label: trimV,
-                                price: productPrice
-                            };
-                        }
-                    });
-                }
-                
-                const defaultPrice = parsedVariants.length > 0 ? parsedVariants[0].price : productPrice;
-                const variantsJson = JSON.stringify(parsedVariants).replace(/'/g, "\\'");
-                
-                // Safe Alpine bindings
+                const defaultVariant = hasVariants ? dbVariants[0] : { id: null, variant_label: 'Standard', price_override: 0, stock_quantity: 0 };
+                const variantsJson = JSON.stringify(dbVariants).replace(/'/g, "\\'");
+
                 let xShow = '';
                 if (isAccessory) {
                     xShow = `filter === 'All' || filter === 'Accessories'`;
@@ -328,12 +272,6 @@ const escapeAttr = (str) => {
 
                 const safeName = escapeAttr(productName);
                 const safeImageUrl = escapeAttr(imageUrl);
-                const safeVolume = isSafe(product.volume) ? escapeAttr(product.volume) : '';
-                
-                // Inventory Logic
-                const stock = Number(product.stock_quantity || 0);
-                const isOutOfStock = stock <= 0;
-                const isLowStock = stock > 0 && stock <= 5;
                 
                 return (
                     <div 
@@ -341,8 +279,19 @@ const escapeAttr = (str) => {
                         x-show={xShow}
                         x-data={`{
                             variants: ${variantsJson},
-                            selectedVariant: '${parsedVariants.length > 0 ? parsedVariants[0].label.replace(/'/g, "\\'") : ""}',
-                            currentPrice: ${defaultPrice}
+                            selectedVariantId: '${defaultVariant.id || ""}',
+                            selectedLabel: '${defaultVariant.variant_label}',
+                            currentPrice: ${defaultVariant.price_override || 0},
+                            currentStock: ${defaultVariant.stock_quantity || 0},
+                            updateVariant(vId) {
+                                const found = this.variants.find(v => v.id === vId);
+                                if (found) {
+                                    this.selectedVariantId = found.id;
+                                    this.selectedLabel = found.variant_label;
+                                    this.currentPrice = found.price_override;
+                                    this.currentStock = found.stock_quantity;
+                                }
+                            }
                         }`}
                         x-transition:enter="transition-opacity duration-500 ease-out"
                         x-transition:enter-start="opacity-0 translate-y-4"
@@ -351,20 +300,15 @@ const escapeAttr = (str) => {
                         {/* Static Image Container */}
                         <div class="aspect-[3/4] w-full bg-[#f4f4f4] relative mb-4 sm:mb-8 overflow-hidden flex items-center justify-center transition-colors duration-500 group-hover:bg-[#ebebeb]">
                             
-                            {/* DYNAMIC STOCK BADGES */}
-                            {isOutOfStock && (
-                                <span class="absolute top-4 right-4 bg-red-600 text-white px-3 py-1 text-[8px] font-bold uppercase tracking-widest z-20 shadow-sm">Out of Stock</span>
-                            )}
-                            {isLowStock && (
-                                <span class="absolute top-4 right-4 bg-amber-100 text-amber-800 px-3 py-1 text-[8px] font-bold uppercase tracking-widest z-20 shadow-sm border border-amber-200">Few Stock Left</span>
-                            )}
+                            <span x-show="currentStock <= 0" class="absolute top-4 right-4 bg-red-600 text-white px-3 py-1 text-[8px] font-bold uppercase tracking-widest z-20 shadow-sm rounded-sm">Out of Stock</span>
+                            <span x-show="currentStock > 0 && currentStock <= 5" class="absolute top-4 right-4 bg-amber-100 text-amber-800 px-3 py-1 text-[8px] font-bold uppercase tracking-widest z-20 shadow-sm border border-amber-200 rounded-sm" style="display: none;">Few Stock Left</span>
 
                             {imageUrl ? (
                                 <>
                                     <img 
                                         src={imageUrl} 
                                         alt={productName} 
-                                        class={`w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 ${isOutOfStock ? 'opacity-60 grayscale' : ''}`}
+                                        class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                                         onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
                                     />
                                     <span class="hidden text-gray-400 font-serif italic text-xl sm:text-3xl px-4 text-center transition-transform duration-700 group-hover:scale-105">
@@ -380,15 +324,15 @@ const escapeAttr = (str) => {
                             {/* Slide-up Add to Cart (Desktop with reactive price state) */}
                             <div class="hidden lg:block absolute inset-x-0 bottom-0 p-6 translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] z-30">
                                 <button 
-                                    @click.stop={`$store.cart.add({ id: ${product.id || 0}, name: '${safeName}', price: currentPrice, volume: selectedVariant || '${safeVolume}', image_url: '${safeImageUrl}' })`}
-                                    disabled={isOutOfStock}
-                                    class={`w-full py-4 uppercase text-[10px] font-bold tracking-[0.2em] transition-colors duration-300 shadow-xl ${isOutOfStock ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-white text-black hover:bg-black hover:text-white'}`}
+                                    @click.stop={`$store.cart.add({ id: '${product.id}', variant_id: selectedVariantId, name: '${safeName}', price: currentPrice, volume: selectedLabel, image_url: '${safeImageUrl}' })`}
+                                    ::disabled="currentStock <= 0"
+                                    class="w-full py-4 uppercase text-[10px] font-bold tracking-[0.2em] transition-colors duration-300 shadow-xl"
+                                    :class="currentStock <= 0 ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-white text-black hover:bg-black hover:text-white'"
                                 >
-                                    {isOutOfStock ? 'Sold Out' : (
-                                        <span x-text="'Add to Bag — ₹' + Number(currentPrice).toLocaleString('en-IN')">
-                                            Add to Bag — ₹{defaultPrice.toLocaleString('en-IN')}
-                                        </span>
-                                    )}
+                                    <span x-show="currentStock <= 0">Sold Out</span>
+                                    <span x-show="currentStock > 0" x-text="'Add to Bag — ₹' + Number(currentPrice).toLocaleString('en-IN')">
+                                        Add to Bag — ₹{defaultVariant.price_override.toLocaleString('en-IN')}
+                                    </span>
                                 </button>
                             </div>
                         </div>
@@ -400,51 +344,43 @@ const escapeAttr = (str) => {
                                     {productName}
                                 </h3>
                                 
-                                {/* RECTIVE DROPDOWN / STATIC OPTION MATRIX */}
                                 {hasVariants ? (
                                     <div class="mt-2 mb-3 max-w-[220px] mx-auto relative z-20" @click.stop="">
                                         <select 
-                                            x-model="selectedVariant"
-                                            @change="const found = variants.find(v => v.label === selectedVariant); if (found) { currentPrice = found.price; }"
+                                            x-model="selectedVariantId"
+                                            @change="updateVariant(selectedVariantId)"
                                             class="w-full bg-white border border-gray-200 text-[10px] font-bold uppercase tracking-wider py-2 px-3 focus:outline-none focus:border-black rounded-sm appearance-none text-center cursor-pointer"
                                             style="background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23666666%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%0-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E'); background-repeat: no-repeat; background-position: right 0.75rem center; background-size: 0.5rem auto; padding-right: 2rem;"
                                         >
-                                            {parsedVariants.map(v => (
-                                                <option value={v.label}>{v.label} (₹{v.price.toLocaleString('en-IN')})</option>
+                                            {dbVariants.map(v => (
+                                                <option value={v.id}>{v.variant_label} (₹{v.price_override.toLocaleString('en-IN')})</option>
                                             ))}
                                         </select>
                                     </div>
                                 ) : (
                                     <div class="flex items-center justify-center gap-1 sm:gap-2 text-[8px] sm:text-[9px] text-gray-500 uppercase tracking-[0.2em] mb-2 sm:mb-4 font-bold">
                                         <span>{isAccessory ? 'Accessory' : categoryNormalized}</span>
-                                        {isSafe(product.volume) && (
-                                            <>
-                                                <span>•</span>
-                                                <span>{product.volume}</span>
-                                            </>
-                                        )}
                                     </div>
                                 )}
                                 
-                                <!-- DESCRIPTIVE TEXT NOTES -->
-                                {isSafe(product.notes) && (
+                                {product.notes && (
                                     <p class="text-xs sm:text-sm text-gray-500 font-light leading-relaxed line-clamp-2 mb-4 sm:mb-6 max-w-[280px] mx-auto hidden sm:block">
                                         {product.notes}
                                     </p>
                                 )}
                             </div>
                             
-                            {/* Mobile fallback button (WITH EXPLICIT PRICE NOW DYNAMICALLY STATE-BOUND) */}
+                            {/* Mobile fallback button */}
                             <button 
-                                @click.stop={`$store.cart.add({ id: ${product.id || 0}, name: '${safeName}', price: currentPrice, volume: selectedVariant || '${safeVolume}', image_url: '${safeImageUrl}' })`}
-                                disabled={isOutOfStock}
-                                class={`lg:hidden w-full border py-2.5 sm:py-3 uppercase text-[9px] sm:text-[10px] font-bold tracking-[0.2em] transition-colors mt-2 ${isOutOfStock ? 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed' : 'border-gray-200 text-gray-900 hover:bg-gray-50'}`}
+                                @click.stop={`$store.cart.add({ id: '${product.id}', variant_id: selectedVariantId, name: '${safeName}', price: currentPrice, volume: selectedLabel, image_url: '${safeImageUrl}' })`}
+                                ::disabled="currentStock <= 0"
+                                class="lg:hidden w-full border py-2.5 sm:py-3 uppercase text-[9px] sm:text-[10px] font-bold tracking-[0.2em] transition-colors mt-2"
+                                :class="currentStock <= 0 ? 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed' : 'border-gray-200 text-gray-900 hover:bg-gray-50'"
                             >
-                                {isOutOfStock ? 'Sold Out' : (
-                                    <span x-text="'Add to Bag — ₹' + Number(currentPrice).toLocaleString('en-IN')">
-                                        Add to Bag — ₹{defaultPrice.toLocaleString('en-IN')}
-                                    </span>
-                                )}
+                                <span x-show="currentStock <= 0">Sold Out</span>
+                                <span x-show="currentStock > 0" x-text="'Add to Bag — ₹' + Number(currentPrice).toLocaleString('en-IN')">
+                                    Add to Bag — ₹{defaultVariant.price_override.toLocaleString('en-IN')}
+                                </span>
                             </button>
                         </div>
                     </div>

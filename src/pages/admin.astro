@@ -22,7 +22,6 @@ export const prerender = false;
 </head>
 <body class="bg-gray-50 text-gray-800 antialiased selection:bg-black selection:text-white">
 
-    <!-- Build-safe state block to prevent Astro from breaking on script/style parsing -->
     <script is:inline>
         document.addEventListener('alpine:init', () => {
             Alpine.data('adminPortal', () => ({
@@ -33,8 +32,30 @@ export const prerender = false;
                 orders: [],
                 products: [],
                 authForm: { email: '', password: '' },
-                productForm: { id: null, name: '', price: '', stock_quantity: '', volume: '', notes: '', category: 'Classic', customCategoryVal: '', image_url: '' },
+                
+                // New Re-Structured Two-Step Form Fields
+                productForm: { 
+                    id: null, 
+                    name: '', 
+                    category: 'Classic', 
+                    customCategoryVal: '', 
+                    image_url: '', 
+                    notes: '', 
+                    variants: [] 
+                },
                 isProductModalOpen: false,
+
+                // Dynamic Variant Handling Helpers
+                addVariantRow() {
+                    this.productForm.variants.push({
+                        variant_label: '',
+                        price_override: '',
+                        stock_quantity: 10
+                    });
+                },
+                removeVariantRow(index) {
+                    this.productForm.variants.splice(index, 1);
+                },
 
                 notification: { show: false, message: '', type: 'success' },
                 showNotification(msg, type = 'success') {
@@ -79,7 +100,6 @@ export const prerender = false;
                     setTimeout(() => { this.copiedOrderId = null; }, 2000);
                 },
 
-                // BUILD-SAFE INVOICE ENGINE
                 printInvoice(order) {
                     const printWindow = window.open('', '_blank');
                     const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
@@ -154,7 +174,6 @@ export const prerender = false;
                     printWindow.document.close();
                 },
 
-                // DTDC OPTIMIZED LABEL ENGINE (NO RETURNS)
                 printShippingLabel(order) {
                     const printWindow = window.open('', '_blank');
                     const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
@@ -301,8 +320,7 @@ export const prerender = false;
                             <p class="text-xs sm:text-sm text-gray-500 mt-1" x-text="activeTab === 'orders' ? 'View and process customer orders.' : 'Manage your product and fragrance catalog.'"></p>
                         </div>
                         <div x-show="activeTab === 'products'" style="display: none;" class="w-full sm:w-auto">
-                            <!-- Reset product form state incorporating customization hooks -->
-                            <button @click="productForm = { id: null, name: '', price: '', stock_quantity: '', volume: '', notes: '', category: 'Classic', customCategoryVal: '', image_url: '' }; isProductModalOpen = true" class="w-full sm:w-auto bg-black text-white px-6 py-3.5 rounded-lg uppercase tracking-widest text-[11px] font-bold hover:bg-gray-800 transition-colors shadow-lg shadow-gray-200 whitespace-nowrap">
+                            <button @click="productForm = { id: null, name: '', category: 'Classic', customCategoryVal: '', image_url: '', notes: '', variants: [] }; isProductModalOpen = true" class="w-full sm:w-auto bg-black text-white px-6 py-3.5 rounded-lg uppercase tracking-widest text-[11px] font-bold hover:bg-gray-800 transition-colors shadow-lg shadow-gray-200 whitespace-nowrap">
                                 + Add Product
                             </button>
                         </div>
@@ -329,7 +347,6 @@ export const prerender = false;
                                         <tr class="hover:bg-gray-50 transition-colors group cursor-default">
                                             <td class="p-4 sm:p-6 font-mono text-gray-400 text-xs align-top">#<span x-text="order.id"></span></td>
                                             
-                                            <!-- Recipient Detail -->
                                             <td class="p-4 sm:p-6 align-top">
                                                 <div class="font-semibold text-gray-900" x-text="order.customer_name"></div>
                                                 <div class="text-gray-400 text-[11px] mt-1" x-text="order.customer_email"></div>
@@ -379,7 +396,7 @@ export const prerender = false;
                                             <td class="p-4 sm:p-6 font-semibold text-gray-900 align-top" x-text="'₹' + order.total_amount.toLocaleString()"></td>
                                             
                                             <td class="p-4 sm:p-6 align-top">
-                                                <select x-model="order.status" @change="updateOrderStatus(order.id, $event.target.value)" class="text-[11px] font-bold uppercase tracking-wider p-2.5 rounded-lg focus:ring-2 focus:ring-black outline-none transition-all cursor-pointer appearance-none pr-8 relative animate-none"
+                                                <select x-model="order.status" @change="updateOrderStatus(order.id, $event.target.value)" class="text-[11px] font-bold uppercase tracking-wider p-2.5 rounded-lg focus:ring-2 focus:ring-black outline-none transition-all cursor-pointer appearance-none pr-8 relative"
                                                     style="background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23000000%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%0-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E'); background-repeat: no-repeat; background-position: right .7rem top 50%; background-size: .65rem auto;"
                                                     :class="{
                                                         'text-orange-700 bg-orange-50 border border-orange-100': order.status === 'placed',
@@ -392,26 +409,10 @@ export const prerender = false;
                                                 </select>
                                             </td>
 
-                                            <!-- MULTI-PRINT ACTION CONTROLS -->
                                             <td class="p-4 sm:p-6 align-top text-center">
                                                 <div class="flex flex-col gap-2 items-center justify-center">
-                                                    <!-- Invoice PDF -->
-                                                    <button 
-                                                        @click="printInvoice(order)"
-                                                        class="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 border border-black hover:bg-black hover:text-white transition-all text-[9px] font-extrabold uppercase tracking-wider rounded-md bg-white text-black shadow-sm"
-                                                        title="Print official receipt"
-                                                    >
-                                                        Receipt
-                                                    </button>
-                                                    
-                                                    <!-- Shipping Label / Packet Sticker -->
-                                                    <button 
-                                                        @click="printShippingLabel(order)"
-                                                        class="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 border-2 border-emerald-600 hover:bg-emerald-600 hover:text-white transition-all text-[9px] font-extrabold uppercase tracking-wider rounded-md bg-white text-emerald-700 shadow-sm"
-                                                        title="Print delivery label sticker"
-                                                    >
-                                                        Sticker
-                                                    </button>
+                                                    <button @click="printInvoice(order)" class="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 border border-black hover:bg-black hover:text-white transition-all text-[9px] font-extrabold uppercase tracking-wider rounded-md bg-white text-black shadow-sm">Receipt</button>
+                                                    <button @click="printShippingLabel(order)" class="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 border-2 border-emerald-600 hover:bg-emerald-600 hover:text-white transition-all text-[9px] font-extrabold uppercase tracking-wider rounded-md bg-white text-emerald-700 shadow-sm">Sticker</button>
                                                 </div>
                                             </td>
 
@@ -432,8 +433,7 @@ export const prerender = false;
                                     <tr class="bg-gray-50/80 border-b border-gray-100 text-gray-500 uppercase tracking-widest text-[10px] font-bold">
                                         <th class="p-4 sm:p-6">Product Details</th>
                                         <th class="p-4 sm:p-6">Category</th>
-                                        <th class="p-4 sm:p-6">Price</th>
-                                        <th class="p-4 sm:p-6">Inventory</th>
+                                        <th class="p-4 sm:p-6">Variations & Pricing</th>
                                         <th class="p-4 sm:p-6 text-right">Actions</th>
                                     </tr>
                                 </thead>
@@ -451,34 +451,50 @@ export const prerender = false;
                                                 </div>
                                                 <div>
                                                     <div class="font-semibold text-gray-900" x-text="product.name"></div>
-                                                    <div class="text-gray-400 text-[11px] mt-1" x-text="product.volume"></div>
+                                                    <div class="text-gray-400 text-[11px] mt-1 line-clamp-1 max-w-[200px]" x-text="product.notes"></div>
                                                 </div>
                                             </td>
                                             <td class="p-4 sm:p-6">
                                                 <span class="px-3 py-1.5 bg-gray-100 text-gray-700 text-[10px] uppercase tracking-widest rounded-md font-bold" x-text="product.category || 'Classic'"></span>
                                             </td>
-                                            <td class="p-4 sm:p-6 font-semibold text-gray-900" x-text="'₹' + product.price.toLocaleString()"></td>
-                                            <td class="p-4 sm:p-6">
-                                                <span class="font-bold text-[11px] uppercase tracking-wider" :class="product.stock_quantity > 5 ? 'text-emerald-600' : 'text-red-600'" x-text="product.stock_quantity + ' In Stock'"></span>
+                                            
+                                            <!-- Structured Variants Summary Cell -->
+                                            <td class="p-4 sm:p-6 space-y-1">
+                                                <template x-for="v in product.product_variants" :key="v.id">
+                                                    <div class="flex items-center gap-3 text-xs">
+                                                        <span class="font-semibold text-gray-900" x-text="v.variant_label"></span>
+                                                        <span class="text-gray-400">•</span>
+                                                        <span class="font-medium text-gray-600" x-text="'₹' + Number(v.price_override).toLocaleString()"></span>
+                                                        <span class="text-gray-400">•</span>
+                                                        <span class="font-bold" :class="v.stock_quantity > 5 ? 'text-green-600' : 'text-red-500'" x-text="v.stock_quantity + ' left'"></span>
+                                                    </div>
+                                                </template>
+                                                <template x-if="!product.product_variants || product.product_variants.length === 0">
+                                                    <span class="text-gray-400 italic text-xs">No active variants defined</span>
+                                                </template>
                                             </td>
+
                                             <td class="p-4 sm:p-6 text-right space-x-4">
-                                                <!-- Dynamic Edit trigger button supporting custom categories -->
                                                 <button @click="
-                                                    productForm = { ...product };
-                                                    const knownCats = ['Classic', 'Premium', 'Accessories'];
-                                                    if (product.category && !knownCats.includes(product.category)) {
-                                                        productForm.category = 'CUSTOM';
-                                                        productForm.customCategoryVal = product.category;
-                                                    } else {
-                                                        productForm.customCategoryVal = '';
-                                                    }
+                                                    productForm = { 
+                                                        id: product.id, 
+                                                        name: product.name, 
+                                                        category: ['Classic', 'Premium', 'Accessories'].includes(product.category) ? product.category : 'CUSTOM',
+                                                        customCategoryVal: ['Classic', 'Premium', 'Accessories'].includes(product.category) ? '' : product.category,
+                                                        image_url: product.image_url || '',
+                                                        notes: product.notes || '',
+                                                        variants: product.product_variants ? JSON.parse(JSON.stringify(product.product_variants)) : []
+                                                    };
                                                     isProductModalOpen = true" 
-                                                    class="text-gray-400 hover:text-black transition-colors font-semibold uppercase tracking-widest text-[10px]">Edit</button>
+                                                    class="text-gray-400 hover:text-black transition-colors font-semibold uppercase tracking-widest text-[10px]"
+                                                >
+                                                    Edit
+                                                </button>
                                                 <button @click="deleteProduct(product.id)" class="text-red-400 hover:text-red-600 transition-colors font-semibold uppercase tracking-widest text-[10px]">Delete</button>
                                             </td>
                                         </tr>
                                     </template>
-                                    <tr x-show="products.length === 0"><td colspan="5" class="p-12 text-center text-gray-400 text-sm">No inventory found. Click 'Add Product' to start.</td></tr>
+                                    <tr x-show="products.length === 0"><td colspan="4" class="p-12 text-center text-gray-400 text-sm">No inventory found. Click 'Add Product' to start.</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -488,86 +504,94 @@ export const prerender = false;
             </main>
         </div>
 
-        <!-- Dynamic Product Addition Modal -->
+        <!-- TWO-STEP MULTI-VARIANT PRODUCT MODAL -->
         <div x-show="isProductModalOpen" style="display: none;" class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-[60] flex justify-center items-end sm:items-center p-0 sm:p-4">
-            <div @click.away="isProductModalOpen = false" class="bg-white w-full sm:w-[600px] rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col" x-transition:enter="transition ease-out duration-300 transform" x-transition:enter-start="opacity-0 translate-y-full sm:translate-y-4" x-transition:enter-end="opacity-100 translate-y-0">
+            <div @click.away="isProductModalOpen = false" class="bg-white w-full sm:w-[650px] rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col" x-transition:enter="transition ease-out duration-300 transform" x-transition:enter-start="opacity-0 translate-y-full sm:translate-y-4" x-transition:enter-end="opacity-100 translate-y-0">
                 <div class="p-5 sm:p-6 border-b border-gray-100 flex justify-between items-center bg-white sticky top-0 z-10">
-                    <h2 class="text-lg font-bold uppercase tracking-widest text-black" x-text="productForm.id ? 'Edit Product' : 'New Product'"></h2>
+                    <h2 class="text-lg font-bold uppercase tracking-widest text-black" x-text="productForm.id ? 'Edit Structured Product' : 'New Product Master'"></h2>
                     <button @click="isProductModalOpen = false" class="text-gray-400 hover:text-black transition-colors p-2 rounded-full hover:bg-gray-50"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
                 </div>
+                
                 <div class="overflow-y-auto no-scrollbar">
                     <form @submit.prevent="saveProduct" class="p-5 sm:p-6 space-y-6">
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6">
+                        
+                        <!-- Step 1: Base Product Parameters -->
+                        <div class="space-y-6">
+                            <h3 class="text-xs font-bold uppercase tracking-widest text-gray-400 border-b border-gray-100 pb-2">Step 1: Product Information</h3>
                             
-                            <div class="col-span-1 sm:col-span-2">
-                                <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Image URL (Public Link)</label>
-                                <input type="text" x-model="productForm.image_url" placeholder="Paste URL from Supabase Storage..." class="w-full p-3.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-black focus:border-black transition-all">
-                            </div>
-
-                            <div class="col-span-1 sm:col-span-2">
+                            <div>
                                 <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Product Name</label>
                                 <input type="text" x-model="productForm.name" required class="w-full p-3.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-black focus:border-black transition-all">
                             </div>
-                            
-                            <!-- Dynamic Custom / Predefined Category Select Matrix -->
-                            <div class="col-span-1 sm:col-span-2">
-                                <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Category</label>
-                                <div class="space-y-3">
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Category</label>
                                     <select x-model="productForm.category" required class="w-full p-3.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-black focus:border-black transition-all appearance-none pr-10" style="background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23000000%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%0-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E'); background-repeat: no-repeat; background-position: right 1rem top 50%; background-size: .65rem auto;">
                                         <option value="Classic">Classic Perfume</option>
                                         <option value="Premium">Premium Perfume</option>
                                         <option value="Accessories">Accessories</option>
                                         <option value="CUSTOM">Other (Type Custom Category...)</option>
                                     </select>
-                                    
-                                    <input 
-                                        type="text" 
-                                        x-show="productForm.category === 'CUSTOM'" 
-                                        x-model="productForm.customCategoryVal"
-                                        placeholder="Enter custom category name (e.g. Cases, Chargers, Candles)..." 
-                                        class="w-full p-3.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-black focus:border-black transition-all"
-                                    >
+                                </div>
+                                <div x-show="productForm.category === 'CUSTOM'" style="display: none;">
+                                    <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Custom Category</label>
+                                    <input type="text" x-model="productForm.customCategoryVal" placeholder="Cases, Chargers, etc..." class="w-full p-3.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-black focus:border-black transition-all">
                                 </div>
                             </div>
-                            
+
                             <div>
-                                <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Price (₹)</label>
-                                <input type="number" x-model="productForm.price" required class="w-full p-3.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-black focus:border-black transition-all">
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Image URL (Public Storage link)</label>
+                                <input type="text" x-model="productForm.image_url" placeholder="https://..." class="w-full p-3.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-black focus:border-black transition-all">
                             </div>
+
                             <div>
-                                <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Stock Level</label>
-                                <input type="number" x-model="productForm.stock_quantity" required class="w-full p-3.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-black focus:border-black transition-all">
-                            </div>
-                            
-                            <!-- Renamed Volume Label & Dynamic Placeholder supporting lifestyle expansions -->
-                            <div class="col-span-1 sm:col-span-2">
-                                <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Volume / Specification Options</label>
-                                <input type="text" x-model="productForm.volume" placeholder="e.g. 50ml, 100ml or iPhone 15, iPhone 16, OnePlus 12" class="w-full p-3.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-black focus:border-black transition-all">
-                                <p class="text-[9px] text-gray-400 mt-1.5 leading-relaxed font-light">
-                                    <strong>Tip for Cases & Screen Guards:</strong> Type the compatible models separated by commas (e.g. <em>iPhone 15, iPhone 16, OnePlus 12</em>). The website will automatically convert this into a dropdown list for the customer to select their exact phone model before buying!
-                                </p>
-                                
-                                <!-- Live Dropdown Preview for Admin -->
-                                <template x-if="productForm.volume && productForm.volume.includes(',')">
-                                    <div class="mt-3 p-3 bg-gray-50 border border-dashed border-gray-200 rounded-lg">
-                                        <span class="text-[8px] uppercase tracking-wider text-gray-400 font-bold block mb-1">Storefront Dropdown Preview</span>
-                                        <select class="w-full p-2.5 bg-white border border-gray-200 rounded-md text-xs focus:ring-1 focus:ring-black focus:border-black outline-none">
-                                            <template x-for="opt in productForm.volume.split(',').map(s => s.trim())" :key="opt">
-                                                <option x-text="opt"></option>
-                                            </template>
-                                        </select>
-                                    </div>
-                                </template>
-                            </div>
-                            
-                            <div class="col-span-1 sm:col-span-2">
-                                <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Product Description / Notes</label>
-                                <textarea x-model="productForm.notes" rows="3" class="w-full p-3.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-black focus:border-black transition-all resize-none"></textarea>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Description / Notes</label>
+                                <textarea x-model="productForm.notes" rows="2" class="w-full p-3.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-black focus:border-black transition-all resize-none"></textarea>
                             </div>
                         </div>
+
+                        <!-- Step 2: Dynamic Relational Variants Grid -->
+                        <div class="space-y-4 pt-4 border-t border-gray-100">
+                            <div class="flex justify-between items-center">
+                                <h3 class="text-xs font-bold uppercase tracking-widest text-gray-400">Step 2: Dynamic Stock & Price Variants</h3>
+                                <button type="button" @click="addVariantRow()" class="px-4 py-1.5 bg-black hover:bg-neutral-800 text-white text-[9px] font-bold uppercase tracking-widest rounded transition-colors">+ Add Variant</button>
+                            </div>
+
+                            <div class="space-y-3">
+                                <template x-for="(variant, idx) in productForm.variants" :key="idx">
+                                    <div class="grid grid-cols-12 gap-3 items-center bg-gray-50 p-3 rounded-lg border border-gray-200/60">
+                                        <!-- Variant Label -->
+                                        <div class="col-span-5">
+                                            <input type="text" x-model="variant.variant_label" placeholder="e.g. 50ml, 100ml, iPhone 16" required class="w-full p-2.5 text-xs bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-black">
+                                        </div>
+                                        <!-- Price Override -->
+                                        <div class="col-span-4">
+                                            <input type="number" x-model="variant.price_override" placeholder="Price (₹)" required class="w-full p-2.5 text-xs bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-black">
+                                        </div>
+                                        <!-- Stock Quantity -->
+                                        <div class="col-span-2">
+                                            <input type="number" x-model="variant.stock_quantity" placeholder="Qty" required class="w-full p-2.5 text-xs bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-black">
+                                        </div>
+                                        <!-- Remove Row Action -->
+                                        <div class="col-span-1 text-center">
+                                            <button type="button" @click="removeVariantRow(idx)" class="text-gray-400 hover:text-red-500 transition-colors p-1.5">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </template>
+                                
+                                <div x-show="productForm.variants.length === 0" class="text-center py-6 border border-dashed border-gray-200 text-xs text-gray-400 italic">
+                                    No variations added. Create at least one (e.g. "50ml") to track stock and price.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Form Submission -->
                         <div class="pt-6 border-t border-gray-100 flex flex-col sm:flex-row justify-end gap-3 sm:gap-4 mt-8 pb-4">
                             <button type="button" @click="isProductModalOpen = false" class="w-full sm:w-auto px-6 py-4 sm:py-3.5 rounded-lg text-[11px] font-bold uppercase tracking-widest text-gray-500 hover:text-black hover:bg-gray-100 transition-colors order-2 sm:order-1">Cancel</button>
-                            <button type="submit" class="w-full sm:w-auto px-8 py-4 sm:py-3.5 rounded-lg bg-black text-white text-[11px] font-bold uppercase tracking-widest hover:bg-gray-800 transition-colors shadow-lg shadow-gray-200 order-1 sm:order-2">Save Product</button>
+                            <button type="submit" class="w-full sm:w-auto px-8 py-4 sm:py-3.5 rounded-lg bg-black text-white text-[11px] font-bold uppercase tracking-widest hover:bg-gray-800 transition-colors shadow-lg shadow-gray-200 order-1 sm:order-2">Save Product & Variants</button>
                         </div>
                     </form>
                 </div>
@@ -584,20 +608,19 @@ export const prerender = false;
             if (!state) return;
 
             state.fetchDashboardData = async function() {
+                // Fetch Base Products along with their relational product_variants array!
                 const [ordersRes, productsRes] = await Promise.all([
                     supabase.from('orders').select('*').order('created_at', { ascending: false }),
-                    supabase.from('perfumes').select('*').order('id', { ascending: true })
+                    supabase.from('products').select('*, product_variants(*)').order('created_at', { ascending: true })
                 ]);
                 
                 if (ordersRes.error) {
-                    console.error('Orders Error:', ordersRes.error);
                     this.showNotification('Error loading orders', 'error');
                 } else {
                     this.orders = ordersRes.data || [];
                 }
 
                 if (productsRes.error) {
-                    console.error('Products Error:', productsRes.error);
                     this.showNotification('Error loading products', 'error');
                 } else {
                     this.products = productsRes.data || [];
@@ -613,13 +636,12 @@ export const prerender = false;
                 if(!res.ok) {
                     this.showNotification('Failed to update status', 'error');
                 } else {
-                    this.showNotification(`Order status updated to: ${status}`);
+                    this.showNotification('Order status updated to: ' + status);
                     await this.fetchDashboardData();
                 }
             };
 
             state.saveProduct = async function() {
-                // Compute the correct category based on dynamic select structure
                 let finalCategory = this.productForm.category;
                 if (finalCategory === 'CUSTOM') {
                     finalCategory = (this.productForm.customCategoryVal || 'Classic').trim();
@@ -629,15 +651,13 @@ export const prerender = false;
                     action: this.productForm.id ? 'edit' : 'add',
                     id: this.productForm.id,
                     name: this.productForm.name,
-                    price: this.productForm.price,
-                    stock: this.productForm.stock_quantity,
-                    volume: this.productForm.volume,
-                    notes: this.productForm.notes,
                     category: finalCategory,
-                    image_url: this.productForm.image_url
+                    image_url: this.productForm.image_url,
+                    notes: this.productForm.notes,
+                    variants: this.productForm.variants
                 };
                 
-                const res = await fetch('/api/perfumes', {
+                const res = await fetch('/api/products', {
                     method: 'POST', 
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
@@ -647,19 +667,18 @@ export const prerender = false;
                 
                 if (res.ok) {
                     this.isProductModalOpen = false;
-                    this.showNotification(payload.action === 'edit' ? 'Product updated successfully' : 'New item added successfully!');
+                    this.showNotification(payload.action === 'edit' ? 'Product and variations updated' : 'Product successfully added!');
                     await this.fetchDashboardData();
                 } else {
-                    console.error('API Error:', result.error);
                     this.showNotification(result.error || 'Failed to save product', 'error');
                 }
             };
 
             state.deleteProduct = async function(id) {
-                const confirmation = confirm('Are you sure you want to permanently delete this product?');
+                const confirmation = confirm('Are you sure you want to permanently delete this product? All of its variants will be removed.');
                 if (!confirmation) return;
 
-                const res = await fetch('/api/perfumes', {
+                const res = await fetch('/api/products', {
                     method: 'POST', 
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ action: 'delete', id })
