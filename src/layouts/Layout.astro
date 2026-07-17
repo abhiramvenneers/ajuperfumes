@@ -11,7 +11,7 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{title}</title>
     
-    <!-- Robust, immediate Tailwind CSS engine for flawless rendering on all screens -->
+    <!-- Robust Tailwind CSS engine and Alpine.js for interactive state -->
     <script is:inline src="https://cdn.tailwindcss.com"></script>
     <script is:inline defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     
@@ -28,14 +28,13 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
                 remove(id) { this.items = this.items.filter(n => n.id !== id); }
             });
 
-            // Cart Store (Upgraded with Cloud Sync Support)
+            // Cart Store (Upgraded with relational variant tracking)
             Alpine.store('cart', {
                 items: JSON.parse(localStorage.getItem('cartItems') || '[]'),
                 
                 async save(triggerSync = true) {
                     localStorage.setItem('cartItems', JSON.stringify(this.items));
                     
-                    // Automatically push cart changes to Supabase metadata if logged in
                     if (triggerSync && window.supabase && Alpine.store('auth').user) {
                         await window.supabase.auth.updateUser({
                             data: { cart: this.items }
@@ -61,7 +60,14 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
                     }
                     const cleanVolume = (product.volume && product.volume.trim().toUpperCase() !== 'N/A') ? product.volume : '';
 
-                    const existing = this.items.find(i => i.id === product.id);
+                    // SECURE RELATIONAL CHECK: Match strictly by variant_id to support multi-size checkout
+                    const existing = this.items.find(i => {
+                        if (product.variant_id && i.variant_id) {
+                            return i.variant_id === product.variant_id;
+                        }
+                        return i.id === product.id;
+                    });
+
                     if (existing) { 
                         existing.quantity++; 
                     } else { 
@@ -74,42 +80,54 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
                         }); 
                     }
                     this.save(true);
-                    Alpine.store('notifications').add(`${product.name} added to bag`);
+                    Alpine.store('notifications').add(`${product.name} (${cleanVolume}) added to bag`);
                 },
                 
-                remove(id) { 
-                    this.items = this.items.filter(i => i.id !== id); 
+                remove(id, variantId) { 
+                    this.items = this.items.filter(i => {
+                        if (variantId && i.variant_id) {
+                            return i.variant_id !== variantId;
+                        }
+                        return i.id !== id;
+                    }); 
                     this.save(true); 
                 },
                 
-                updateQuantity(id, change) {
-                    const item = this.items.find(i => i.id === id);
+                updateQuantity(id, variantId, change) {
+                    const item = this.items.find(i => {
+                        if (variantId && i.variant_id) {
+                            return i.variant_id === variantId;
+                        }
+                        return i.id === id;
+                    });
                     if (item) {
                         item.quantity += change;
-                        if (item.quantity <= 0) this.remove(id);
+                        if (item.quantity <= 0) this.remove(id, variantId);
                         else this.save(true);
                     }
                 },
                 
-                // Fetch saved cart from user metadata upon successful session check
                 mergeCloudCart(cloudCart) {
                     if (!cloudCart || !Array.isArray(cloudCart)) return;
                     
                     if (this.items.length === 0) {
-                        // User has no local cart items, load cloud cart completely
                         this.items = cloudCart;
-                        this.save(false); // Save to local storage only
+                        this.save(false);
                     } else {
-                        // Merge carts by compiling unique items and taking higher quantity
                         cloudCart.forEach(cloudItem => {
-                            const localItem = this.items.find(i => i.id === cloudItem.id);
+                            const localItem = this.items.find(i => {
+                                if (cloudItem.variant_id && i.variant_id) {
+                                    return i.variant_id === cloudItem.variant_id;
+                                }
+                                return i.id === cloudItem.id;
+                            });
                             if (localItem) {
                                 localItem.quantity = Math.max(localItem.quantity, cloudItem.quantity);
                             } else {
                                 this.items.push(cloudItem);
                             }
                         });
-                        this.save(true); // Save and update database with merged data
+                        this.save(true);
                     }
                 },
                 
@@ -136,12 +154,10 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
     <script is:inline src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script is:inline define:vars={{ supabaseUrl, supabaseAnonKey }}>
         (function() {
-            // Initialize Supabase client globally inside an IIFE to prevent variable redeclaration crashes
             const { createClient } = window.supabase;
             const supabaseInstance = createClient(supabaseUrl, supabaseAnonKey);
-            window.supabase = supabaseInstance; // Shared instance for login, admin, & checkout pages
+            window.supabase = supabaseInstance;
 
-            // Bulletproof synchronization: Poll until Alpine is ready, then write state
             const updateAlpineAuth = (session) => {
                 const checkAlpine = setInterval(() => {
                     if (window.Alpine && window.Alpine.store('auth') && window.Alpine.store('cart')) {
@@ -151,7 +167,6 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
                         authStore.user = session?.user || null;
                         authStore.email = session?.user?.email || '';
                         
-                        // Sync trigger: Extract and sync cloud-saved cart state
                         if (session?.user?.user_metadata?.cart) {
                             cartStore.mergeCloudCart(session.user.user_metadata.cart);
                         }
@@ -162,23 +177,19 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
             };
 
             const initAuth = async () => {
-                // 1. Immediately fetch current session (handles redirect landing)
                 const { data: { session } } = await supabaseInstance.auth.getSession();
                 updateAlpineAuth(session);
 
-                // 2. Clear query codes/tokens from the URL bar cleanly for a luxury look
                 if (session && (window.location.search.includes('code=') || window.location.hash.includes('access_token='))) {
                     const cleanUrl = window.location.pathname + window.location.hash.replace(/#access_token=.*/, '');
                     window.history.replaceState({}, document.title, cleanUrl);
                 }
 
-                // 3. Keep a live subscription active for real-time authentication state updates
                 supabaseInstance.auth.onAuthStateChange((_event, curSession) => {
                     updateAlpineAuth(curSession);
                 });
             };
 
-            // Run immediately. Do not wait for alpine:initialized events!
             initAuth();
 
             window.addEventListener('app:logout', async () => {
@@ -228,13 +239,12 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
                 
                 <div class="flex items-center gap-4 sm:gap-6">
                     
-                    <!-- Account Icon (Logged In State with interactive dropdown) -->
+                    <!-- Account Icon (Logged In State) -->
                     <div x-show="$store.auth.user" style="display: none;" class="relative group">
                         <button class="flex items-center gap-2 text-gray-900 hover:text-gray-500 transition-colors">
                             <span class="hidden md:block uppercase tracking-widest text-[10px] font-bold">Account</span>
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
                         </button>
-                        <!-- Dropdown menu on hover (Desktop) -->
                         <div class="hidden md:block absolute right-0 mt-4 w-56 bg-white border border-gray-100 shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50">
                             <div class="p-5 border-b border-gray-100 bg-gray-50/50">
                                 <p class="text-[9px] text-gray-500 uppercase tracking-widest font-bold mb-1">Signed in as</p>
@@ -269,7 +279,7 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
             </div>
         </header>
 
-        <!-- Sliding Navigation Drawer (Agnostic Lifestyle Categories) -->
+        <!-- Sliding Navigation Drawer -->
         <nav x-show="isMenuOpen" 
              x-transition:enter="transition ease-out duration-500 transform"
              x-transition:enter-start="-translate-x-full"
@@ -322,7 +332,7 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
             </div>
         </nav>
 
-        <!-- Sliding Shopping Cart Drawer (Agnostic Item Representation) -->
+        <!-- Sliding Shopping Cart Drawer -->
         <div x-show="isCartOpen" 
              x-transition:enter="transition ease-out duration-500 transform"
              x-transition:enter-start="translate-x-full"
@@ -345,7 +355,7 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
             
             <!-- Cart Items -->
             <div class="flex-1 overflow-y-auto no-scrollbar p-8">
-                <template x-for="item in $store.cart.items" :key="item.id">
+                <template x-for="item in $store.cart.items" :key="item.variant_id || item.id">
                     <div class="flex items-center gap-6 mb-8 pb-8 border-b border-gray-100 last:border-0 last:mb-0 last:pb-0 group">
                         
                         <div class="w-24 h-32 bg-[#f8f8f8] flex items-center justify-center relative overflow-hidden flex-shrink-0">
@@ -364,22 +374,22 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
                             <div>
                                 <div class="flex justify-between items-start">
                                     <span class="font-serif font-medium text-lg text-gray-900 leading-tight" x-text="item.name"></span>
-                                    <button @click="$store.cart.remove(item.id)" class="text-gray-300 hover:text-red-500 transition-colors p-1">
+                                    <!-- Dynamic clean by id + variantId combination -->
+                                    <button @click="$store.cart.remove(item.id, item.variant_id)" class="text-gray-300 hover:text-red-500 transition-colors p-1">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                                     </button>
                                 </div>
                                 
-                                <!-- EXPLICIT N/A SAFE STRING CONDITIONAL (Resolved N/A Volume/Spec Display) -->
                                 <span class="text-[10px] text-gray-500 uppercase tracking-[0.2em] font-bold block mt-2" 
-                                      x-text="($store.cart.isSafeVolume(item.volume) ? item.volume + ' • ' : '') + '₹' + $store.cart.parsePrice(item.price).toLocaleString('en-IN')">
+                                      x-text="(item.volume ? item.volume + ' • ' : '') + '₹' + $store.cart.parsePrice(item.price).toLocaleString('en-IN')">
                                 </span>
                             </div>
                             
                             <div class="flex justify-between items-end mt-4">
                                 <div class="flex items-center border border-gray-200 w-fit bg-white">
-                                    <button @click="$store.cart.updateQuantity(item.id, -1)" class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-black transition-colors">-</button>
+                                    <button @click="$store.cart.updateQuantity(item.id, item.variant_id, -1)" class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-black transition-colors">-</button>
                                     <span class="font-medium text-xs w-8 text-center text-gray-900" x-text="item.quantity"></span>
-                                    <button @click="$store.cart.updateQuantity(item.id, 1)" class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-black transition-colors">+</button>
+                                    <button @click="$store.cart.updateQuantity(item.id, item.variant_id, 1)" class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-black transition-colors">+</button>
                                 </div>
                                 
                                 <span class="font-serif font-semibold text-lg" x-text="'₹' + ($store.cart.parsePrice(item.price) * item.quantity).toLocaleString('en-IN')"></span>

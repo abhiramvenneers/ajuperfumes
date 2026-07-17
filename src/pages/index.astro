@@ -2,7 +2,7 @@
 import Layout from '../layouts/Layout.astro';
 import { supabase } from '../lib/supabase.js';
 
-// Query restructured products alongside their dynamic relational variants
+// Securely pull Products alongside their nested product_variants relational array
 const { data: products, error } = await supabase
   .from('products')
   .select('*, product_variants(*)')
@@ -10,6 +10,7 @@ const { data: products, error } = await supabase
 
 if (error) console.error('Error fetching inventory catalog:', error.message);
 
+// Dynamically generate unique categories
 const rawCategories = Array.from(new Set((products || []).map(p => {
     const cat = (p.category || 'Classic').trim();
     return cat.charAt(0).toUpperCase() + cat.slice(1).toLowerCase();
@@ -18,7 +19,7 @@ const rawCategories = Array.from(new Set((products || []).map(p => {
 const categoryList = rawCategories.map(c => `'${c}'`).join(', ');
 const sectionXData = `{ filter: 'All', categories: [${categoryList}] }`;
 
-// Curate masterpieces to display on sliding gallery
+// Select top 6 products as featured gallery sliding entries
 const sliderProducts = (products || []).slice(0, 6);
 
 const escapeAttr = (str) => {
@@ -29,6 +30,7 @@ const escapeAttr = (str) => {
 
 <Layout title="Aju | Crafted Fragrances & Premium Accessories">
     
+    <!-- Self-Healing Local Storage Script for returning browsers -->
     <script is:inline>
         (function() {
             try {
@@ -36,10 +38,10 @@ const escapeAttr = (str) => {
                 if (stored) {
                     const parsed = JSON.parse(stored);
                     if (Array.isArray(parsed)) {
-                        // Wipe old table-based structured storage schemas gracefully
+                        // Upgrade Cart schema to support database variation UUIDs
                         const needsUpgrade = parsed.some(item => !item.hasOwnProperty('variant_id'));
                         if (needsUpgrade) {
-                            console.log('Migrating local cart to v2 structured relational variant scheme...');
+                            console.log('Upgrading browser storage cart elements to Variant schema v2...');
                             localStorage.removeItem('cartItems');
                         }
                     }
@@ -75,7 +77,7 @@ const escapeAttr = (str) => {
         </div>
     </section>
 
-    <!-- LUXURY MANUAL-SCROLL CURATED SLIDER SECTION -->
+    <!-- CURATED MANUAL SLIDER GALLERY -->
     <section class="py-24 sm:py-32 bg-[#fafafa] border-b border-gray-100 overflow-hidden" 
              x-data="{
                 scrollLeft() {
@@ -99,7 +101,7 @@ const escapeAttr = (str) => {
                     <h2 class="text-3xl sm:text-4xl font-serif font-medium tracking-tight text-gray-900">Curated Masterpieces</h2>
                 </div>
                 
-                <!-- Minimalist Navigation Controls -->
+                <!-- Navigation Controls -->
                 <div class="flex gap-4">
                     <button @click="scrollLeft()" class="w-12 h-12 rounded-full border border-gray-200 bg-white flex items-center justify-center text-gray-600 hover:text-black hover:border-black active:scale-95 transition-all shadow-sm focus:outline-none">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 19l-7-7 7-7"></path></svg>
@@ -120,7 +122,6 @@ const escapeAttr = (str) => {
                     const imageUrl = product.image_url ? String(product.image_url).split(',')[0].trim() : '';
                     const productName = product.name || 'Premium Item';
                     
-                    // Pull variants from database arrays
                     const dbVariants = product.product_variants || [];
                     const hasVariants = dbVariants.length > 0;
                     
@@ -149,7 +150,7 @@ const escapeAttr = (str) => {
                                 }
                              }`}>
                             
-                            {/* Slide Image */}
+                            <!-- Slide Image -->
                             <div class="aspect-[3/4] w-full bg-[#fcfcfc] rounded-md relative mb-6 overflow-hidden flex items-center justify-center">
                                 <span x-show="currentStock <= 0" class="absolute top-3 right-3 bg-red-600 text-white px-2.5 py-1 text-[8px] font-bold uppercase tracking-widest z-20 shadow-sm rounded-sm">Out of Stock</span>
                                 <span x-show="currentStock > 0 && currentStock <= 5" class="absolute top-3 right-3 bg-amber-100 text-amber-800 px-2.5 py-1 text-[8px] font-bold uppercase tracking-widest z-20 shadow-sm border border-amber-200 rounded-sm" style="display: none;">Few Stock Left</span>
@@ -161,31 +162,36 @@ const escapeAttr = (str) => {
                                 )}
                             </div>
 
-                            {/* Details & Selectors */}
+                            <!-- Details & Selectors -->
                             <div class="text-center">
                                 <h3 class="font-serif text-base sm:text-lg font-medium text-gray-900 truncate mb-1">{productName}</h3>
                                 
-                                {hasVariants ? (
-                                    <div class="my-2 max-w-[200px] mx-auto">
-                                        <select 
-                                            x-model="selectedVariantId"
-                                            @change="updateVariant(selectedVariantId)"
-                                            class="w-full bg-gray-50 border border-gray-200 text-[9px] font-bold uppercase tracking-wider py-1.5 px-2 focus:outline-none rounded-sm"
-                                        >
-                                            {dbVariants.map(v => (
-                                                <option value={v.id}>{v.variant_label} (₹{Number(v.price_override).toLocaleString('en-IN')})</option>
-                                            ))}
-                                        </select>
+                                {/* PREMIUM INTERACTIVE PILL SELECTOR FOR VARIANTS */}
+                                <template x-if="variants.length > 1">
+                                    <div class="flex flex-wrap gap-1.5 justify-center my-3">
+                                        <template x-for="v in variants" :key="v.id">
+                                            <button 
+                                                type="button"
+                                                @click.stop="updateVariant(v.id)"
+                                                :class="selectedVariantId === v.id ? 'bg-black text-white border-black' : 'bg-white text-gray-500 border-gray-200 hover:border-black'"
+                                                class="px-3 py-1.5 text-[8px] font-bold uppercase tracking-wider border rounded-sm transition-all focus:outline-none"
+                                                x-text="v.variant_label"
+                                            ></button>
+                                        </template>
                                     </div>
-                                ) : (
-                                    <div class="text-[8px] sm:text-[9px] text-gray-500 uppercase tracking-widest mb-3 font-bold">
+                                </template>
+
+                                <template x-if="variants.length <= 1">
+                                    <div class="text-[8px] sm:text-[9px] text-gray-500 uppercase tracking-widest my-3 font-bold">
+                                        <span x-text="selectedLabel"></span>
+                                        <span class="text-gray-300 mx-1">•</span>
                                         <span>{isAccessory ? 'Accessory' : categoryNormalized}</span>
                                     </div>
-                                )}
+                                </template>
 
                                 <button 
                                     @click.stop={`$store.cart.add({ id: '${product.id}', variant_id: selectedVariantId, name: '${safeName}', price: currentPrice, volume: selectedLabel, image_url: '${safeImageUrl}' })`}
-                                    ::disabled="currentStock <= 0"
+                                    :disabled="currentStock <= 0"
                                     class="w-full py-3 mt-3 uppercase text-[9px] sm:text-[10px] font-bold tracking-[0.2em] rounded-sm transition-colors"
                                     :class="currentStock <= 0 ? 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200' : 'bg-black text-white hover:bg-neutral-800'"
                                 >
@@ -204,7 +210,7 @@ const escapeAttr = (str) => {
         </div>
     </section>
 
-    <!-- Refined Product Grid Section -->
+    <!-- FULL GRID CATALOG SECTION WITH FILTERING -->
     <section id="shop" class="py-24 sm:py-32 px-4 sm:px-6 lg:px-12 max-w-[1400px] mx-auto" 
              x-data={sectionXData} 
              x-init="
@@ -225,7 +231,7 @@ const escapeAttr = (str) => {
         <div class="flex flex-col md:flex-row justify-between items-center md:items-end mb-12 sm:mb-20 border-b border-gray-200 pb-8 gap-6 sm:gap-8">
             <h2 class="text-3xl sm:text-4xl md:text-5xl font-serif font-medium tracking-tight text-gray-900 text-center md:text-left">The Full Collection</h2>
             
-            <!-- Dynamic Category Navigation Tabs -->
+            <!-- Category Tabs -->
             <div class="flex flex-wrap gap-4 justify-center sm:gap-12">
                 <button @click="filter = 'All'; window.location.hash = 'shop'" 
                         :class="filter === 'All' ? 'text-black border-b border-black' : 'text-gray-400 border-transparent hover:text-black'" 
@@ -275,7 +281,7 @@ const escapeAttr = (str) => {
                 
                 return (
                     <div 
-                        class="group flex flex-col cursor-pointer animate-none bg-white p-2 rounded-sm border border-transparent hover:border-gray-100 transition-all duration-300"
+                        class="group flex flex-col cursor-pointer bg-white p-2 rounded-sm border border-transparent hover:border-gray-100 transition-all duration-300"
                         x-show={xShow}
                         x-data={`{
                             variants: ${variantsJson},
@@ -297,7 +303,7 @@ const escapeAttr = (str) => {
                         x-transition:enter-start="opacity-0 translate-y-4"
                         x-transition:enter-end="opacity-100 translate-y-0"
                     >
-                        {/* Static Image Container */}
+                        <!-- Static Image Container -->
                         <div class="aspect-[3/4] w-full bg-[#f4f4f4] relative mb-4 sm:mb-8 overflow-hidden flex items-center justify-center transition-colors duration-500 group-hover:bg-[#ebebeb]">
                             
                             <span x-show="currentStock <= 0" class="absolute top-4 right-4 bg-red-600 text-white px-3 py-1 text-[8px] font-bold uppercase tracking-widest z-20 shadow-sm rounded-sm">Out of Stock</span>
@@ -321,7 +327,7 @@ const escapeAttr = (str) => {
                                 </span>
                             )}
                             
-                            {/* Slide-up Add to Cart (Desktop with reactive price state) */}
+                            <!-- Slide-up Add to Cart (Desktop with reactive price state) -->
                             <div class="hidden lg:block absolute inset-x-0 bottom-0 p-6 translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] z-30">
                                 <button 
                                     @click.stop={`$store.cart.add({ id: '${product.id}', variant_id: selectedVariantId, name: '${safeName}', price: currentPrice, volume: selectedLabel, image_url: '${safeImageUrl}' })`}
@@ -337,31 +343,35 @@ const escapeAttr = (str) => {
                             </div>
                         </div>
 
-                        {/* Minimalist Typography */}
+                        <!-- Product Metadata -->
                         <div class="text-center px-1 sm:px-2 flex-grow flex flex-col justify-between">
                             <div>
                                 <h3 class="font-serif text-base sm:text-xl font-medium text-gray-900 mb-1 sm:mb-2 leading-tight">
                                     {productName}
                                 </h3>
                                 
-                                {hasVariants ? (
-                                    <div class="mt-2 mb-3 max-w-[220px] mx-auto relative z-20" @click.stop="">
-                                        <select 
-                                            x-model="selectedVariantId"
-                                            @change="updateVariant(selectedVariantId)"
-                                            class="w-full bg-white border border-gray-200 text-[10px] font-bold uppercase tracking-wider py-2 px-3 focus:outline-none focus:border-black rounded-sm appearance-none text-center cursor-pointer"
-                                            style="background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23666666%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%0-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E'); background-repeat: no-repeat; background-position: right 0.75rem center; background-size: 0.5rem auto; padding-right: 2rem;"
-                                        >
-                                            {dbVariants.map(v => (
-                                                <option value={v.id}>{v.variant_label} (₹{v.price_override.toLocaleString('en-IN')})</option>
-                                            ))}
-                                        </select>
+                                <!-- PILL SELECTORS FOR PRODUCT LISTING (Luxury feel, no native browser selects) -->
+                                <template x-if="variants.length > 1">
+                                    <div class="flex flex-wrap gap-1.5 justify-center my-3" @click.stop="">
+                                        <template x-for="v in variants" :key="v.id">
+                                            <button 
+                                                type="button"
+                                                @click.stop="updateVariant(v.id)"
+                                                :class="selectedVariantId === v.id ? 'bg-black text-white border-black' : 'bg-white text-gray-500 border-gray-200 hover:border-black'"
+                                                class="px-2.5 py-1 text-[8px] font-bold uppercase tracking-wider border rounded-sm transition-all focus:outline-none"
+                                                x-text="v.variant_label"
+                                            ></button>
+                                        </template>
                                     </div>
-                                ) : (
+                                </template>
+
+                                <template x-if="variants.length <= 1">
                                     <div class="flex items-center justify-center gap-1 sm:gap-2 text-[8px] sm:text-[9px] text-gray-500 uppercase tracking-[0.2em] mb-2 sm:mb-4 font-bold">
+                                        <span x-text="selectedLabel"></span>
+                                        <span class="text-gray-300">•</span>
                                         <span>{isAccessory ? 'Accessory' : categoryNormalized}</span>
                                     </div>
-                                )}
+                                </template>
                                 
                                 {product.notes && (
                                     <p class="text-xs sm:text-sm text-gray-500 font-light leading-relaxed line-clamp-2 mb-4 sm:mb-6 max-w-[280px] mx-auto hidden sm:block">
@@ -370,7 +380,7 @@ const escapeAttr = (str) => {
                                 )}
                             </div>
                             
-                            {/* Mobile fallback button */}
+                            <!-- Mobile Action Button -->
                             <button 
                                 @click.stop={`$store.cart.add({ id: '${product.id}', variant_id: selectedVariantId, name: '${safeName}', price: currentPrice, volume: selectedLabel, image_url: '${safeImageUrl}' })`}
                                 ::disabled="currentStock <= 0"
@@ -387,7 +397,7 @@ const escapeAttr = (str) => {
                 );
             })}
             
-            {/* Empty State for Filters */}
+            {/* Empty State */}
             <div x-show="!categories.some(cat => filter === 'All' || (filter === 'Fragrances' && (cat === 'Classic' || cat === 'Premium')) || cat === filter)" style="display: none;" class="col-span-full py-12 text-center text-gray-400 font-serif italic text-lg">
                 No products found in this collection.
             </div>
