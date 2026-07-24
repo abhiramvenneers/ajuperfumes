@@ -131,7 +131,8 @@ const escapeAttr = (str) => {
                     const safeImageUrl = escapeAttr(imageUrl);
 
                     return (
-                        <div class="snap-start w-[280px] sm:w-[320px] shrink-0 bg-white border border-gray-100 rounded-lg p-3 hover:shadow-xl hover:shadow-gray-200/50 transition-all duration-300"
+                        <!-- Entire Slider Card is now a clickable link -->
+                        <a href={`/product/${product.id}`} class="snap-start block w-[280px] sm:w-[320px] shrink-0 bg-white border border-gray-100 rounded-lg p-3 hover:shadow-xl hover:shadow-gray-200/50 transition-all duration-300 flex flex-col justify-between group"
                              x-data={`{
                                 variants: ${variantsJson},
                                 selectedVariantId: '${defaultVariant.id || ""}',
@@ -155,52 +156,62 @@ const escapeAttr = (str) => {
                                 <span x-show="currentStock > 0 && currentStock <= 5" class="absolute top-3 right-3 bg-amber-100 text-amber-800 px-2.5 py-1 text-[8px] font-bold uppercase tracking-widest z-20 shadow-sm border border-amber-200 rounded-sm" style="display: none;">Few Stock Left</span>
 
                                 {imageUrl ? (
-                                    <img src={imageUrl} alt={productName} class="w-full h-full object-cover transition-transform duration-700 hover:scale-105" />
+                                    <img src={imageUrl} alt={productName} class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
                                 ) : (
                                     <span class="text-gray-300 font-serif italic text-xl px-4 text-center">{productName.split(' ')[0]}</span>
                                 )}
                             </div>
 
                             <!-- Details & Selectors -->
-                            <div class="text-center">
-                                <h3 class="font-serif text-base sm:text-lg font-medium text-gray-900 truncate mb-1">{productName}</h3>
-                                
-                                <!-- PREMIUM INTERACTIVE PILL SELECTOR FOR VARIANTS -->
-                                <template x-if="variants.length > 1">
-                                    <div class="flex flex-wrap gap-1.5 justify-center my-3">
-                                        <template x-for="v in variants" :key="v.id">
-                                            <button 
-                                                type="button"
-                                                @click.stop="updateVariant(v.id)"
-                                                :class="selectedVariantId === v.id ? 'bg-black text-white border-black' : 'bg-white text-gray-500 border-gray-200 hover:border-black'"
-                                                class="px-3 py-1.5 text-[8px] font-bold uppercase tracking-wider border rounded-sm transition-all focus:outline-none"
-                                                x-text="v.variant_label"
-                                            ></button>
-                                        </template>
-                                    </div>
-                                </template>
-
-                                <template x-if="variants.length <= 1">
-                                    <div class="text-[8px] sm:text-[9px] text-gray-500 uppercase tracking-widest my-3 font-bold">
-                                        <span x-text="selectedLabel"></span>
-                                        <span class="text-gray-300 mx-1">•</span>
-                                        <span>{categoryNormalized}</span>
-                                    </div>
-                                </template>
-
-                                <button 
-                                    @click.stop={`$store.cart.add({ id: '${product.id}', variant_id: selectedVariantId, name: '${safeName}', price: currentPrice, volume: selectedLabel, image_url: '${safeImageUrl}' })`}
-                                    :disabled="currentStock <= 0"
-                                    class="w-full py-3 mt-3 uppercase text-[9px] sm:text-[10px] font-bold tracking-[0.2em] rounded-sm transition-colors"
-                                    :class="currentStock <= 0 ? 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200' : 'bg-black text-white hover:bg-neutral-800'"
-                                >
-                                    <span x-show="currentStock <= 0">Sold Out</span>
-                                    <span x-show="currentStock > 0" x-text="'Add — ₹' + Number(currentPrice).toLocaleString('en-IN')">
-                                        Add — ₹{defaultVariant.price_override.toLocaleString('en-IN')}
+                            <div class="text-center flex-grow flex flex-col justify-between">
+                                <div>
+                                    <span class="block font-serif text-base sm:text-lg font-medium text-gray-900 truncate mb-1 group-hover:underline">
+                                        {productName}
                                     </span>
-                                </button>
+                                    
+                                    <!-- PILL SELECTOR FOR VARIANTS -->
+                                    <template x-if="variants.length > 1">
+                                        <div class="flex flex-wrap gap-1.5 justify-center my-3">
+                                            <template x-for="v in variants" :key="v.id">
+                                                <button 
+                                                    type="button"
+                                                    @click.prevent.stop="updateVariant(v.id)"
+                                                    :class="selectedVariantId === v.id ? 'bg-black text-white border-black' : 'bg-white text-gray-500 border-gray-200 hover:border-black'"
+                                                    class="px-3 py-1.5 text-[8px] font-bold uppercase tracking-wider border rounded-sm transition-all focus:outline-none z-10 relative"
+                                                    x-text="v.variant_label"
+                                                ></button>
+                                            </template>
+                                        </div>
+                                    </template>
+
+                                    <template x-if="variants.length <= 1">
+                                        <div class="text-[8px] sm:text-[9px] text-gray-500 uppercase tracking-widest my-3 font-bold">
+                                            <span x-text="selectedLabel"></span>
+                                            <span class="text-gray-300 mx-1">•</span>
+                                            <span>{categoryNormalized}</span>
+                                        </div>
+                                    </template>
+                                </div>
+
+                                <div class="space-y-2 mt-3 relative z-10">
+                                    <button 
+                                        @click.prevent.stop={`$store.cart.add({ id: '${product.id}', variant_id: selectedVariantId, name: '${safeName}', price: currentPrice, volume: selectedLabel, image_url: '${safeImageUrl}' })`}
+                                        :disabled="currentStock <= 0"
+                                        class="w-full py-3 uppercase text-[9px] sm:text-[10px] font-bold tracking-[0.2em] rounded-sm transition-colors"
+                                        :class="currentStock <= 0 ? 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200' : 'bg-black text-white hover:bg-neutral-800'"
+                                    >
+                                        <span x-show="currentStock <= 0">Sold Out</span>
+                                        <span x-show="currentStock > 0" x-text="'Add — ₹' + Number(currentPrice).toLocaleString('en-IN')">
+                                            Add — ₹{defaultVariant.price_override.toLocaleString('en-IN')}
+                                        </span>
+                                    </button>
+
+                                    <span class="block text-center text-[9px] uppercase font-bold tracking-widest text-gray-400 group-hover:text-black transition-colors pt-1">
+                                        View Full Specs & Photos →
+                                    </span>
+                                </div>
                             </div>
-                        </div>
+                        </a>
                     );
                 })}
             </div>
@@ -224,7 +235,6 @@ const escapeAttr = (str) => {
                     if (matchedCat) {
                         filter = matchedCat;
                     } else if (hash === 'fragrances') {
-                        // Legacy support for general fragrances group hash
                         filter = 'Fragrances';
                     } else {
                         filter = 'All';
@@ -237,7 +247,7 @@ const escapeAttr = (str) => {
         <div class="flex flex-col md:flex-row justify-between items-center md:items-end mb-12 sm:mb-20 border-b border-gray-200 pb-8 gap-6 sm:gap-8">
             <h2 class="text-3xl sm:text-4xl md:text-5xl font-serif font-medium tracking-tight text-gray-900 text-center md:text-left">The Full Collection</h2>
             
-            <!-- Category Tabs (Populated 100% dynamically from active database products) -->
+            <!-- Category Tabs -->
             <div class="flex flex-wrap gap-4 justify-center sm:gap-12">
                 <button @click="filter = 'All'; window.location.hash = 'shop'" 
                         :class="filter === 'All' ? 'text-black border-b border-black' : 'text-gray-400 border-transparent hover:text-black'" 
@@ -270,15 +280,16 @@ const escapeAttr = (str) => {
                 const defaultVariant = hasVariants ? dbVariants[0] : { id: null, variant_label: 'Standard', price_override: 0, stock_quantity: 0 };
                 const variantsJson = JSON.stringify(dbVariants).replace(/'/g, "\\'");
 
-                // Completely dynamic filtering check with backward compatibility for legacy Fragrances group hash
                 let xShow = `filter === 'All' || filter === '${categoryNormalized}' || (filter === 'Fragrances' && ('${categoryNormalized}' === 'Classic' || '${categoryNormalized}' === 'Premium'))`;
 
                 const safeName = escapeAttr(productName);
                 const safeImageUrl = escapeAttr(imageUrl);
                 
                 return (
-                    <div 
-                        class="group flex flex-col cursor-pointer bg-white p-2 rounded-sm border border-transparent hover:border-gray-100 transition-all duration-300"
+                    <!-- Entire Grid Card is now a clickable link -->
+                    <a 
+                        href={`/product/${product.id}`}
+                        class="block group flex flex-col bg-white p-2 rounded-sm border border-transparent hover:border-gray-100 transition-all duration-300"
                         x-show={xShow}
                         x-data={`{
                             variants: ${variantsJson},
@@ -300,7 +311,7 @@ const escapeAttr = (str) => {
                         x-transition:enter-start="opacity-0 translate-y-4"
                         x-transition:enter-end="opacity-100 translate-y-0"
                     >
-                        <!-- Static Image Container -->
+                        <!-- Image Container -->
                         <div class="aspect-[3/4] w-full bg-[#f4f4f4] relative mb-4 sm:mb-8 overflow-hidden flex items-center justify-center transition-colors duration-500 group-hover:bg-[#ebebeb]">
                             
                             <span x-show="currentStock <= 0" class="absolute top-4 right-4 bg-red-600 text-white px-3 py-1 text-[8px] font-bold uppercase tracking-widest z-20 shadow-sm rounded-sm">Out of Stock</span>
@@ -324,17 +335,17 @@ const escapeAttr = (str) => {
                                 </span>
                             )}
                             
-                            <!-- Slide-up Add to Cart (Desktop with reactive price state) -->
+                            <!-- Quick Add Overlay button for Desktop (Stops link from clicking) -->
                             <div class="hidden lg:block absolute inset-x-0 bottom-0 p-6 translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] z-30">
                                 <button 
-                                    @click.stop={`$store.cart.add({ id: '${product.id}', variant_id: selectedVariantId, name: '${safeName}', price: currentPrice, volume: selectedLabel, image_url: '${safeImageUrl}' })`}
+                                    @click.prevent.stop={`$store.cart.add({ id: '${product.id}', variant_id: selectedVariantId, name: '${safeName}', price: currentPrice, volume: selectedLabel, image_url: '${safeImageUrl}' })`}
                                     :disabled="currentStock <= 0"
                                     class="w-full py-4 uppercase text-[10px] font-bold tracking-[0.2em] transition-colors duration-300 shadow-xl"
                                     :class="currentStock <= 0 ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-white text-black hover:bg-black hover:text-white'"
                                 >
                                     <span x-show="currentStock <= 0">Sold Out</span>
-                                    <span x-show="currentStock > 0" x-text="'Add to Bag — ₹' + Number(currentPrice).toLocaleString('en-IN')">
-                                        Add to Bag — ₹{defaultVariant.price_override.toLocaleString('en-IN')}
+                                    <span x-show="currentStock > 0" x-text="'Quick Add — ₹' + Number(currentPrice).toLocaleString('en-IN')">
+                                        Quick Add — ₹{defaultVariant.price_override.toLocaleString('en-IN')}
                                     </span>
                                 </button>
                             </div>
@@ -343,17 +354,17 @@ const escapeAttr = (str) => {
                         <!-- Product Metadata -->
                         <div class="text-center px-1 sm:px-2 flex-grow flex flex-col justify-between">
                             <div>
-                                <h3 class="font-serif text-base sm:text-xl font-medium text-gray-900 mb-1 sm:mb-2 leading-tight">
+                                <span class="block font-serif text-base sm:text-xl font-medium text-gray-900 mb-1 sm:mb-2 leading-tight group-hover:underline">
                                     {productName}
-                                </h3>
+                                </span>
                                 
-                                <!-- PILL SELECTORS FOR PRODUCT LISTING (Luxury feel, no native browser selects) -->
+                                <!-- PILL SELECTORS FOR PRODUCT LISTING (Stops link from clicking) -->
                                 <template x-if="variants.length > 1">
-                                    <div class="flex flex-wrap gap-1.5 justify-center my-3" @click.stop="">
+                                    <div class="flex flex-wrap gap-1.5 justify-center my-3 relative z-10">
                                         <template x-for="v in variants" :key="v.id">
                                             <button 
                                                 type="button"
-                                                @click.stop="updateVariant(v.id)"
+                                                @click.prevent.stop="updateVariant(v.id)"
                                                 :class="selectedVariantId === v.id ? 'bg-black text-white border-black' : 'bg-white text-gray-500 border-gray-200 hover:border-black'"
                                                 class="px-2.5 py-1 text-[8px] font-bold uppercase tracking-wider border rounded-sm transition-all focus:outline-none"
                                                 x-text="v.variant_label"
@@ -377,24 +388,29 @@ const escapeAttr = (str) => {
                                 )}
                             </div>
                             
-                            <!-- Mobile Action Button -->
-                            <button 
-                                @click.stop={`$store.cart.add({ id: '${product.id}', variant_id: selectedVariantId, name: '${safeName}', price: currentPrice, volume: selectedLabel, image_url: '${safeImageUrl}' })`}
-                                :disabled="currentStock <= 0"
-                                class="lg:hidden w-full border py-2.5 sm:py-3 uppercase text-[9px] sm:text-[10px] font-bold tracking-[0.2em] transition-colors mt-2"
-                                :class="currentStock <= 0 ? 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed' : 'border-gray-200 text-gray-900 hover:bg-gray-50'"
-                            >
-                                <span x-show="currentStock <= 0">Sold Out</span>
-                                <span x-show="currentStock > 0" x-text="'Add to Bag — ₹' + Number(currentPrice).toLocaleString('en-IN')">
-                                    Add to Bag — ₹{defaultVariant.price_override.toLocaleString('en-IN')}
+                            <!-- Mobile Action Buttons -->
+                            <div class="mt-2 space-y-1.5 lg:hidden relative z-10">
+                                <button 
+                                    @click.prevent.stop={`$store.cart.add({ id: '${product.id}', variant_id: selectedVariantId, name: '${safeName}', price: currentPrice, volume: selectedLabel, image_url: '${safeImageUrl}' })`}
+                                    :disabled="currentStock <= 0"
+                                    class="w-full border py-2.5 sm:py-3 uppercase text-[9px] sm:text-[10px] font-bold tracking-[0.2em] transition-colors"
+                                    :class="currentStock <= 0 ? 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed' : 'border-gray-200 text-gray-900 hover:bg-gray-50'"
+                                >
+                                    <span x-show="currentStock <= 0">Sold Out</span>
+                                    <span x-show="currentStock > 0" x-text="'Add to Bag — ₹' + Number(currentPrice).toLocaleString('en-IN')">
+                                        Add to Bag — ₹{defaultVariant.price_override.toLocaleString('en-IN')}
+                                    </span>
+                                </button>
+                                <span class="block text-center text-[9px] uppercase font-bold tracking-widest text-gray-400 group-hover:text-black py-1">
+                                    View Details →
                                 </span>
-                            </button>
+                            </div>
                         </div>
-                    </div>
+                    </a>
                 );
             })}
             
-            {/* Empty State */}
+            <!-- Empty State -->
             <div x-show="!categories.some(cat => filter === 'All' || (filter === 'Fragrances' && (cat === 'Classic' || cat === 'Premium')) || cat === filter)" style="display: none;" class="col-span-full py-12 text-center text-gray-400 font-serif italic text-lg">
                 No products found in this collection.
             </div>
