@@ -1,0 +1,276 @@
+---
+export const prerender = false;
+import Layout from '../../layouts/Layout.astro';
+import { supabase } from '../../lib/supabase.js';
+
+const { id } = Astro.params;
+
+if (!id) {
+    return Astro.redirect('/');
+}
+
+// Fetch Product along with its variants
+const { data: product, error } = await supabase
+    .from('products')
+    .select('*, product_variants(*)')
+    .eq('id', id)
+    .single();
+
+if (error || !product) {
+    return Astro.redirect('/');
+}
+
+// Parse comma-separated image URLs for multi-photo gallery
+const rawImages = product.image_url ? String(product.image_url).split(',').map(s => s.trim()).filter(Boolean) : [];
+const images = rawImages.length > 0 ? rawImages : [''];
+
+const dbVariants = product.product_variants || [];
+const hasVariants = dbVariants.length > 0;
+
+const defaultVariant = hasVariants ? dbVariants[0] : { id: null, variant_label: 'Standard', price_override: 0, stock_quantity: 0 };
+const variantsJson = JSON.stringify(dbVariants).replace(/'/g, "\\'");
+const imagesJson = JSON.stringify(images).replace(/'/g, "\\'");
+
+const escapeAttr = (str) => {
+    if (!str) return '';
+    return String(str).replace(/'/g, "\\'").replace(/"/g, "&quot;");
+};
+
+const safeName = escapeAttr(product.name);
+const categoryNormalized = (product.category || 'Classic').trim().charAt(0).toUpperCase() + (product.category || 'Classic').trim().slice(1).toLowerCase();
+---
+
+<Layout title={`${product.name} | Aju House`}>
+    <div 
+        class="max-w-[1400px] mx-auto px-6 lg:px-12 py-12 md:py-20"
+        x-data={`{
+            images: ${imagesJson},
+            variants: ${variantsJson},
+            activeImageIndex: 0,
+            selectedVariantId: '${defaultVariant.id || ""}',
+            selectedLabel: '${defaultVariant.variant_label}',
+            currentPrice: ${defaultVariant.price_override || 0},
+            currentStock: ${defaultVariant.stock_quantity || 0},
+            quantity: 1,
+
+            updateVariant(vId) {
+                const found = this.variants.find(v => v.id === vId);
+                if (found) {
+                    this.selectedVariantId = found.id;
+                    this.selectedLabel = found.variant_label;
+                    this.currentPrice = found.price_override;
+                    this.currentStock = found.stock_quantity;
+                    if (this.quantity > this.currentStock && this.currentStock > 0) {
+                        this.quantity = this.currentStock;
+                    }
+                }
+            },
+
+            addToCart() {
+                if (this.currentStock <= 0) return;
+                $store.cart.add({
+                    id: '${product.id}',
+                    variant_id: this.selectedVariantId,
+                    name: '${safeName}',
+                    price: this.currentPrice,
+                    volume: this.selectedLabel,
+                    image_url: this.images[this.activeImageIndex] || this.images[0] || ''
+                }, this.quantity);
+            },
+
+            buyNow() {
+                if (this.currentStock <= 0) return;
+                this.addToCart();
+                window.location.href = '/checkout';
+            }
+        }`}
+    >
+        <!-- Breadcrumb Navigation -->
+        <nav class="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-8 sm:mb-12">
+            <a href="/" class="hover:text-black transition-colors">Home</a>
+            <span>/</span>
+            <a href={`/#${categoryNormalized.toLowerCase()}`} class="hover:text-black transition-colors">{categoryNormalized}</a>
+            <span>/</span>
+            <span class="text-gray-900 truncate max-w-[200px] sm:max-w-none">{product.name}</span>
+        </nav>
+
+        <!-- Main Product Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-start">
+            
+            <!-- Left Column: Multi-Photo Gallery -->
+            <div class="lg:col-span-7 flex flex-col-reverse md:flex-row gap-4 sm:gap-6">
+                
+                <!-- Gallery Thumbnails -->
+                <template x-if="images.length > 1">
+                    <div class="flex md:flex-col gap-3 overflow-x-auto no-scrollbar shrink-0 max-h-[600px]">
+                        <template x-for="(img, idx) in images" :key="idx">
+                            <button 
+                                type="button"
+                                @click="activeImageIndex = idx"
+                                class="w-20 h-24 bg-[#f8f8f8] rounded border-2 overflow-hidden shrink-0 transition-all focus:outline-none"
+                                :class="activeImageIndex === idx ? 'border-black opacity-100 shadow-md' : 'border-transparent opacity-60 hover:opacity-100'"
+                            >
+                                <img :src="img" :alt="'Photo ' + (idx + 1)" class="w-full h-full object-cover" />
+                            </button>
+                        </template>
+                    </div>
+                </template>
+
+                <!-- Main Display Photo Container -->
+                <div class="flex-1 aspect-[3/4] bg-[#f8f8f8] rounded-lg relative overflow-hidden flex items-center justify-center border border-gray-100 shadow-sm group">
+                    
+                    <!-- Stock Badges -->
+                    <span x-show="currentStock <= 0" class="absolute top-4 right-4 bg-red-600 text-white px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest z-20 rounded-sm shadow-sm">Out of Stock</span>
+                    <span x-show="currentStock > 0 && currentStock <= 5" class="absolute top-4 right-4 bg-amber-100 text-amber-800 px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest z-20 rounded-sm border border-amber-200 shadow-sm" style="display: none;">Only <span x-text="currentStock"></span> Left</span>
+
+                    <template x-if="images[activeImageIndex]">
+                        <img 
+                            :src="images[activeImageIndex]" 
+                            alt={product.name} 
+                            class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                        />
+                    </template>
+
+                    <template x-if="!images[activeImageIndex]">
+                        <div class="text-center p-8">
+                            <span class="text-gray-300 font-serif italic text-4xl block mb-2">{product.name.split(' ')[0]}</span>
+                            <span class="text-xs text-gray-400 font-light">Aju Signature Curation</span>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Right Column: Product Metadata, Variations & Buying Actions -->
+            <div class="lg:col-span-5 flex flex-col justify-between">
+                
+                <div>
+                    <!-- Category Badge -->
+                    <div class="flex items-center gap-3 mb-3">
+                        <span class="text-[10px] font-bold uppercase tracking-[0.25em] text-gray-400 border border-gray-200 px-3 py-1 rounded-full">{categoryNormalized}</span>
+                    </div>
+
+                    <!-- Title -->
+                    <h1 class="font-serif text-3xl sm:text-4xl md:text-5xl font-medium text-gray-900 tracking-tight leading-tight mb-4">
+                        {product.name}
+                    </h1>
+
+                    <!-- Price Display -->
+                    <div class="flex items-baseline gap-4 mb-8 pb-6 border-b border-gray-100">
+                        <span class="text-2xl sm:text-3xl font-serif font-semibold text-gray-900" x-text="'₹' + Number(currentPrice).toLocaleString('en-IN')">
+                            ₹{defaultVariant.price_override.toLocaleString('en-IN')}
+                        </span>
+                        <span class="text-xs text-gray-500 font-light uppercase tracking-wider">Tax Included • Free Delivery</span>
+                    </div>
+
+                    <!-- Variant Selection Pills -->
+                    <template x-if="variants.length > 0">
+                        <div class="mb-8">
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-[0.2em] mb-3">
+                                Select Variant / Model: <span class="text-black font-extrabold" x-text="selectedLabel"></span>
+                            </label>
+
+                            <div class="flex flex-wrap gap-2.5">
+                                <template x-for="v in variants" :key="v.id">
+                                    <button 
+                                        type="button"
+                                        @click="updateVariant(v.id)"
+                                        :class="selectedVariantId === v.id ? 'bg-black text-white border-black shadow-md' : 'bg-white text-gray-700 border-gray-200 hover:border-black'"
+                                        class="px-4 py-2.5 text-xs font-bold uppercase tracking-wider border rounded transition-all focus:outline-none flex items-center gap-2"
+                                    >
+                                        <span x-text="v.variant_label"></span>
+                                        <span class="text-[10px] opacity-70" x-text="'(₹' + Number(v.price_override).toLocaleString('en-IN') + ')'"></span>
+                                    </button>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Quantity Selector -->
+                    <div class="mb-8">
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-[0.2em] mb-3">Quantity</label>
+                        <div class="flex items-center border border-gray-200 rounded-sm w-fit bg-gray-50">
+                            <button 
+                                type="button"
+                                @click="if (quantity > 1) quantity--" 
+                                class="w-10 h-11 flex items-center justify-center text-gray-500 hover:text-black text-lg transition-colors"
+                                :disabled="quantity <= 1"
+                            >-</button>
+                            <span class="w-12 text-center text-sm font-bold text-gray-900 font-mono" x-text="quantity">1</span>
+                            <button 
+                                type="button"
+                                @click="if (quantity < currentStock) quantity++" 
+                                class="w-10 h-11 flex items-center justify-center text-gray-500 hover:text-black text-lg transition-colors"
+                                :disabled="quantity >= currentStock"
+                            >+</button>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="space-y-3 mb-10">
+                        <button 
+                            type="button"
+                            @click="addToCart()"
+                            :disabled="currentStock <= 0"
+                            class="w-full py-4 uppercase text-[11px] font-bold tracking-[0.25em] transition-all duration-300 shadow-xl rounded-sm flex items-center justify-center gap-2"
+                            :class="currentStock <= 0 ? 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200 shadow-none' : 'bg-black text-white hover:bg-neutral-800 active:scale-[0.99]'"
+                        >
+                            <span x-show="currentStock <= 0">Out of Stock</span>
+                            <span x-show="currentStock > 0" x-text="'Add to Bag • ₹' + Number(currentPrice * quantity).toLocaleString('en-IN')">
+                                Add to Bag
+                            </span>
+                        </button>
+
+                        <button 
+                            type="button"
+                            @click="buyNow()"
+                            :disabled="currentStock <= 0"
+                            class="w-full py-4 uppercase text-[11px] font-bold tracking-[0.25em] border border-black text-black hover:bg-black hover:text-white transition-all duration-300 rounded-sm"
+                            x-show="currentStock > 0"
+                        >
+                            Buy Now
+                        </button>
+                    </div>
+
+                    <!-- Product Description & Specifications -->
+                    {product.notes && (
+                        <div class="border-t border-gray-100 pt-8 mb-8">
+                            <h3 class="text-xs font-bold uppercase tracking-[0.2em] text-gray-900 mb-4">Product Details & Specs</h3>
+                            <p class="text-sm text-gray-600 font-light leading-relaxed whitespace-pre-line">
+                                {product.notes}
+                            </p>
+                        </div>
+                    )}
+
+                    <!-- Value Proposition & House Guarantees -->
+                    <div class="border-t border-gray-100 pt-8 space-y-4 font-sans text-xs text-gray-600">
+                        <div class="flex items-center gap-3">
+                            <svg class="w-5 h-5 text-gray-900 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+                            <div>
+                                <strong class="font-semibold text-gray-900 block">Complimentary Pan-India Shipping</strong>
+                                <span class="text-gray-500 font-light">Dispatched within 24 hours via DTDC Courier.</span>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-3">
+                            <svg class="w-5 h-5 text-gray-900 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                            <div>
+                                <strong class="font-semibold text-gray-900 block">100% Authentic Quality Guaranteed</strong>
+                                <span class="text-gray-500 font-light">Meticulously inspected before individual dispatch.</span>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-3">
+                            <svg class="w-5 h-5 text-gray-900 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                            <div>
+                                <strong class="font-semibold text-gray-900 block">Direct Concierge Support</strong>
+                                <span class="text-gray-500 font-light">Need assistance? Reach us on WhatsApp (+91 8075304432).</span>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+    </div>
+</Layout>
