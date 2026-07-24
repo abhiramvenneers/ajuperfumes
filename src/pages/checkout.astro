@@ -15,210 +15,198 @@ const publicRazorpayKeyId = import.meta.env.PUBLIC_RAZORPAY_KEY_ID || '';
         window.razorpayKeyId = publicRazorpayKeyId;
     </script>
 
-    <div 
-        class="max-w-[1400px] mx-auto px-6 lg:px-12 pb-32 pt-12 md:pt-20" 
-        x-data="{ 
-            isProcessing: false, 
-            isSuccess: false,
-            errorMessage: '',
-            
-            profile: {
-                firstName: '',
-                lastName: '',
-                email: '',
-                address: '',
-                city: '',
-                pincode: ''
-            },
-            
-            async init() {
-                // Fetch current session immediately to pre-fill address and secure user_id
-                const checkSession = setInterval(async () => {
-                    if (window.supabase) {
-                        clearInterval(checkSession);
-                        const { data: { session } } = await window.supabase.auth.getSession();
-                        if (session && session.user) {
-                            const meta = session.user.user_metadata || {};
-                            this.profile.firstName = meta.firstName || '';
-                            this.profile.lastName = meta.lastName || '';
-                            this.profile.email = session.user.email || '';
-                            this.profile.address = meta.address || '';
-                            this.profile.city = meta.city || '';
-                            this.profile.pincode = meta.pincode || '';
+    <!-- Extract complex Alpine logic OUT of the HTML attribute to prevent Astro compiler crashes -->
+    <script is:inline>
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('checkoutFlow', () => ({
+                isProcessing: false, 
+                isSuccess: false,
+                errorMessage: '',
+                
+                profile: {
+                    firstName: '', lastName: '', email: '', address: '', city: '', pincode: ''
+                },
+                
+                async init() {
+                    const checkSession = setInterval(async () => {
+                        if (window.supabase) {
+                            clearInterval(checkSession);
+                            const { data: { session } } = await window.supabase.auth.getSession();
+                            if (session && session.user) {
+                                const meta = session.user.user_metadata || {};
+                                this.profile.firstName = meta.firstName || '';
+                                this.profile.lastName = meta.lastName || '';
+                                this.profile.email = session.user.email || '';
+                                this.profile.address = meta.address || '';
+                                this.profile.city = meta.city || '';
+                                this.profile.pincode = meta.pincode || '';
+                            }
                         }
+                    }, 50);
+                    
+                    setTimeout(() => clearInterval(checkSession), 4000);
+                },
+                
+                async initiateCheckout() {
+                    const form = document.getElementById('checkoutForm');
+                    this.errorMessage = '';
+                    
+                    if (!form.checkValidity()) {
+                        form.reportValidity();
+                        return;
                     }
-                }, 50);
-                
-                setTimeout(() => clearInterval(checkSession), 4000);
-            },
-            
-            // Step 1: Initiate Razorpay Gateway overlay
-            async initiateCheckout() {
-                const form = document.getElementById('checkoutForm');
-                this.errorMessage = '';
-                
-                if (!form.checkValidity()) {
-                    form.reportValidity();
-                    return;
-                }
-                
-                if (this.$store.cart.items.length === 0) {
-                    this.errorMessage = 'Your shopping bag is empty.';
-                    return;
-                }
-
-                this.isProcessing = true;
-
-                try {
-                    // Create secure Razorpay Order on our server side first
-                    const orderResponse = await fetch('/api/create-razorpay-order', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ amount: this.$store.cart.total })
-                    });
-
-                    const orderData = await orderResponse.json();
-
-                    if (!orderResponse.ok) {
-                        throw new Error(orderData.error || 'Failed to instantiate merchant gateway order.');
+                    
+                    const cartStore = Alpine.store('cart');
+                    if (!cartStore || cartStore.items.length === 0) {
+                        this.errorMessage = 'Your shopping bag is empty.';
+                        return;
                     }
 
-                    // Retrieve public key from global window scope
-                    const activeKey = window.razorpayKeyId;
-                    if (!activeKey) {
-                        throw new Error('Razorpay Public Key ID is missing in environment variables.');
-                    }
+                    this.isProcessing = true;
 
-                    // Configure official Razorpay Checkout overlays (Using strict single quotes to prevent compiler crashes)
-                    const options = {
-                        key: activeKey,
-                        amount: orderData.amount,
-                        currency: orderData.currency,
-                        name: 'Aju House',
-                        description: 'Premium Curations Checkout',
-                        order_id: orderData.id,
-                        image: 'https://ajuperfumes.com/apple-touch-icon.png',
-                        handler: async (response) => {
-                            // Payment verification has completed successfully!
-                            await this.finalizeOrder(response.razorpay_payment_id);
-                        },
-                        prefill: {
-                            name: this.profile.firstName + ' ' + this.profile.lastName,
-                            email: this.profile.email
-                        },
-                        theme: {
-                            color: '#000000'
-                        },
-                        // Direct Custom display rules restricting options strictly to UPI and Cards
-                        config: {
-                            display: {
-                                blocks: {
-                                    payment_methods: {
-                                        name: 'Select Payment Method',
-                                        instruments: [
-                                            {
-                                                method: 'upi'
-                                            },
-                                            {
-                                                method: 'card'
-                                            }
-                                        ]
+                    try {
+                        const orderResponse = await fetch('/api/create-razorpay-order', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ amount: cartStore.total })
+                        });
+
+                        const orderData = await orderResponse.json();
+
+                        if (!orderResponse.ok) {
+                            throw new Error(orderData.error || 'Failed to instantiate merchant gateway order.');
+                        }
+
+                        const activeKey = window.razorpayKeyId;
+                        if (!activeKey) {
+                            throw new Error('Razorpay Public Key ID is missing in environment variables.');
+                        }
+
+                        // Configure official Razorpay Checkout overlays (Restricted to UPI & Cards)
+                        const options = {
+                            key: activeKey,
+                            amount: orderData.amount,
+                            currency: orderData.currency,
+                            name: 'Aju House',
+                            description: 'Premium Curations Checkout',
+                            order_id: orderData.id,
+                            image: 'https://ajuperfumes.com/apple-touch-icon.png',
+                            handler: async (response) => {
+                                await this.finalizeOrder(response.razorpay_payment_id);
+                            },
+                            prefill: {
+                                name: this.profile.firstName + ' ' + this.profile.lastName,
+                                email: this.profile.email
+                            },
+                            theme: {
+                                color: '#000000'
+                            },
+                            config: {
+                                display: {
+                                    blocks: {
+                                        payment_methods: {
+                                            name: 'Select Payment Method',
+                                            instruments: [
+                                                { method: 'upi' },
+                                                { method: 'card' }
+                                            ]
+                                        }
+                                    },
+                                    sequence: ['block.payment_methods'],
+                                    preferences: {
+                                        show_default_blocks: false
                                     }
-                                },
-                                sequence: ['block.payment_methods'],
-                                preferences: {
-                                    show_default_blocks: false
+                                }
+                            },
+                            modal: {
+                                ondismiss: () => {
+                                    this.isProcessing = false;
                                 }
                             }
-                        },
-                        modal: {
-                            ondismiss: () => {
-                                this.isProcessing = false;
-                            }
-                        }
+                        };
+
+                        const rzp = new window.Razorpay(options);
+                        rzp.on('payment.failed', (response) => {
+                            this.errorMessage = 'Payment declined: ' + response.error.description;
+                            this.isProcessing = false;
+                        });
+
+                        rzp.open();
+
+                    } catch (err) {
+                        this.errorMessage = err.message;
+                        this.isProcessing = false;
+                    }
+                },
+
+                async finalizeOrder(paymentId) {
+                    this.errorMessage = '';
+
+                    const form = document.getElementById('checkoutForm');
+                    const formData = new FormData(form);
+                    
+                    const { data: { session } } = await window.supabase.auth.getSession();
+                    const activeUser = session?.user || null;
+
+                    const firstName = (formData.get('firstName') || formData.get('first_name') || '').trim();
+                    const lastName = (formData.get('lastName') || formData.get('last_name') || '').trim();
+                    
+                    const paymentTracker = ' [PAID VIA RAZORPAY | Payment ID: ' + paymentId + ']';
+                    const cartStore = Alpine.store('cart');
+
+                    const orderData = {
+                        customer_name: firstName + ' ' + lastName,
+                        customer_email: (formData.get('email') || '').trim(),
+                        shipping_address: formData.get('address') + ', ' + formData.get('city') + ' - ' + formData.get('pincode') + paymentTracker,
+                        total_amount: cartStore.total,
+                        items: cartStore.items,
+                        user_id: activeUser ? activeUser.id : null
                     };
 
-                    const rzp = new window.Razorpay(options);
-                    rzp.on('payment.failed', (response) => {
-                        this.errorMessage = 'Payment declined: ' + response.error.description;
-                        this.isProcessing = false;
-                    });
+                    try {
+                        if (activeUser && window.supabase) {
+                            await window.supabase.auth.updateUser({
+                                data: {
+                                    firstName,
+                                    lastName,
+                                    address: formData.get('address'),
+                                    city: formData.get('city'),
+                                    pincode: formData.get('pincode')
+                                }
+                            });
+                        }
 
-                    rzp.open();
-
-                } catch (err) {
-                    this.errorMessage = err.message;
-                    this.isProcessing = false;
-                }
-            },
-
-            // Step 2: Push the finalized order to Supabase and send the Resend branded receipt
-            async finalizeOrder(paymentId) {
-                this.errorMessage = '';
-
-                const form = document.getElementById('checkoutForm');
-                const formData = new FormData(form);
-                
-                const { data: { session } } = await window.supabase.auth.getSession();
-                const activeUser = session?.user || null;
-
-                const firstName = (formData.get('firstName') || formData.get('first_name') || '').trim();
-                const lastName = (formData.get('lastName') || formData.get('last_name') || '').trim();
-                
-                // Attach verified Razorpay payment receipt ID as trace log
-                const paymentTracker = ' [PAID VIA RAZORPAY | Payment ID: ' + paymentId + ']';
-
-                const orderData = {
-                    customer_name: firstName + ' ' + lastName,
-                    customer_email: (formData.get('email') || '').trim(),
-                    shipping_address: formData.get('address') + ', ' + formData.get('city') + ' - ' + formData.get('pincode') + paymentTracker,
-                    total_amount: this.$store.cart.total,
-                    items: this.$store.cart.items,
-                    user_id: activeUser ? activeUser.id : null
-                };
-
-                try {
-                    // Update customer account metadata safely
-                    if (activeUser && window.supabase) {
-                        await window.supabase.auth.updateUser({
-                            data: {
-                                firstName,
-                                lastName,
-                                address: formData.get('address'),
-                                city: formData.get('city'),
-                                pincode: formData.get('pincode')
-                            }
+                        const res = await fetch('/api/checkout', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(orderData)
                         });
+
+                        const result = await res.json();
+
+                        if (!res.ok) {
+                            throw new Error(result.error || 'Failed to register completed order.');
+                        }
+                        
+                        this.isProcessing = false;
+                        this.isSuccess = true;
+                        
+                        localStorage.removeItem('cartItems');
+                        cartStore.items = [];
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        
+                    } catch (err) {
+                        this.errorMessage = 'System Error during final processing: ' + err.message + '. Please contact client care with payment ID: ' + paymentId;
+                        this.isProcessing = false;
                     }
-
-                    const res = await fetch('/api/checkout', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(orderData)
-                    });
-
-                    const result = await res.json();
-
-                    if (!res.ok) {
-                        throw new Error(result.error || 'Failed to register completed order.');
-                    }
-                    
-                    // Success transitions
-                    this.isProcessing = false;
-                    this.isSuccess = true;
-                    
-                    localStorage.removeItem('cartItems');
-                    this.$store.cart.items = [];
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                    
-                } catch (err) {
-                    this.errorMessage = 'System Error during final processing: ' + err.message + '. Please contact client care with payment ID: ' + paymentId;
-                    this.isProcessing = false;
                 }
-            }
-        }"
-        x-init="init()"
-    >
+            }));
+        });
+    </script>
+
+    <!-- Clean, compiler-safe HTML connection -->
+    <div class="max-w-[1400px] mx-auto px-6 lg:px-12 pb-32 pt-12 md:pt-20" x-data="checkoutFlow">
+        
         <!-- Page Header -->
         <div class="text-center mb-16 md:mb-24">
             <h1 class="text-4xl md:text-5xl font-serif font-medium tracking-tight text-gray-900 mb-4">Secure Checkout</h1>
@@ -279,7 +267,7 @@ const publicRazorpayKeyId = import.meta.env.PUBLIC_RAZORPAY_KEY_ID || '';
                     <section>
                         <h2 class="text-sm font-bold text-gray-900 uppercase tracking-[0.2em] mb-6 pb-4 border-b border-gray-200 flex justify-between items-end">
                             Shipping Details
-                            <span x-show="$store.auth.user && profile.address" class="text-[9px] text-gray-400 normal-case tracking-normal font-medium italic" style="display: none;">Details loaded from profile</span>
+                            <span x-show="$store.auth && $store.auth.user && profile.address" class="text-[9px] text-gray-400 normal-case tracking-normal font-medium italic" style="display: none;">Details loaded from profile</span>
                         </h2>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                             <div>
