@@ -9,48 +9,105 @@ if (!id) {
     return Astro.redirect('/');
 }
 
-// Fetch Product along with its variants
-const { data: product, error } = await supabase
-    .from('products')
-    .select('*, product_variants(*)')
-    .eq('id', id)
-    .single();
+let product = null;
+let dbVariants = [];
 
-if (error || !product) {
+// 1. Primary Query: Try fetching from restructured products table with relational variants
+try {
+    const { data: prodData, error: prodErr } = await supabase
+        .from('products')
+        .select('*, product_variants(*)')
+        .eq('id', id)
+        .maybeSingle();
+
+    if (prodData) {
+        product = prodData;
+        dbVariants = prodData.product_variants || [];
+    }
+} catch (e) {
+    console.warn('Primary products table query skipped:', e);
+}
+
+// 2. Fallback Query: Check legacy perfumes table if not found in products
+if (!product) {
+    try {
+        const { data: legacyData } = await supabase
+            .from('perfumes')
+            .select('*')
+            .eq('id', id)
+            .maybeSingle();
+
+        if (legacyData) {
+            product = legacyData;
+            dbVariants = [{
+                id: null,
+                variant_label: (legacyData.volume && legacyData.volume !== 'N/A') ? legacyData.volume : 'Standard',
+                price_override: Number(legacyData.price || 0),
+                stock_quantity: Number(legacyData.stock_quantity || 0)
+            }];
+        }
+    } catch (e) {
+        console.warn('Legacy perfumes query error:', e);
+    }
+}
+
+// Redirect only if item exists in neither table
+if (!product) {
     return Astro.redirect('/');
 }
 
 // Parse comma-separated image URLs for multi-photo gallery
 const rawImages = product.image_url ? String(product.image_url).split(',').map(s => s.trim()).filter(Boolean) : [];
-const images = rawImages.length > 0 ? rawImages : [''];
+const images = rawImages.length > 0 ? rawImages : [];
 
-const dbVariants = product.product_variants || [];
 const hasVariants = dbVariants.length > 0;
-
-const defaultVariant = hasVariants ? dbVariants[0] : { id: null, variant_label: 'Standard', price_override: 0, stock_quantity: 0 };
-const variantsJson = JSON.stringify(dbVariants).replace(/'/g, "\\'");
-const imagesJson = JSON.stringify(images).replace(/'/g, "\\'");
-
-const escapeAttr = (str) => {
-    if (!str) return '';
-    return String(str).replace(/'/g, "\\'").replace(/"/g, "&quot;");
+const defaultVariant = hasVariants ? dbVariants[0] : { 
+    id: null, 
+    variant_label: 'Standard', 
+    price_override: Number(product.price || 0), 
+    stock_quantity: Number(product.stock_quantity || 0) 
 };
 
-const safeName = escapeAttr(product.name);
-const categoryNormalized = (product.category || 'Classic').trim().charAt(0).toUpperCase() + (product.category || 'Classic').trim().slice(1).toLowerCase();
+const safeName = String(product.name || 'Signature Item').replace(/'/g, "\\'").replace(/"/g, "&quot;");
+const rawCat = (product.category || 'Classic').trim();
+const categoryNormalized = rawCat.charAt(0).toUpperCase() + rawCat.slice(1).toLowerCase();
 ---
 
 <Layout title={`${product.name} | Aju House`}>
+
+    <!-- Pass data safely into client scope via Astro variables -->
+    <script is:inline define:vars={{ 
+        pageImages: images, 
+        pageVariants: dbVariants, 
+        defaultVariantId: defaultVariant.id || '',
+        defaultLabel: defaultVariant.variant_label || 'Standard',
+        defaultPrice: Number(defaultVariant.price_override || 0),
+        defaultStock: Number(defaultVariant.stock_quantity || 0),
+        productId: product.id,
+        productName: safeName
+    }}>
+        window.productPageData = {
+            images: pageImages,
+            variants: pageVariants,
+            defaultVariantId: defaultVariantId,
+            defaultLabel: defaultLabel,
+            defaultPrice: defaultPrice,
+            defaultStock: defaultStock,
+            productId: productId,
+            productName: productName
+        };
+    </script>
+
     <div 
         class="max-w-[1400px] mx-auto px-6 lg:px-12 py-12 md:py-20"
-        x-data={`{
-            images: ${imagesJson},
-            variants: ${variantsJson},
+        x-data="{
+            images: window.productPageData.images || [],
+            variants: window.productPageData.variants || [],
             activeImageIndex: 0,
-            selectedVariantId: '${defaultVariant.id || ""}',
-            selectedLabel: '${defaultVariant.variant_label}',
-            currentPrice: ${defaultVariant.price_override || 0},
-            currentStock: ${defaultVariant.stock_quantity || 0},
+            selectedVariantId: window.productPageData.defaultVariantId,
+            selectedLabel: window.productPageData.defaultLabel,
+            currentPrice: window.productPageData.defaultPrice,
+            currentStock: window.productPageData.defaultStock,
             quantity: 1,
 
             updateVariant(vId) {
@@ -58,8 +115,8 @@ const categoryNormalized = (product.category || 'Classic').trim().charAt(0).toUp
                 if (found) {
                     this.selectedVariantId = found.id;
                     this.selectedLabel = found.variant_label;
-                    this.currentPrice = found.price_override;
-                    this.currentStock = found.stock_quantity;
+                    this.currentPrice = Number(found.price_override || 0);
+                    this.currentStock = Number(found.stock_quantity || 0);
                     if (this.quantity > this.currentStock && this.currentStock > 0) {
                         this.quantity = this.currentStock;
                     }
@@ -69,9 +126,9 @@ const categoryNormalized = (product.category || 'Classic').trim().charAt(0).toUp
             addToCart() {
                 if (this.currentStock <= 0) return;
                 $store.cart.add({
-                    id: '${product.id}',
+                    id: window.productPageData.productId,
                     variant_id: this.selectedVariantId,
-                    name: '${safeName}',
+                    name: window.productPageData.productName,
                     price: this.currentPrice,
                     volume: this.selectedLabel,
                     image_url: this.images[this.activeImageIndex] || this.images[0] || ''
@@ -83,7 +140,7 @@ const categoryNormalized = (product.category || 'Classic').trim().charAt(0).toUp
                 this.addToCart();
                 window.location.href = '/checkout';
             }
-        }`}
+        }"
     >
         <!-- Breadcrumb Navigation -->
         <nav class="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-8 sm:mb-12">
@@ -131,7 +188,7 @@ const categoryNormalized = (product.category || 'Classic').trim().charAt(0).toUp
                         />
                     </template>
 
-                    <template x-if="!images[activeImageIndex]">
+                    <template x-if="images.length === 0">
                         <div class="text-center p-8">
                             <span class="text-gray-300 font-serif italic text-4xl block mb-2">{product.name.split(' ')[0]}</span>
                             <span class="text-xs text-gray-400 font-light">Aju Signature Curation</span>
@@ -157,7 +214,7 @@ const categoryNormalized = (product.category || 'Classic').trim().charAt(0).toUp
                     <!-- Price Display -->
                     <div class="flex items-baseline gap-4 mb-8 pb-6 border-b border-gray-100">
                         <span class="text-2xl sm:text-3xl font-serif font-semibold text-gray-900" x-text="'₹' + Number(currentPrice).toLocaleString('en-IN')">
-                            ₹{defaultVariant.price_override.toLocaleString('en-IN')}
+                            ₹{Number(defaultVariant.price_override || 0).toLocaleString('en-IN')}
                         </span>
                         <span class="text-xs text-gray-500 font-light uppercase tracking-wider">Tax Included • Free Delivery</span>
                     </div>
@@ -170,11 +227,11 @@ const categoryNormalized = (product.category || 'Classic').trim().charAt(0).toUp
                             </label>
 
                             <div class="flex flex-wrap gap-2.5">
-                                <template x-for="v in variants" :key="v.id">
+                                <template x-for="v in variants" :key="v.id || v.variant_label">
                                     <button 
                                         type="button"
                                         @click="updateVariant(v.id)"
-                                        :class="selectedVariantId === v.id ? 'bg-black text-white border-black shadow-md' : 'bg-white text-gray-700 border-gray-200 hover:border-black'"
+                                        :class="(selectedVariantId === v.id || selectedLabel === v.variant_label) ? 'bg-black text-white border-black shadow-md' : 'bg-white text-gray-700 border-gray-200 hover:border-black'"
                                         class="px-4 py-2.5 text-xs font-bold uppercase tracking-wider border rounded transition-all focus:outline-none flex items-center gap-2"
                                     >
                                         <span x-text="v.variant_label"></span>
