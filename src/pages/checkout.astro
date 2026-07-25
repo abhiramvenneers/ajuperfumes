@@ -2,20 +2,16 @@
 export const prerender = false;
 import Layout from '../layouts/Layout.astro';
 
-// Pull the public Razorpay Key ID safely during rendering
 const publicRazorpayKeyId = import.meta.env.PUBLIC_RAZORPAY_KEY_ID || '';
 ---
 
 <Layout title="Secure Checkout | Aju Perfumes">
-    <!-- Inject Razorpay's Secure Web Checkout library dynamically -->
     <script is:inline src="https://checkout.razorpay.com/v1/checkout.js"></script>
 
-    <!-- Securely pass the Astro server-side key to the client-side global window context -->
     <script define:vars={{ publicRazorpayKeyId }}>
         window.razorpayKeyId = publicRazorpayKeyId;
     </script>
 
-    <!-- Register Alpine data component in a standalone script to prevent Astro template compiler crashes -->
     <script is:inline>
         document.addEventListener('alpine:init', () => {
             Alpine.data('checkoutFlow', () => ({
@@ -24,12 +20,7 @@ const publicRazorpayKeyId = import.meta.env.PUBLIC_RAZORPAY_KEY_ID || '';
                 errorMessage: '',
                 
                 profile: {
-                    firstName: '',
-                    lastName: '',
-                    email: '',
-                    address: '',
-                    city: '',
-                    pincode: ''
+                    firstName: '', lastName: '', email: '', address: '', city: '', pincode: ''
                 },
                 
                 async init() {
@@ -48,7 +39,6 @@ const publicRazorpayKeyId = import.meta.env.PUBLIC_RAZORPAY_KEY_ID || '';
                             }
                         }
                     }, 50);
-                    
                     setTimeout(() => clearInterval(checkSession), 4000);
                 },
                 
@@ -84,10 +74,9 @@ const publicRazorpayKeyId = import.meta.env.PUBLIC_RAZORPAY_KEY_ID || '';
 
                         const activeKey = window.razorpayKeyId;
                         if (!activeKey) {
-                            throw new Error('Razorpay Public Key ID is missing in environment variables.');
+                            throw new Error('Razorpay Public Key ID is missing.');
                         }
 
-                        // Configure official Razorpay Checkout overlays (Restricted to UPI & Cards)
                         const options = {
                             key: activeKey,
                             amount: orderData.amount,
@@ -103,30 +92,21 @@ const publicRazorpayKeyId = import.meta.env.PUBLIC_RAZORPAY_KEY_ID || '';
                                 name: (this.profile.firstName + ' ' + this.profile.lastName).trim(),
                                 email: this.profile.email
                             },
-                            theme: {
-                                color: '#000000'
-                            },
+                            theme: { color: '#000000' },
                             config: {
                                 display: {
                                     blocks: {
                                         payment_methods: {
                                             name: 'Select Payment Method',
-                                            instruments: [
-                                                { method: 'upi' },
-                                                { method: 'card' }
-                                            ]
+                                            instruments: [{ method: 'upi' }, { method: 'card' }]
                                         }
                                     },
                                     sequence: ['block.payment_methods'],
-                                    preferences: {
-                                        show_default_blocks: false
-                                    }
+                                    preferences: { show_default_blocks: false }
                                 }
                             },
                             modal: {
-                                ondismiss: () => {
-                                    this.isProcessing = false;
-                                }
+                                ondismiss: () => { this.isProcessing = false; }
                             }
                         };
 
@@ -135,7 +115,6 @@ const publicRazorpayKeyId = import.meta.env.PUBLIC_RAZORPAY_KEY_ID || '';
                             this.errorMessage = 'Payment declined: ' + response.error.description;
                             this.isProcessing = false;
                         });
-
                         rzp.open();
 
                     } catch (err) {
@@ -146,16 +125,14 @@ const publicRazorpayKeyId = import.meta.env.PUBLIC_RAZORPAY_KEY_ID || '';
 
                 async finalizeOrder(paymentId) {
                     this.errorMessage = '';
-
                     const form = document.getElementById('checkoutForm');
                     const formData = new FormData(form);
                     
                     const { data: { session } } = await window.supabase.auth.getSession();
                     const activeUser = session?.user || null;
 
-                    const firstName = (formData.get('firstName') || formData.get('first_name') || '').trim();
-                    const lastName = (formData.get('lastName') || formData.get('last_name') || '').trim();
-                    
+                    const firstName = (formData.get('firstName') || '').trim();
+                    const lastName = (formData.get('lastName') || '').trim();
                     const paymentTracker = ' [PAID VIA RAZORPAY | Payment ID: ' + paymentId + ']';
                     const cartStore = Alpine.store('cart');
 
@@ -172,8 +149,7 @@ const publicRazorpayKeyId = import.meta.env.PUBLIC_RAZORPAY_KEY_ID || '';
                         if (activeUser && window.supabase) {
                             await window.supabase.auth.updateUser({
                                 data: {
-                                    firstName,
-                                    lastName,
+                                    firstName, lastName,
                                     address: formData.get('address'),
                                     city: formData.get('city'),
                                     pincode: formData.get('pincode')
@@ -188,10 +164,7 @@ const publicRazorpayKeyId = import.meta.env.PUBLIC_RAZORPAY_KEY_ID || '';
                         });
 
                         const result = await res.json();
-
-                        if (!res.ok) {
-                            throw new Error(result.error || 'Failed to register completed order.');
-                        }
+                        if (!res.ok) throw new Error(result.error || 'Failed to register completed order.');
                         
                         this.isProcessing = false;
                         this.isSuccess = true;
@@ -201,7 +174,7 @@ const publicRazorpayKeyId = import.meta.env.PUBLIC_RAZORPAY_KEY_ID || '';
                         window.scrollTo({ top: 0, behavior: 'smooth' });
                         
                     } catch (err) {
-                        this.errorMessage = 'System Error during final processing: ' + err.message + '. Please contact client care with payment ID: ' + paymentId;
+                        this.errorMessage = 'System Error: ' + err.message + '. Payment ID: ' + paymentId;
                         this.isProcessing = false;
                     }
                 }
@@ -209,16 +182,13 @@ const publicRazorpayKeyId = import.meta.env.PUBLIC_RAZORPAY_KEY_ID || '';
         });
     </script>
 
-    <!-- Clean, compiler-safe HTML connection -->
     <div class="max-w-[1400px] mx-auto px-6 lg:px-12 pb-32 pt-12 md:pt-20" x-data="checkoutFlow">
         
-        <!-- Page Header -->
         <div class="text-center mb-16 md:mb-24">
             <h1 class="text-4xl md:text-5xl font-serif font-medium tracking-tight text-gray-900 mb-4">Secure Checkout</h1>
             <p class="text-sm text-gray-500 font-light tracking-wide uppercase font-sans">Payment Integration Active</p>
         </div>
 
-        <!-- Success Message -->
         <div x-show="isSuccess" class="max-w-2xl mx-auto text-center py-20" style="display: none;" x-transition:enter="transition ease-out duration-700 transform" x-transition:enter-start="opacity-0 translate-y-8" x-transition:enter-end="opacity-100 translate-y-0">
             <div class="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-8">
                 <svg class="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 13l4 4L19 7"></path></svg>
@@ -231,17 +201,10 @@ const publicRazorpayKeyId = import.meta.env.PUBLIC_RAZORPAY_KEY_ID || '';
             </div>
         </div>
 
-        <!-- Checkout Form Layout -->
         <div x-show="!isSuccess" class="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-24 items-start" x-transition:enter="transition ease-out duration-500">
             
-            <!-- Form Side (Left) -->
             <div class="lg:col-span-7">
-                <!-- Dynamic Error Notification Box -->
-                <div x-show="errorMessage" 
-                     x-transition
-                     class="mb-8 p-4 bg-red-50 border border-red-100 text-red-700 text-xs font-semibold rounded-sm flex items-start gap-3"
-                     style="display: none;"
-                >
+                <div x-show="errorMessage" x-transition class="mb-8 p-4 bg-red-50 border border-red-100 text-red-700 text-xs font-semibold rounded-sm flex items-start gap-3" style="display: none;">
                     <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
                     <div>
                         <p class="font-bold uppercase tracking-wider mb-1">Transaction Blocked</p>
@@ -250,29 +213,19 @@ const publicRazorpayKeyId = import.meta.env.PUBLIC_RAZORPAY_KEY_ID || '';
                 </div>
 
                 <form id="checkoutForm" @submit.prevent="initiateCheckout" class="space-y-12">
-                    
-                    <!-- Contact Section -->
                     <section>
                         <h2 class="text-sm font-bold text-gray-900 uppercase tracking-[0.2em] mb-6 pb-4 border-b border-gray-200">Contact Information</h2>
                         <div class="space-y-6">
                             <div>
                                 <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Email Address *</label>
-                                <input 
-                                    type="email" 
-                                    name="email" 
-                                    x-model="profile.email"
-                                    required 
-                                    class="w-full p-4 text-sm bg-gray-50/50 border border-gray-200 rounded-sm focus:outline-none transition-colors"
-                                >
+                                <input type="email" name="email" x-model="profile.email" required class="w-full p-4 text-sm bg-gray-50/50 border border-gray-200 rounded-sm focus:outline-none transition-colors">
                             </div>
                         </div>
                     </section>
 
-                    <!-- Shipping Section -->
                     <section>
                         <h2 class="text-sm font-bold text-gray-900 uppercase tracking-[0.2em] mb-6 pb-4 border-b border-gray-200 flex justify-between items-end">
                             Shipping Details
-                            <span x-show="$store.auth && $store.auth.user && profile.address" class="text-[9px] text-gray-400 normal-case tracking-normal font-medium italic" style="display: none;">Details loaded from profile</span>
                         </h2>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                             <div>
@@ -298,11 +251,7 @@ const publicRazorpayKeyId = import.meta.env.PUBLIC_RAZORPAY_KEY_ID || '';
                         </div>
                     </section>
 
-                    <button 
-                        type="submit" 
-                        :disabled="isProcessing"
-                        class="w-full bg-black text-white py-5 uppercase text-[11px] font-bold tracking-[0.2em] hover:bg-gray-800 transition-colors shadow-xl flex items-center justify-center gap-3"
-                    >
+                    <button type="submit" :disabled="isProcessing" class="w-full bg-black text-white py-5 uppercase text-[11px] font-bold tracking-[0.2em] hover:bg-gray-800 transition-colors shadow-xl flex items-center justify-center gap-3">
                         <span x-show="!isProcessing">Proceed to Payment Gateway</span>
                         <span x-show="isProcessing" style="display: none;" class="flex items-center gap-2">
                             <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
@@ -312,12 +261,10 @@ const publicRazorpayKeyId = import.meta.env.PUBLIC_RAZORPAY_KEY_ID || '';
                 </form>
             </div>
 
-            <!-- Order Summary Side (Right) -->
             <div class="lg:col-span-5 relative">
                 <div class="bg-[#fcfcfc] p-8 lg:p-10 border border-gray-100 rounded-sm sticky top-28">
                     <h2 class="text-sm font-bold text-gray-900 uppercase tracking-[0.2em] mb-8 pb-4 border-b border-gray-200 font-sans">Order Summary</h2>
                     
-                    <!-- Cart Items List -->
                     <div class="space-y-6 mb-8 max-h-[40vh] overflow-y-auto no-scrollbar pr-2">
                         <template x-for="item in $store.cart.items" :key="item.variant_id || item.id">
                             <div class="flex gap-4 group">
@@ -339,7 +286,6 @@ const publicRazorpayKeyId = import.meta.env.PUBLIC_RAZORPAY_KEY_ID || '';
                         </div>
                     </div>
 
-                    <!-- Totals -->
                     <div class="border-t border-gray-200 pt-6 space-y-4 font-sans">
                         <div class="flex justify-between text-sm font-light text-gray-600">
                             <span>Subtotal</span>
