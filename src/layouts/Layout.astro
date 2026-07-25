@@ -40,7 +40,7 @@ const dynamicCategories = Array.from(new Set((dbProducts || []).map(p => {
                 remove(id) { this.items = this.items.filter(n => n.id !== id); }
             });
 
-            // Cart Store (Upgraded with relational variant tracking)
+            // Cart Store (Upgraded with relational variant tracking and custom quantities)
             Alpine.store('cart', {
                 items: JSON.parse(localStorage.getItem('cartItems') || '[]'),
                 
@@ -65,12 +65,13 @@ const dynamicCategories = Array.from(new Set((dbProducts || []).map(p => {
                     return vol && vol.trim() && vol.trim().toUpperCase() !== 'N/A';
                 },
                 
-                add(product) {
+                add(product, qty = 1) {
                     let imageUrl = product.image_url || '';
                     if (imageUrl.includes(',')) {
                         imageUrl = imageUrl.split(',')[0].trim();
                     }
                     const cleanVolume = (product.volume && product.volume.trim().toUpperCase() !== 'N/A') ? product.volume : '';
+                    const addQty = Number(qty) || 1;
 
                     // SECURE RELATIONAL CHECK: Match strictly by variant_id to support multi-size checkout
                     const existing = this.items.find(i => {
@@ -81,18 +82,18 @@ const dynamicCategories = Array.from(new Set((dbProducts || []).map(p => {
                     });
 
                     if (existing) { 
-                        existing.quantity++; 
+                        existing.quantity += addQty; 
                     } else { 
                         this.items.push({ 
                             ...product, 
                             price: this.parsePrice(product.price),
                             volume: cleanVolume,
                             image_url: imageUrl,
-                            quantity: 1 
+                            quantity: addQty 
                         }); 
                     }
                     this.save(true);
-                    Alpine.store('notifications').add(`${product.name} (${cleanVolume}) added to bag`);
+                    Alpine.store('notifications').add(`${product.name} (${cleanVolume || 'Item'}) added to bag`);
                 },
                 
                 remove(id, variantId) { 
@@ -224,7 +225,7 @@ const dynamicCategories = Array.from(new Set((dbProducts || []).map(p => {
 </head>
 <body class="bg-white text-gray-900 font-sans antialiased overflow-x-hidden selection:bg-black selection:text-white">
 
-    <div x-data="{ isMenuOpen: false, isCartOpen: false }">
+    <div x-data="{ isMenuOpen: false, isCartOpen: false, showCookieConsent: !localStorage.getItem('cookieConsentAccepted') }">
 
         <div x-show="isMenuOpen || isCartOpen" 
              x-transition.opacity.duration.400ms
@@ -291,7 +292,7 @@ const dynamicCategories = Array.from(new Set((dbProducts || []).map(p => {
             </div>
         </header>
 
-        <!-- Sliding Navigation Drawer (Now populated 100% dynamically from active DB items) -->
+        <!-- Sliding Navigation Drawer -->
         <nav x-show="isMenuOpen" 
              x-transition:enter="transition ease-out duration-500 transform"
              x-transition:enter-start="-translate-x-full"
@@ -445,36 +446,76 @@ const dynamicCategories = Array.from(new Set((dbProducts || []).map(p => {
 
         <!-- Premium Footer -->
         <footer class="bg-black text-white pt-24 pb-12 px-6 border-t border-gray-900">
-            <div class="max-w-[1400px] mx-auto grid grid-cols-1 md:grid-cols-4 gap-16 text-center md:text-left">
+            <div class="max-w-[1400px] mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-12 text-center md:text-left">
                 <div class="md:col-span-2">
                     <h3 class="font-serif text-3xl md:text-4xl font-medium tracking-wider uppercase mb-6">Aju</h3>
                     <p class="text-gray-400 text-sm leading-relaxed max-w-sm mx-auto md:mx-0 font-light">
                         Elevating your lifestyle with meticulously crafted long-lasting fragrances and premium everyday accessories. Designed for the modern individual.
                     </p>
                 </div>
-                <div class="flex flex-col space-y-5">
-                    <h4 class="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-500 mb-2">Client Care</h4>
-                    <a href="https://wa.me/918075304432" class="text-xs tracking-wider uppercase text-gray-300 hover:text-white transition-colors">WhatsApp Assistance</a>
-                    <a href="tel:+918075304432" class="text-xs tracking-wider uppercase text-gray-300 hover:text-white transition-colors">+91 8075304432</a>
-                    <a href="mailto:perfumesaju@gmail.com" class="text-xs tracking-wider uppercase text-gray-300 hover:text-white transition-colors">Email Us</a>
-                </div>
-                <div class="flex flex-col space-y-5">
-                    <h4 class="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-500 mb-2">The House Departments</h4>
+                <div class="flex flex-col space-y-4">
+                    <h4 class="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-500 mb-2">Departments</h4>
                     <a href="/#shop" class="text-xs tracking-wider uppercase text-gray-300 hover:text-white transition-colors">All Collections</a>
                     {dynamicCategories.map(cat => (
                         <a href={`/#${cat.toLowerCase()}`} class="text-xs tracking-wider uppercase text-gray-300 hover:text-white transition-colors">{cat}</a>
                     ))}
                 </div>
+                <div class="flex flex-col space-y-4">
+                    <h4 class="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-500 mb-2">Client Care</h4>
+                    <a href="https://wa.me/918075304432" target="_blank" class="text-xs tracking-wider uppercase text-gray-300 hover:text-white transition-colors">WhatsApp Assist</a>
+                    <a href="tel:+918075304432" class="text-xs tracking-wider uppercase text-gray-300 hover:text-white transition-colors">+91 8075304432</a>
+                    <a href="mailto:perfumesaju@gmail.com" class="text-xs tracking-wider uppercase text-gray-300 hover:text-white transition-colors">Email Us</a>
+                </div>
+                <div class="flex flex-col space-y-4">
+                    <h4 class="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-500 mb-2">Legal & Compliance</h4>
+                    <a href="/terms" class="text-xs tracking-wider uppercase text-gray-300 hover:text-white transition-colors">Terms & Conditions</a>
+                    <a href="/privacy" class="text-xs tracking-wider uppercase text-gray-300 hover:text-white transition-colors">Privacy Policy</a>
+                    <a href="/shipping" class="text-xs tracking-wider uppercase text-gray-300 hover:text-white transition-colors">Shipping Policy</a>
+                    <a href="/refund-policy" class="text-xs tracking-wider uppercase text-gray-300 hover:text-white transition-colors">Refund & Return Policy</a>
+                </div>
             </div>
             
-            <div class="max-w-[1400px] mx-auto mt-24 pt-8 border-t border-gray-100 flex flex-col md:flex-row justify-between items-center gap-6 text-[10px] text-gray-600 uppercase tracking-widest font-bold">
+            <div class="max-w-[1400px] mx-auto mt-24 pt-8 border-t border-gray-900 flex flex-col md:flex-row justify-between items-center gap-6 text-[10px] text-gray-600 uppercase tracking-widest font-bold">
                 <p>&copy; 2026 Aju House. All Rights Reserved.</p>
                 <div class="space-x-8">
-                    <a href="#" class="hover:text-white transition-colors">Privacy Policy</a>
-                    <a href="#" class="hover:text-white transition-colors">Terms of Service</a>
+                    <a href="/privacy" class="hover:text-white transition-colors">Privacy Policy</a>
+                    <a href="/terms" class="hover:text-white transition-colors">Terms of Service</a>
                 </div>
             </div>
         </footer>
+
+        <!-- Modern Cookie Consent Banner -->
+        <div 
+            x-show="showCookieConsent"
+            x-transition:enter="transition ease-out duration-500 transform"
+            x-transition:enter-start="translate-y-full opacity-0"
+            x-transition:enter-end="translate-y-0 opacity-100"
+            x-transition:leave="transition ease-in duration-300 transform"
+            x-transition:leave-start="translate-y-0 opacity-100"
+            x-transition:leave-end="translate-y-full opacity-0"
+            class="fixed bottom-4 right-4 left-4 md:left-auto md:max-w-md bg-neutral-950 text-white p-6 rounded-lg shadow-2xl border border-neutral-800 z-[90]"
+            style="display: none;"
+        >
+            <div class="space-y-4">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <h4 class="font-serif text-base font-medium">Cookie & Privacy Consent</h4>
+                        <p class="text-xs text-neutral-400 font-light mt-1 leading-relaxed">
+                            We use cookies and local browser storage to save your shopping bag, manage session authentication, and deliver an elevated shopping experience.
+                        </p>
+                    </div>
+                </div>
+                <div class="flex items-center justify-end gap-3 pt-2">
+                    <a href="/privacy" class="text-[10px] text-neutral-400 hover:text-white uppercase font-bold tracking-widest transition-colors">Read Policy</a>
+                    <button 
+                        @click="localStorage.setItem('cookieConsentAccepted', 'true'); showCookieConsent = false;"
+                        class="bg-white text-black px-6 py-2.5 uppercase text-[10px] font-bold tracking-widest hover:bg-neutral-200 transition-colors rounded-sm"
+                    >
+                        Accept
+                    </button>
+                </div>
+            </div>
+        </div>
 
         <!-- Global Notification System UI -->
         <div class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex flex-col items-center gap-3 pointer-events-none">
