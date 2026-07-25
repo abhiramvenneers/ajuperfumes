@@ -2,7 +2,7 @@
 export const prerender = false;
 import Layout from '../layouts/Layout.astro';
 
-// Pull the public Razorpay Key ID safely during rendering to feed securely to the client script
+// Pull the public Razorpay Key ID safely during rendering
 const publicRazorpayKeyId = import.meta.env.PUBLIC_RAZORPAY_KEY_ID || '';
 ---
 
@@ -15,7 +15,7 @@ const publicRazorpayKeyId = import.meta.env.PUBLIC_RAZORPAY_KEY_ID || '';
         window.razorpayKeyId = publicRazorpayKeyId;
     </script>
 
-    <!-- Extract complex Alpine logic OUT of the HTML attribute to prevent Astro compiler crashes -->
+    <!-- Register Alpine data component in a standalone script to prevent Astro template compiler crashes -->
     <script is:inline>
         document.addEventListener('alpine:init', () => {
             Alpine.data('checkoutFlow', () => ({
@@ -24,7 +24,12 @@ const publicRazorpayKeyId = import.meta.env.PUBLIC_RAZORPAY_KEY_ID || '';
                 errorMessage: '',
                 
                 profile: {
-                    firstName: '', lastName: '', email: '', address: '', city: '', pincode: ''
+                    firstName: '',
+                    lastName: '',
+                    email: '',
+                    address: '',
+                    city: '',
+                    pincode: ''
                 },
                 
                 async init() {
@@ -57,7 +62,7 @@ const publicRazorpayKeyId = import.meta.env.PUBLIC_RAZORPAY_KEY_ID || '';
                     }
                     
                     const cartStore = Alpine.store('cart');
-                    if (!cartStore || cartStore.items.length === 0) {
+                    if (!cartStore || !cartStore.items || cartStore.items.length === 0) {
                         this.errorMessage = 'Your shopping bag is empty.';
                         return;
                     }
@@ -95,7 +100,7 @@ const publicRazorpayKeyId = import.meta.env.PUBLIC_RAZORPAY_KEY_ID || '';
                                 await this.finalizeOrder(response.razorpay_payment_id);
                             },
                             prefill: {
-                                name: this.profile.firstName + ' ' + this.profile.lastName,
+                                name: (this.profile.firstName + ' ' + this.profile.lastName).trim(),
                                 email: this.profile.email
                             },
                             theme: {
@@ -155,7 +160,7 @@ const publicRazorpayKeyId = import.meta.env.PUBLIC_RAZORPAY_KEY_ID || '';
                     const cartStore = Alpine.store('cart');
 
                     const orderData = {
-                        customer_name: firstName + ' ' + lastName,
+                        customer_name: (firstName + ' ' + lastName).trim(),
                         customer_email: (formData.get('email') || '').trim(),
                         shipping_address: formData.get('address') + ', ' + formData.get('city') + ' - ' + formData.get('pincode') + paymentTracker,
                         total_amount: cartStore.total,
@@ -314,7 +319,7 @@ const publicRazorpayKeyId = import.meta.env.PUBLIC_RAZORPAY_KEY_ID || '';
                     
                     <!-- Cart Items List -->
                     <div class="space-y-6 mb-8 max-h-[40vh] overflow-y-auto no-scrollbar pr-2">
-                        <template x-for="item in $store.cart.items" :key="item.id">
+                        <template x-for="item in $store.cart.items" :key="item.variant_id || item.id">
                             <div class="flex gap-4 group">
                                 <div class="w-16 h-20 bg-gray-100 flex items-center justify-center relative overflow-hidden flex-shrink-0">
                                     <span class="z-10 text-gray-400 font-serif italic text-[10px] text-center px-1" x-text="item.name.split(' ')[0]"></span>
@@ -324,12 +329,12 @@ const publicRazorpayKeyId = import.meta.env.PUBLIC_RAZORPAY_KEY_ID || '';
                                         <p class="font-serif font-medium text-gray-900" x-text="item.name"></p>
                                         <span class="font-sans font-medium text-sm text-gray-900" x-text="'₹' + (item.price * item.quantity).toLocaleString()"></span>
                                     </div>
-                                    <p class="text-gray-500 text-[10px] uppercase tracking-widest mt-1 font-bold" x-text="item.volume + ' • Qty: ' + item.quantity"></p>
+                                    <p class="text-gray-500 text-[10px] uppercase tracking-widest mt-1 font-bold" x-text="(item.volume ? item.volume + ' • ' : '') + 'Qty: ' + item.quantity"></p>
                                 </div>
                             </div>
                         </template>
                         
-                        <div x-show="$store.cart.items.length === 0" style="display: none;" class="text-center py-6">
+                        <div x-show="!$store.cart.items || $store.cart.items.length === 0" style="display: none;" class="text-center py-6">
                             <p class="text-gray-500 font-light text-sm">Your bag is empty.</p>
                         </div>
                     </div>
@@ -338,7 +343,7 @@ const publicRazorpayKeyId = import.meta.env.PUBLIC_RAZORPAY_KEY_ID || '';
                     <div class="border-t border-gray-200 pt-6 space-y-4 font-sans">
                         <div class="flex justify-between text-sm font-light text-gray-600">
                             <span>Subtotal</span>
-                            <span x-text="'₹' + $store.cart.total.toLocaleString()">₹0.00</span>
+                            <span x-text="'₹' + ($store.cart.total || 0).toLocaleString()">₹0.00</span>
                         </div>
                         <div class="flex justify-between text-sm font-light text-gray-600">
                             <span>Shipping</span>
@@ -346,7 +351,7 @@ const publicRazorpayKeyId = import.meta.env.PUBLIC_RAZORPAY_KEY_ID || '';
                         </div>
                         <div class="flex justify-between font-serif font-medium text-2xl pt-6 border-t border-gray-200 text-gray-900 mt-2">
                             <span>Total</span>
-                            <span x-text="'₹' + $store.cart.total.toLocaleString()">₹0.00</span>
+                            <span x-text="'₹' + ($store.cart.total || 0).toLocaleString()">₹0.00</span>
                         </div>
                     </div>
                 </div>
