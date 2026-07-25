@@ -11,7 +11,7 @@ const publicRazorpayKeyId = import.meta.env.PUBLIC_RAZORPAY_KEY_ID || '';
     <script is:inline src="https://checkout.razorpay.com/v1/checkout.js"></script>
 
     <!-- Securely pass the Astro server-side key to the client-side global window context -->
-    <script is:inline define:vars={{ publicRazorpayKeyId }}>
+    <script define:vars={{ publicRazorpayKeyId }}>
         window.razorpayKeyId = publicRazorpayKeyId;
     </script>
 
