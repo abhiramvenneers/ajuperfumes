@@ -3,10 +3,11 @@ import Layout from '../layouts/Layout.astro';
 ---
 
 <Layout title="Account | Aju Perfumes">
-    <div class="min-h-[90vh] flex items-center justify-center px-4 sm:px-6 lg:px-8 bg-[#fafafa] pt-20 pb-12">
-        
-        <div class="w-full max-w-md bg-white p-8 sm:p-12 border border-gray-100 shadow-2xl shadow-gray-200/50"
-             x-data="{
+    
+    <!-- Register Alpine data component in a standalone script to prevent Astro template compiler crashes -->
+    <script is:inline>
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('authComponent', () => ({
                 isLogin: true,
                 email: '',
                 password: '',
@@ -135,8 +136,14 @@ import Layout from '../layouts/Layout.astro';
                         this.isLoading = false;
                     }
                 }
-             }"
-        >
+            }));
+        });
+    </script>
+
+    <div class="min-h-[90vh] flex items-center justify-center px-4 sm:px-6 lg:px-8 bg-[#fafafa] pt-20 pb-12">
+        
+        <!-- Connected cleanly using x-data="authComponent" -->
+        <div x-data="authComponent" class="w-full max-w-md bg-white p-8 sm:p-12 border border-gray-100 shadow-2xl shadow-gray-200/50">
             
             <!-- Header -->
             <div class="text-center mb-10">
