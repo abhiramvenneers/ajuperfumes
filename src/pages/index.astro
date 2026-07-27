@@ -28,7 +28,7 @@ const escapeAttr = (str) => {
 };
 ---
 
-<Layout title="Aju | Crafted Fragrances & Premium Accessories">
+<Layout title="Aju | Fine Fragrances & Modern Tech Accessories">
     
     <!-- Self-Healing Local Storage Script for returning browsers -->
     <script is:inline>
@@ -52,33 +52,70 @@ const escapeAttr = (str) => {
         })();
     </script>
 
-    <!-- Unified Lifestyle Hero Section -->
-    <section class="relative h-[90vh] flex items-center justify-center overflow-hidden bg-[#0a0a0a]">
-        <div class="absolute inset-0">
-            <div class="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-gray-800 blur-[120px] opacity-30"></div>
-            <div class="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-neutral-800 blur-[120px] opacity-20"></div>
+    <!-- Unified Dual-Collection Lifestyle Hero Section -->
+    <section class="relative min-h-[85vh] lg:min-h-[90vh] flex flex-col justify-center items-center overflow-hidden bg-[#0a0a0a] pt-16 pb-16">
+        <!-- Ambient Background Glows -->
+        <div class="absolute inset-0 pointer-events-none">
+            <div class="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-neutral-800 blur-[130px] opacity-40"></div>
+            <div class="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-stone-800 blur-[130px] opacity-30"></div>
         </div>
         
         <div class="relative z-10 text-center px-6 max-w-5xl mx-auto flex flex-col items-center">
-            <span class="text-white/60 uppercase tracking-[0.4em] text-[10px] font-bold mb-8 border border-white/20 px-6 py-2 rounded-full backdrop-blur-sm">Aju House Curation</span>
+            <!-- Subhead Badge -->
+            <div class="flex items-center gap-2 mb-8 border border-white/20 px-5 py-2 rounded-full backdrop-blur-md">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span class="text-white/80 uppercase tracking-[0.3em] text-[10px] font-bold">Two Houses • One Aesthetic</span>
+            </div>
             
-            <h1 class="text-5xl sm:text-7xl lg:text-[6rem] text-white font-serif mb-8 leading-[1.1] font-medium tracking-tight">
-                Crafted Scent. <br>
-                <span class="italic font-light text-gray-300">Refined Objects.</span>
+            <!-- Main Hero Headline -->
+            <h1 class="text-4xl sm:text-6xl lg:text-[5.5rem] text-white font-serif mb-6 leading-[1.1] font-medium tracking-tight">
+                Fine Fragrances. <br>
+                <span class="italic font-light text-gray-300">Modern Essentials.</span>
             </h1>
             
-            <p class="text-base sm:text-lg text-gray-400 mb-12 font-light max-w-xl leading-relaxed mx-auto">
-                Immerse yourself in our signature hand-bottled perfumes and highly durable, minimal mobile accessories. Built for the modern aesthetic.
+            <p class="text-sm sm:text-base md:text-lg text-gray-400 mb-10 font-light max-w-2xl leading-relaxed mx-auto">
+                Explore hand-bottled artisanal perfumes alongside minimal, high-durability mobile accessories. Crafted for tactile luxury and everyday performance.
             </p>
             
-            <a href="#shop" class="bg-white text-black px-12 py-5 uppercase text-[11px] font-bold tracking-[0.2em] hover:bg-gray-200 transition-all duration-500 rounded-sm shadow-[0_0_40px_rgba(255,255,255,0.15)] hover:shadow-[0_0_60px_rgba(255,255,255,0.25)]">
-                Explore Curation
+            <!-- Dual Action CTAs -->
+            <div class="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+                <a href="#shop" @click="window.location.hash = 'classic'" class="bg-white text-black px-10 py-4 uppercase text-[11px] font-bold tracking-[0.2em] hover:bg-gray-200 transition-all duration-300 rounded-sm shadow-xl text-center">
+                    Shop Fragrances
+                </a>
+                <a href="#shop" @click="window.location.hash = 'accessories'" class="border border-white/30 text-white hover:bg-white/10 px-10 py-4 uppercase text-[11px] font-bold tracking-[0.2em] transition-all duration-300 rounded-sm backdrop-blur-sm text-center">
+                    Shop Tech & Accessories
+                </a>
+            </div>
+        </div>
+
+        <!-- House Department Quick Cards -->
+        <div class="relative z-10 max-w-[1200px] w-full mx-auto px-6 mt-16 md:mt-20 grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            <!-- Department 1: Scents -->
+            <a href="#shop" @click="window.location.hash = 'classic'" class="group bg-gradient-to-br from-neutral-900/90 to-neutral-950/90 border border-neutral-800 p-8 rounded-sm hover:border-neutral-600 transition-all duration-500 backdrop-blur-md flex justify-between items-end">
+                <div>
+                    <span class="text-[9px] text-amber-500 font-bold uppercase tracking-[0.25em] block mb-2">Department 01</span>
+                    <h3 class="font-serif text-2xl text-white font-medium group-hover:translate-x-1 transition-transform">Artisanal Perfumery</h3>
+                    <p class="text-xs text-neutral-400 font-light mt-1">Extracts, Eaux de Parfum & Olfactory Objects</p>
+                </div>
+                <span class="text-white text-lg font-serif italic group-hover:translate-x-2 transition-transform">Explore →</span>
             </a>
+
+            <!-- Department 2: Accessories -->
+            <a href="#shop" @click="window.location.hash = 'accessories'" class="group bg-gradient-to-br from-neutral-900/90 to-neutral-950/90 border border-neutral-800 p-8 rounded-sm hover:border-neutral-600 transition-all duration-500 backdrop-blur-md flex justify-between items-end">
+                <div>
+                    <span class="text-[9px] text-sky-400 font-bold uppercase tracking-[0.25em] block mb-2">Department 02</span>
+                    <h3 class="font-serif text-2xl text-white font-medium group-hover:translate-x-1 transition-transform">Tech & Essentials</h3>
+                    <p class="text-xs text-neutral-400 font-light mt-1">Durable Mobile Cases, Chargers & Daily Hardware</p>
+                </div>
+                <span class="text-white text-lg font-serif italic group-hover:translate-x-2 transition-transform">Explore →</span>
+            </a>
+
         </div>
     </section>
 
     <!-- CURATED MANUAL SLIDER GALLERY -->
-    <section class="py-24 sm:py-32 bg-[#fafafa] border-b border-gray-100 overflow-hidden" 
+    <section class="py-20 sm:py-28 bg-[#fafafa] border-b border-gray-100 overflow-hidden" 
              x-data="{
                 scrollLeft() {
                     this.$refs.sliderContainer.scrollBy({ left: -320, behavior: 'smooth' });
@@ -97,8 +134,8 @@ const escapeAttr = (str) => {
             
             <div class="flex justify-between items-end mb-12 sm:mb-16">
                 <div>
-                    <span class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-2">Signature Gallery</span>
-                    <h2 class="text-3xl sm:text-4xl font-serif font-medium tracking-tight text-gray-900">Curated Masterpieces</h2>
+                    <span class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-2">House Selection</span>
+                    <h2 class="text-3xl sm:text-4xl font-serif font-medium tracking-tight text-gray-900">Featured Curations</h2>
                 </div>
                 
                 <!-- Navigation Controls -->
@@ -117,6 +154,7 @@ const escapeAttr = (str) => {
                 {sliderProducts.map((product) => {
                     const rawCategory = product.category || 'Classic';
                     const categoryNormalized = rawCategory.toString().trim().charAt(0).toUpperCase() + rawCategory.toString().trim().slice(1).toLowerCase();
+                    const isAccessory = categoryNormalized.toLowerCase().includes('access');
                     
                     const imageUrl = product.image_url ? String(product.image_url).split(',')[0].trim() : '';
                     const productName = product.name || 'Premium Item';
@@ -149,11 +187,15 @@ const escapeAttr = (str) => {
                                 }
                              }`}>
                             
-                            <!-- Valid HTML Image Area -->
+                            <!-- Image Area -->
                             <div class="aspect-[3/4] w-full bg-[#fcfcfc] rounded-md relative mb-6 overflow-hidden flex items-center justify-center">
                                 <!-- Invisible Click Overlay for Image -->
                                 <a href={`/product/${product.id}`} class="absolute inset-0 z-10"></a>
                                 
+                                <span class={`absolute top-3 left-3 px-2.5 py-1 text-[8px] font-bold uppercase tracking-widest z-20 rounded-xs border ${isAccessory ? 'bg-sky-50 text-sky-800 border-sky-100' : 'bg-amber-50 text-amber-800 border-amber-100'}`}>
+                                    {isAccessory ? 'Accessory' : 'Fragrance'}
+                                </span>
+
                                 <span x-show="currentStock <= 0" class="absolute top-3 right-3 bg-red-600 text-white px-2.5 py-1 text-[8px] font-bold uppercase tracking-widest z-20 shadow-sm rounded-sm">Out of Stock</span>
 
                                 {imageUrl ? (
@@ -217,7 +259,7 @@ const escapeAttr = (str) => {
                 })}
             </div>
             
-            <p class="text-center text-[10px] text-gray-400 uppercase tracking-widest font-semibold mt-4">Swipe or drag left / right to browse the catalog</p>
+            <p class="text-center text-[10px] text-gray-400 uppercase tracking-widest font-semibold mt-4">Swipe left / right to browse items</p>
         </div>
     </section>
 
@@ -236,7 +278,9 @@ const escapeAttr = (str) => {
                     if (matchedCat) {
                         filter = matchedCat;
                     } else if (hash === 'fragrances') {
-                        filter = 'Fragrances';
+                        filter = 'Classic';
+                    } else if (hash === 'accessories') {
+                        filter = 'Accessories';
                     } else {
                         filter = 'All';
                     }
@@ -246,21 +290,24 @@ const escapeAttr = (str) => {
              ">
         
         <div class="flex flex-col md:flex-row justify-between items-center md:items-end mb-12 sm:mb-20 border-b border-gray-200 pb-8 gap-6 sm:gap-8">
-            <h2 class="text-3xl sm:text-4xl md:text-5xl font-serif font-medium tracking-tight text-gray-900 text-center md:text-left">The Full Collection</h2>
+            <div>
+                <span class="text-[10px] text-gray-400 font-bold uppercase tracking-widest block mb-2">Master Catalog</span>
+                <h2 class="text-3xl sm:text-4xl md:text-5xl font-serif font-medium tracking-tight text-gray-900 text-center md:text-left">All Objects</h2>
+            </div>
             
             <!-- Category Tabs -->
-            <div class="flex flex-wrap gap-4 justify-center sm:gap-12">
+            <div class="flex flex-wrap gap-3 justify-center sm:gap-8">
                 <button @click="filter = 'All'; window.location.hash = 'shop'" 
-                        :class="filter === 'All' ? 'text-black border-b border-black' : 'text-gray-400 border-transparent hover:text-black'" 
-                        class="pb-1 uppercase text-[10px] sm:text-[11px] font-bold tracking-[0.2em] transition-colors">
-                    All Objects
+                        :class="filter === 'All' ? 'text-black border-b-2 border-black font-bold' : 'text-gray-400 border-transparent hover:text-black'" 
+                        class="pb-1 uppercase text-[10px] sm:text-[11px] tracking-[0.2em] transition-colors">
+                    All Categories
                 </button>
                 
                 {rawCategories.map(cat => (
                     <button @click={`filter = '${cat}'; window.location.hash = '${cat.toLowerCase()}'`} 
-                            :class={`filter === '${cat}' ? 'text-black border-b border-black' : 'text-gray-400 border-transparent hover:text-black'`} 
-                            class="pb-1 uppercase text-[10px] sm:text-[11px] font-bold tracking-[0.2em] transition-colors">
-                        {cat}
+                            :class={`filter === '${cat}' ? 'text-black border-b-2 border-black font-bold' : 'text-gray-400 border-transparent hover:text-black'`} 
+                            class="pb-1 uppercase text-[10px] sm:text-[11px] tracking-[0.2em] transition-colors">
+                        {cat === 'Accessories' ? 'Tech & Accessories' : (cat + ' Scents')}
                     </button>
                 ))}
             </div>
@@ -271,6 +318,7 @@ const escapeAttr = (str) => {
             {(products || []).map((product) => {
                 const rawCategory = product.category || 'Classic';
                 const categoryNormalized = rawCategory.toString().trim().charAt(0).toUpperCase() + rawCategory.toString().trim().slice(1).toLowerCase();
+                const isAccessory = categoryNormalized.toLowerCase().includes('access');
                 
                 const imageUrl = product.image_url ? String(product.image_url).split(',')[0].trim() : '';
                 const productName = product.name || 'Premium Item';
@@ -310,11 +358,15 @@ const escapeAttr = (str) => {
                         x-transition:enter-start="opacity-0 translate-y-4"
                         x-transition:enter-end="opacity-100 translate-y-0"
                     >
-                        <!-- Image Container (Strictly Valid HTML structure) -->
+                        <!-- Image Container -->
                         <div class="aspect-[3/4] w-full bg-[#f4f4f4] relative mb-4 sm:mb-8 overflow-hidden flex items-center justify-center transition-colors duration-500 group-hover:bg-[#ebebeb]">
                             
                             <!-- Invisible Click Overlay for Image -->
                             <a href={`/product/${product.id}`} class="absolute inset-0 z-10"></a>
+
+                            <span class={`absolute top-3 left-3 px-2 py-0.5 text-[7px] sm:text-[8px] font-bold uppercase tracking-widest z-20 rounded-xs border ${isAccessory ? 'bg-sky-50 text-sky-800 border-sky-100' : 'bg-amber-50 text-amber-800 border-amber-100'}`}>
+                                {isAccessory ? 'Accessory' : 'Fragrance'}
+                            </span>
 
                             <span x-show="currentStock <= 0" class="absolute top-4 right-4 bg-red-600 text-white px-3 py-1 text-[8px] font-bold uppercase tracking-widest z-20 shadow-sm rounded-sm">Out of Stock</span>
 
@@ -336,7 +388,7 @@ const escapeAttr = (str) => {
                                 </span>
                             )}
                             
-                            <!-- Quick Add Overlay button for Desktop (Z-index ensures it sits above the link) -->
+                            <!-- Quick Add Overlay button for Desktop -->
                             <div class="hidden lg:block absolute inset-x-0 bottom-0 p-6 translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] z-30">
                                 <button 
                                     @click={`$store.cart.add({ id: '${product.id}', variant_id: selectedVariantId, name: '${safeName}', price: currentPrice, volume: selectedLabel, image_url: '${safeImageUrl}' })`}
