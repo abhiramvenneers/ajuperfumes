@@ -20,7 +20,7 @@ const publicRazorpayKeyId = import.meta.env.PUBLIC_RAZORPAY_KEY_ID || '';
                 errorMessage: '',
                 
                 profile: {
-                    firstName: '', lastName: '', email: '', address: '', city: '', pincode: ''
+                    firstName: '', lastName: '', email: '', phone: '', address: '', city: '', pincode: ''
                 },
                 
                 async init() {
@@ -33,6 +33,7 @@ const publicRazorpayKeyId = import.meta.env.PUBLIC_RAZORPAY_KEY_ID || '';
                                 this.profile.firstName = meta.firstName || '';
                                 this.profile.lastName = meta.lastName || '';
                                 this.profile.email = session.user.email || '';
+                                this.profile.phone = meta.phone || '';
                                 this.profile.address = meta.address || '';
                                 this.profile.city = meta.city || '';
                                 this.profile.pincode = meta.pincode || '';
@@ -69,12 +70,12 @@ const publicRazorpayKeyId = import.meta.env.PUBLIC_RAZORPAY_KEY_ID || '';
                         const orderData = await orderResponse.json();
 
                         if (!orderResponse.ok) {
-                            throw new Error(orderData.error || 'Failed to instantiate merchant gateway order.');
+                            throw new Error(orderData.error || 'Failed to initialize payment gateway.');
                         }
 
                         const activeKey = window.razorpayKeyId;
                         if (!activeKey) {
-                            throw new Error('Razorpay Public Key ID is missing.');
+                            throw new Error('Razorpay Public Key ID is missing. Please check your environment configuration.');
                         }
 
                         const options = {
@@ -82,7 +83,7 @@ const publicRazorpayKeyId = import.meta.env.PUBLIC_RAZORPAY_KEY_ID || '';
                             amount: orderData.amount,
                             currency: orderData.currency,
                             name: 'Aju House',
-                            description: 'Premium Curations Checkout',
+                            description: 'Order Ref #' + orderData.id,
                             order_id: orderData.id,
                             image: 'https://ajuperfumes.com/apple-touch-icon.png',
                             handler: async (response) => {
@@ -90,29 +91,25 @@ const publicRazorpayKeyId = import.meta.env.PUBLIC_RAZORPAY_KEY_ID || '';
                             },
                             prefill: {
                                 name: (this.profile.firstName + ' ' + this.profile.lastName).trim(),
-                                email: this.profile.email
+                                email: this.profile.email,
+                                contact: this.profile.phone || ''
                             },
-                            theme: { color: '#000000' },
-                            config: {
-                                display: {
-                                    blocks: {
-                                        payment_methods: {
-                                            name: 'Select Payment Method',
-                                            instruments: [{ method: 'upi' }, { method: 'card' }]
-                                        }
-                                    },
-                                    sequence: ['block.payment_methods'],
-                                    preferences: { show_default_blocks: false }
-                                }
+                            notes: {
+                                shipping_address: this.profile.address + ', ' + this.profile.city + ' - ' + this.profile.pincode
+                            },
+                            theme: { 
+                                color: '#000000',
+                                backdrop_color: 'rgba(0, 0, 0, 0.65)'
                             },
                             modal: {
+                                confirm_close: true,
                                 ondismiss: () => { this.isProcessing = false; }
                             }
                         };
 
                         const rzp = new window.Razorpay(options);
                         rzp.on('payment.failed', (response) => {
-                            this.errorMessage = 'Payment declined: ' + response.error.description;
+                            this.errorMessage = 'Payment was declined: ' + (response.error?.description || 'Transaction cancelled');
                             this.isProcessing = false;
                         });
                         rzp.open();
@@ -133,13 +130,14 @@ const publicRazorpayKeyId = import.meta.env.PUBLIC_RAZORPAY_KEY_ID || '';
 
                     const firstName = (formData.get('firstName') || '').trim();
                     const lastName = (formData.get('lastName') || '').trim();
+                    const phone = (formData.get('phone') || '').trim();
                     const paymentTracker = ' [PAID VIA RAZORPAY | Payment ID: ' + paymentId + ']';
                     const cartStore = Alpine.store('cart');
 
                     const orderData = {
                         customer_name: (firstName + ' ' + lastName).trim(),
                         customer_email: (formData.get('email') || '').trim(),
-                        shipping_address: formData.get('address') + ', ' + formData.get('city') + ' - ' + formData.get('pincode') + paymentTracker,
+                        shipping_address: formData.get('address') + ', ' + formData.get('city') + ' - ' + formData.get('pincode') + (phone ? ' (Ph: ' + phone + ')' : '') + paymentTracker,
                         total_amount: cartStore.total,
                         items: cartStore.items,
                         user_id: activeUser ? activeUser.id : null
@@ -149,7 +147,7 @@ const publicRazorpayKeyId = import.meta.env.PUBLIC_RAZORPAY_KEY_ID || '';
                         if (activeUser && window.supabase) {
                             await window.supabase.auth.updateUser({
                                 data: {
-                                    firstName, lastName,
+                                    firstName, lastName, phone,
                                     address: formData.get('address'),
                                     city: formData.get('city'),
                                     pincode: formData.get('pincode')
@@ -164,7 +162,7 @@ const publicRazorpayKeyId = import.meta.env.PUBLIC_RAZORPAY_KEY_ID || '';
                         });
 
                         const result = await res.json();
-                        if (!res.ok) throw new Error(result.error || 'Failed to register completed order.');
+                        if (!res.ok) throw new Error(result.error || 'Failed to record completed order.');
                         
                         this.isProcessing = false;
                         this.isSuccess = true;
@@ -184,49 +182,57 @@ const publicRazorpayKeyId = import.meta.env.PUBLIC_RAZORPAY_KEY_ID || '';
 
     <div class="max-w-[1400px] mx-auto px-6 lg:px-12 pb-32 pt-12 md:pt-20" x-data="checkoutFlow">
         
-        <div class="text-center mb-16 md:mb-24">
-            <h1 class="text-4xl md:text-5xl font-serif font-medium tracking-tight text-gray-900 mb-4">Secure Checkout</h1>
-            <p class="text-sm text-gray-500 font-light tracking-wide uppercase font-sans">Payment Integration Active</p>
+        <div class="text-center mb-12 md:mb-16">
+            <h1 class="text-3xl md:text-5xl font-serif font-medium tracking-tight text-gray-900 mb-3">Express Checkout</h1>
+            <p class="text-xs text-gray-400 font-bold uppercase tracking-[0.25em]">256-Bit Encrypted Gateway</p>
         </div>
 
+        <!-- Success Screen -->
         <div x-show="isSuccess" class="max-w-2xl mx-auto text-center py-20" style="display: none;" x-transition:enter="transition ease-out duration-700 transform" x-transition:enter-start="opacity-0 translate-y-8" x-transition:enter-end="opacity-100 translate-y-0">
             <div class="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-8">
                 <svg class="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 13l4 4L19 7"></path></svg>
             </div>
             <h2 class="text-3xl font-serif font-medium mb-4 text-gray-900">Order Confirmed</h2>
-            <p class="text-gray-500 mb-12 font-light text-lg">Thank you for your appreciation of Aju. Your signature items are being packaged.</p>
+            <p class="text-gray-500 mb-12 font-light text-lg">Thank you for choosing Aju House. Your invoice has been emailed and your shipment is being prepared.</p>
             <div class="flex flex-col sm:flex-row gap-4 justify-center">
-                <a href="/account" class="inline-block bg-black text-white px-10 py-4 uppercase text-[11px] font-bold tracking-[0.2em] hover:bg-gray-800 transition-colors shadow-xl">Track Order</a>
-                <a href="/" class="inline-block border border-gray-200 text-gray-900 px-10 py-4 uppercase text-[11px] font-bold tracking-[0.2em] hover:bg-gray-50 transition-colors">Continue Shopping</a>
+                <a href="/account" class="inline-block bg-black text-white px-10 py-4 uppercase text-[11px] font-bold tracking-[0.2em] hover:bg-gray-800 transition-colors shadow-xl rounded-sm">Track Order</a>
+                <a href="/" class="inline-block border border-gray-200 text-gray-900 px-10 py-4 uppercase text-[11px] font-bold tracking-[0.2em] hover:bg-gray-50 transition-colors rounded-sm">Continue Shopping</a>
             </div>
         </div>
 
-        <div x-show="!isSuccess" class="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-24 items-start" x-transition:enter="transition ease-out duration-500">
+        <!-- Checkout Form Screen -->
+        <div x-show="!isSuccess" class="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20 items-start">
             
             <div class="lg:col-span-7">
+                <!-- Error Banner -->
                 <div x-show="errorMessage" x-transition class="mb-8 p-4 bg-red-50 border border-red-100 text-red-700 text-xs font-semibold rounded-sm flex items-start gap-3" style="display: none;">
-                    <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                    <svg class="w-4 h-4 mt-0.5 flex-shrink-0 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
                     <div>
-                        <p class="font-bold uppercase tracking-wider mb-1">Transaction Blocked</p>
+                        <p class="font-bold uppercase tracking-wider mb-0.5">Checkout Alert</p>
                         <p class="font-normal" x-text="errorMessage"></p>
                     </div>
                 </div>
 
-                <form id="checkoutForm" @submit.prevent="initiateCheckout" class="space-y-12">
+                <form id="checkoutForm" @submit.prevent="initiateCheckout" class="space-y-10">
+                    
+                    <!-- Contact Section -->
                     <section>
-                        <h2 class="text-sm font-bold text-gray-900 uppercase tracking-[0.2em] mb-6 pb-4 border-b border-gray-200">Contact Information</h2>
-                        <div class="space-y-6">
+                        <h2 class="text-xs font-bold text-gray-900 uppercase tracking-[0.2em] mb-6 pb-3 border-b border-gray-200">1. Contact Information</h2>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                             <div>
                                 <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Email Address *</label>
-                                <input type="email" name="email" x-model="profile.email" required class="w-full p-4 text-sm bg-gray-50/50 border border-gray-200 rounded-sm focus:outline-none transition-colors">
+                                <input type="email" name="email" x-model="profile.email" required placeholder="you@example.com" class="w-full p-4 text-sm bg-gray-50/50 border border-gray-200 rounded-sm focus:outline-none transition-colors">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Mobile Number (For UPI) *</label>
+                                <input type="tel" name="phone" x-model="profile.phone" required placeholder="10-digit mobile number" pattern="[0-9]{10}" class="w-full p-4 text-sm bg-gray-50/50 border border-gray-200 rounded-sm focus:outline-none transition-colors">
                             </div>
                         </div>
                     </section>
 
+                    <!-- Shipping Section -->
                     <section>
-                        <h2 class="text-sm font-bold text-gray-900 uppercase tracking-[0.2em] mb-6 pb-4 border-b border-gray-200 flex justify-between items-end">
-                            Shipping Details
-                        </h2>
+                        <h2 class="text-xs font-bold text-gray-900 uppercase tracking-[0.2em] mb-6 pb-3 border-b border-gray-200">2. Delivery Address</h2>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                             <div>
                                 <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">First Name *</label>
@@ -237,44 +243,69 @@ const publicRazorpayKeyId = import.meta.env.PUBLIC_RAZORPAY_KEY_ID || '';
                                 <input type="text" name="lastName" x-model="profile.lastName" required class="w-full p-4 text-sm bg-gray-50/50 border border-gray-200 rounded-sm focus:border-black focus:outline-none transition-colors">
                             </div>
                             <div class="sm:col-span-2">
-                                <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Street Address *</label>
-                                <input type="text" name="address" x-model="profile.address" required class="w-full p-4 text-sm bg-gray-50/50 border border-gray-200 rounded-sm focus:border-black focus:outline-none transition-colors">
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Street Address & Landmark *</label>
+                                <input type="text" name="address" x-model="profile.address" required placeholder="House No, Building, Street, Area" class="w-full p-4 text-sm bg-gray-50/50 border border-gray-200 rounded-sm focus:border-black focus:outline-none transition-colors">
                             </div>
                             <div>
                                 <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">City *</label>
                                 <input type="text" name="city" x-model="profile.city" required class="w-full p-4 text-sm bg-gray-50/50 border border-gray-200 rounded-sm focus:border-black focus:outline-none transition-colors">
                             </div>
                             <div>
-                                <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Pincode / Postal Code *</label>
-                                <input type="text" name="pincode" x-model="profile.pincode" required class="w-full p-4 text-sm bg-gray-50/50 border border-gray-200 rounded-sm focus:border-black focus:outline-none transition-colors">
+                                <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Pincode *</label>
+                                <input type="text" name="pincode" x-model="profile.pincode" required pattern="[0-9]{6}" placeholder="6-digit Pincode" class="w-full p-4 text-sm bg-gray-50/50 border border-gray-200 rounded-sm focus:border-black focus:outline-none transition-colors">
                             </div>
                         </div>
                     </section>
 
-                    <button type="submit" :disabled="isProcessing" class="w-full bg-black text-white py-5 uppercase text-[11px] font-bold tracking-[0.2em] hover:bg-gray-800 transition-colors shadow-xl flex items-center justify-center gap-3">
-                        <span x-show="!isProcessing">Proceed to Payment Gateway</span>
-                        <span x-show="isProcessing" style="display: none;" class="flex items-center gap-2">
-                            <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                            Connecting Secure Gateway...
-                        </span>
-                    </button>
+                    <!-- Payment Section Preview -->
+                    <section>
+                        <h2 class="text-xs font-bold text-gray-900 uppercase tracking-[0.2em] mb-6 pb-3 border-b border-gray-200">3. Select Payment Method</h2>
+                        
+                        <div class="bg-gray-50 border border-gray-200 rounded-sm p-6 mb-6">
+                            <p class="text-xs font-bold text-gray-900 uppercase tracking-wider mb-3">Supported Payment Options</p>
+                            <div class="flex flex-wrap gap-2 text-[10px] font-bold uppercase tracking-wider text-gray-600">
+                                <span class="bg-white border border-gray-200 px-3 py-2 rounded-sm flex items-center gap-1.5 shadow-2xs">
+                                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Google Pay
+                                </span>
+                                <span class="bg-white border border-gray-200 px-3 py-2 rounded-sm flex items-center gap-1.5 shadow-2xs">
+                                    <span class="w-2 h-2 rounded-full bg-purple-500"></span> PhonePe
+                                </span>
+                                <span class="bg-white border border-gray-200 px-3 py-2 rounded-sm flex items-center gap-1.5 shadow-2xs">
+                                    <span class="w-2 h-2 rounded-full bg-sky-500"></span> Paytm / BHIM UPI
+                                </span>
+                                <span class="bg-white border border-gray-200 px-3 py-2 rounded-sm">Cards (Visa / Mastercard / RuPay)</span>
+                                <span class="bg-white border border-gray-200 px-3 py-2 rounded-sm">Netbanking</span>
+                                <span class="bg-white border border-gray-200 px-3 py-2 rounded-sm">QR Code Scan</span>
+                            </div>
+                        </div>
+
+                        <button type="submit" :disabled="isProcessing" class="w-full bg-black text-white py-5 uppercase text-[11px] font-bold tracking-[0.2em] hover:bg-neutral-800 transition-all shadow-xl rounded-sm flex items-center justify-center gap-3">
+                            <span x-show="!isProcessing">Pay & Place Order</span>
+                            <span x-show="isProcessing" style="display: none;" class="flex items-center gap-2">
+                                <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                Launching Secure Gateway...
+                            </span>
+                        </button>
+                    </section>
                 </form>
             </div>
 
+            <!-- Order Summary Column -->
             <div class="lg:col-span-5 relative">
                 <div class="bg-[#fcfcfc] p-8 lg:p-10 border border-gray-100 rounded-sm sticky top-28">
-                    <h2 class="text-sm font-bold text-gray-900 uppercase tracking-[0.2em] mb-8 pb-4 border-b border-gray-200 font-sans">Order Summary</h2>
+                    <h2 class="text-xs font-bold text-gray-900 uppercase tracking-[0.2em] mb-8 pb-4 border-b border-gray-200 font-sans">Order Summary</h2>
                     
                     <div class="space-y-6 mb-8 max-h-[40vh] overflow-y-auto no-scrollbar pr-2">
                         <template x-for="item in $store.cart.items" :key="item.variant_id || item.id">
                             <div class="flex gap-4 group">
-                                <div class="w-16 h-20 bg-gray-100 flex items-center justify-center relative overflow-hidden flex-shrink-0">
-                                    <span class="z-10 text-gray-400 font-serif italic text-[10px] text-center px-1" x-text="item.name.split(' ')[0]"></span>
+                                <div class="w-16 h-20 bg-gray-100 flex items-center justify-center relative overflow-hidden flex-shrink-0 rounded-xs">
+                                    <img x-show="item.image_url" :src="item.image_url" class="w-full h-full object-cover" :alt="item.name">
+                                    <span x-show="!item.image_url" class="z-10 text-gray-400 font-serif italic text-[10px] text-center px-1" x-text="item.name.split(' ')[0]"></span>
                                 </div>
                                 <div class="flex-1 flex flex-col justify-center font-sans">
                                     <div class="flex justify-between items-start">
-                                        <p class="font-serif font-medium text-gray-900" x-text="item.name"></p>
-                                        <span class="font-sans font-medium text-sm text-gray-900" x-text="'₹' + (item.price * item.quantity).toLocaleString()"></span>
+                                        <p class="font-serif font-medium text-gray-900 text-sm" x-text="item.name"></p>
+                                        <span class="font-sans font-medium text-sm text-gray-900" x-text="'₹' + (item.price * item.quantity).toLocaleString('en-IN')"></span>
                                     </div>
                                     <p class="text-gray-500 text-[10px] uppercase tracking-widest mt-1 font-bold" x-text="(item.volume ? item.volume + ' • ' : '') + 'Qty: ' + item.quantity"></p>
                                 </div>
@@ -287,17 +318,17 @@ const publicRazorpayKeyId = import.meta.env.PUBLIC_RAZORPAY_KEY_ID || '';
                     </div>
 
                     <div class="border-t border-gray-200 pt-6 space-y-4 font-sans">
-                        <div class="flex justify-between text-sm font-light text-gray-600">
+                        <div class="flex justify-between text-xs font-light text-gray-600">
                             <span>Subtotal</span>
-                            <span x-text="'₹' + ($store.cart.total || 0).toLocaleString()">₹0.00</span>
+                            <span x-text="'₹' + ($store.cart.total || 0).toLocaleString('en-IN')">₹0.00</span>
                         </div>
-                        <div class="flex justify-between text-sm font-light text-gray-600">
-                            <span>Shipping</span>
-                            <span class="uppercase text-[10px] tracking-widest font-bold">Complimentary</span>
+                        <div class="flex justify-between text-xs font-light text-gray-600">
+                            <span>Pan-India Courier</span>
+                            <span class="uppercase text-[10px] tracking-widest font-bold text-emerald-600">Complimentary</span>
                         </div>
                         <div class="flex justify-between font-serif font-medium text-2xl pt-6 border-t border-gray-200 text-gray-900 mt-2">
                             <span>Total</span>
-                            <span x-text="'₹' + ($store.cart.total || 0).toLocaleString()">₹0.00</span>
+                            <span x-text="'₹' + ($store.cart.total || 0).toLocaleString('en-IN')">₹0.00</span>
                         </div>
                     </div>
                 </div>
