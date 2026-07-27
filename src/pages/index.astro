@@ -50,61 +50,63 @@ const escapeAttr = (str) => {
         })();
     </script>
 
-    <!-- Ultra-Minimalist Hero Section -->
-    <section class="relative bg-[#09090b] text-white pt-24 pb-20 md:pt-32 md:pb-28 px-6 overflow-hidden border-b border-neutral-900">
+    <!-- Warm Luxury Hero Section -->
+    <section class="bg-[#faf8f5] border-b border-stone-200/60 pt-20 pb-16 md:pt-28 md:pb-24 px-6 relative overflow-hidden">
         <div class="max-w-4xl mx-auto text-center flex flex-col items-center">
             
-            <span class="text-[10px] font-mono uppercase tracking-[0.35em] text-neutral-400 mb-6 block">
-                Aju House Curation
-            </span>
+            <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-stone-200 shadow-2xs mb-6">
+                <span class="w-1.5 h-1.5 rounded-full bg-stone-900"></span>
+                <span class="text-[10px] font-mono uppercase tracking-[0.25em] text-stone-600 font-medium">Aju House Curation</span>
+            </div>
             
-            <h1 class="text-4xl sm:text-6xl md:text-7xl font-serif font-light tracking-tight text-white mb-6 leading-[1.15]">
-                Scents & <span class="italic font-normal text-neutral-300">Objects</span>
+            <h1 class="text-4xl sm:text-6xl md:text-7xl font-serif font-medium text-stone-900 mb-6 tracking-tight leading-[1.1]">
+                Signature Scents. <br class="hidden sm:inline" />
+                <span class="italic font-light text-stone-600">Modern Essentials.</span>
             </h1>
             
-            <p class="text-xs sm:text-sm text-neutral-400 font-light max-w-md mx-auto leading-relaxed mb-10 tracking-wide">
-                Hand-bottled fine perfumes and minimalist daily hardware. Thoughtfully designed for everyday ritual.
+            <p class="text-sm sm:text-base text-stone-600 font-light max-w-lg mx-auto leading-relaxed mb-10">
+                Hand-bottled artisanal perfumes and minimalist daily hardware. Crafted for tactile luxury and everyday performance.
             </p>
             
-            <!-- Sleek Minimal Link Pills -->
-            <div class="flex flex-wrap items-center justify-center gap-4">
-                <a href="#shop" @click="window.location.hash = 'classic'" class="bg-white text-black px-8 py-3.5 text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-neutral-200 transition-colors rounded-xs shadow-sm">
-                    Explore Perfumes
+            <!-- Clean Primary Action Buttons -->
+            <div class="flex flex-col sm:flex-row gap-3.5 w-full sm:w-auto">
+                <a href="#shop" @click="window.location.hash = 'classic'" class="bg-black text-white px-8 py-4 text-[11px] font-bold uppercase tracking-[0.2em] hover:bg-stone-800 transition-all rounded-sm shadow-md text-center">
+                    Shop Fragrances
                 </a>
-                <a href="#shop" @click="window.location.hash = 'accessories'" class="border border-neutral-700 text-neutral-200 px-8 py-3.5 text-[10px] font-bold uppercase tracking-[0.2em] hover:border-white hover:text-white transition-all rounded-xs">
-                    Explore Accessories
+                <a href="#shop" @click="window.location.hash = 'accessories'" class="bg-white border border-stone-300 text-stone-900 px-8 py-4 text-[11px] font-bold uppercase tracking-[0.2em] hover:border-black transition-all rounded-sm text-center shadow-2xs">
+                    Shop Accessories
                 </a>
             </div>
 
         </div>
 
-        <!-- Minimal Department Divider Line -->
-        <div class="max-w-5xl mx-auto mt-20 pt-10 border-t border-neutral-800/60 grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
+        <!-- Quick Collection Showcase Banner -->
+        <div class="max-w-5xl mx-auto mt-16 md:mt-20 grid grid-cols-1 md:grid-cols-2 gap-5">
             
-            <a href="#shop" @click="window.location.hash = 'classic'" class="group p-6 border border-neutral-800/80 hover:border-neutral-500 bg-neutral-950/50 transition-all flex justify-between items-center rounded-xs">
+            <a href="#shop" @click="window.location.hash = 'classic'" class="group bg-white border border-stone-200 p-7 rounded-sm hover:border-stone-400 transition-all duration-300 shadow-2xs flex justify-between items-center">
                 <div>
-                    <span class="text-[9px] font-mono text-neutral-400 tracking-widest uppercase block mb-1">01 / Collection</span>
-                    <h3 class="font-serif text-lg text-white font-normal group-hover:translate-x-1 transition-transform">Artisanal Perfumery</h3>
+                    <span class="text-[9px] font-mono text-amber-700 tracking-widest uppercase font-semibold block mb-1">01 / Fine Scents</span>
+                    <h3 class="font-serif text-xl text-stone-900 font-medium group-hover:translate-x-1 transition-transform">Artisanal Perfumery</h3>
                 </div>
-                <span class="text-neutral-400 group-hover:text-white transition-colors text-sm font-mono">→</span>
+                <span class="w-9 h-9 rounded-full bg-stone-50 border border-stone-200 flex items-center justify-center text-stone-700 group-hover:bg-black group-hover:text-white transition-colors">→</span>
             </a>
 
-            <a href="#shop" @click="window.location.hash = 'accessories'" class="group p-6 border border-neutral-800/80 hover:border-neutral-500 bg-neutral-950/50 transition-all flex justify-between items-center rounded-xs">
+            <a href="#shop" @click="window.location.hash = 'accessories'" class="group bg-white border border-stone-200 p-7 rounded-sm hover:border-stone-400 transition-all duration-300 shadow-2xs flex justify-between items-center">
                 <div>
-                    <span class="text-[9px] font-mono text-neutral-400 tracking-widest uppercase block mb-1">02 / Collection</span>
-                    <h3 class="font-serif text-lg text-white font-normal group-hover:translate-x-1 transition-transform">Tech & Essentials</h3>
+                    <span class="text-[9px] font-mono text-sky-700 tracking-widest uppercase font-semibold block mb-1">02 / Essentials</span>
+                    <h3 class="font-serif text-xl text-stone-900 font-medium group-hover:translate-x-1 transition-transform">Tech & Accessories</h3>
                 </div>
-                <span class="text-neutral-400 group-hover:text-white transition-colors text-sm font-mono">→</span>
+                <span class="w-9 h-9 rounded-full bg-stone-50 border border-stone-200 flex items-center justify-center text-stone-700 group-hover:bg-black group-hover:text-white transition-colors">→</span>
             </a>
 
         </div>
     </section>
 
     <!-- CURATED FEATURED SLIDER -->
-    <section class="py-16 sm:py-24 bg-[#fafafa] border-b border-gray-100 overflow-hidden" 
+    <section class="py-16 sm:py-20 bg-white border-b border-stone-100 overflow-hidden" 
              x-data="{
                 scrollLeft() {
-                    this.$refs.sliderContainer.scrollBy({ left: -300, behavior: 'smooth' });
+                    this.$refs.sliderContainer.scrollBy({ left: -320, behavior: 'smooth' });
                 },
                 scrollRight() {
                     const el = this.$refs.sliderContainer;
@@ -112,23 +114,23 @@ const escapeAttr = (str) => {
                     if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 30) {
                         el.scrollTo({ left: 0, behavior: 'smooth' });
                     } else {
-                        el.scrollBy({ left: 300, behavior: 'smooth' });
+                        el.scrollBy({ left: 320, behavior: 'smooth' });
                     }
                 }
              }">
         <div class="max-w-[1400px] mx-auto px-6 lg:px-12">
             
-            <div class="flex justify-between items-end mb-10">
+            <div class="flex justify-between items-end mb-8 sm:mb-10">
                 <div>
-                    <span class="text-[9px] font-mono text-gray-400 uppercase tracking-widest block mb-1">Selection</span>
-                    <h2 class="text-2xl sm:text-3xl font-serif font-medium tracking-tight text-gray-900">Featured Curations</h2>
+                    <span class="text-[10px] text-stone-400 font-bold uppercase tracking-widest block mb-1">Curated List</span>
+                    <h2 class="text-2xl sm:text-3xl font-serif font-medium tracking-tight text-stone-900">Featured Curations</h2>
                 </div>
                 
                 <div class="flex gap-2">
-                    <button @click="scrollLeft()" class="w-10 h-10 border border-gray-200 bg-white flex items-center justify-center text-gray-600 hover:text-black hover:border-black transition-colors rounded-xs">
+                    <button @click="scrollLeft()" class="w-10 h-10 border border-stone-200 bg-white flex items-center justify-center text-stone-600 hover:text-black hover:border-black transition-colors rounded-sm shadow-2xs">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 19l-7-7 7-7"></path></svg>
                     </button>
-                    <button @click="scrollRight()" class="w-10 h-10 border border-gray-200 bg-white flex items-center justify-center text-gray-600 hover:text-black hover:border-black transition-colors rounded-xs">
+                    <button @click="scrollRight()" class="w-10 h-10 border border-stone-200 bg-white flex items-center justify-center text-stone-600 hover:text-black hover:border-black transition-colors rounded-sm shadow-2xs">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5l7 7-7 7"></path></svg>
                     </button>
                 </div>
@@ -154,7 +156,7 @@ const escapeAttr = (str) => {
                     const safeImageUrl = escapeAttr(imageUrl);
 
                     return (
-                        <div class="snap-start w-[260px] sm:w-[290px] shrink-0 bg-white border border-gray-100 p-4 hover:border-gray-300 transition-all duration-300 flex flex-col justify-between group rounded-xs"
+                        <div class="snap-start w-[270px] sm:w-[290px] shrink-0 bg-white border border-stone-200/80 p-3.5 hover:border-stone-400 transition-all duration-300 flex flex-col justify-between group rounded-sm shadow-2xs"
                              x-data={`{
                                 variants: ${variantsJson},
                                 selectedVariantId: '${defaultVariant.id || ""}',
@@ -173,26 +175,26 @@ const escapeAttr = (str) => {
                              }`}>
                             
                             <!-- Image Frame -->
-                            <div class="aspect-[3/4] w-full bg-[#f6f6f6] relative mb-4 overflow-hidden flex items-center justify-center rounded-xs">
+                            <div class="aspect-[3/4] w-full bg-[#f7f6f3] relative mb-4 overflow-hidden flex items-center justify-center rounded-sm">
                                 <a href={`/product/${product.id}`} class="absolute inset-0 z-10"></a>
                                 
-                                <span class="absolute top-2.5 left-2.5 text-[8px] font-mono uppercase tracking-widest px-2 py-0.5 border border-gray-200 bg-white text-gray-600 z-20">
+                                <span class={`absolute top-2.5 left-2.5 text-[8px] font-bold uppercase tracking-wider px-2 py-0.5 border z-20 rounded-2xs ${isAccessory ? 'bg-sky-50 text-sky-800 border-sky-100' : 'bg-amber-50 text-amber-800 border-amber-100'}`}>
                                     {isAccessory ? 'Accessory' : 'Fragrance'}
                                 </span>
 
-                                <span x-show="currentStock <= 0" class="absolute top-2.5 right-2.5 bg-black text-white px-2 py-0.5 text-[8px] font-mono uppercase tracking-widest z-20">Sold Out</span>
+                                <span x-show="currentStock <= 0" class="absolute top-2.5 right-2.5 bg-red-600 text-white px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider z-20 rounded-2xs">Sold Out</span>
 
                                 {imageUrl ? (
-                                    <img src={imageUrl} alt={productName} class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-102" />
+                                    <img src={imageUrl} alt={productName} class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-103" />
                                 ) : (
-                                    <span class="text-gray-300 font-serif italic text-lg px-4 text-center">{productName.split(' ')[0]}</span>
+                                    <span class="text-stone-300 font-serif italic text-lg px-4 text-center">{productName.split(' ')[0]}</span>
                                 )}
                             </div>
 
                             <!-- Details -->
                             <div class="text-left flex-grow flex flex-col justify-between">
                                 <div>
-                                    <a href={`/product/${product.id}`} class="block font-serif text-base font-medium text-gray-900 truncate hover:underline mb-1">
+                                    <a href={`/product/${product.id}`} class="block font-serif text-base font-medium text-stone-900 truncate hover:underline mb-1">
                                         {productName}
                                     </a>
                                     
@@ -203,8 +205,8 @@ const escapeAttr = (str) => {
                                                 <button 
                                                     type="button"
                                                     @click="updateVariant(v.id)"
-                                                    :class="selectedVariantId === v.id ? 'bg-black text-white border-black' : 'bg-white text-gray-500 border-gray-200 hover:border-black'"
-                                                    class="px-2 py-1 text-[8px] font-mono uppercase border rounded-xs transition-all"
+                                                    :class="selectedVariantId === v.id ? 'bg-stone-900 text-white border-stone-900' : 'bg-white text-stone-600 border-stone-200 hover:border-stone-900'"
+                                                    class="px-2 py-0.5 text-[8px] font-bold uppercase border rounded-2xs transition-all"
                                                     x-text="v.variant_label"
                                                 ></button>
                                             </template>
@@ -212,20 +214,20 @@ const escapeAttr = (str) => {
                                     </template>
 
                                     <template x-if="variants.length <= 1">
-                                        <div class="text-[9px] font-mono text-gray-400 uppercase tracking-wider mb-2">
+                                        <div class="text-[9px] font-mono text-stone-400 uppercase tracking-wider mb-2">
                                             <span x-text="selectedLabel"></span>
                                         </div>
                                     </template>
                                 </div>
 
-                                <div class="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between gap-2">
-                                    <span class="font-serif font-medium text-sm text-gray-900" x-text="'₹' + Number(currentPrice).toLocaleString('en-IN')"></span>
+                                <div class="mt-3 pt-3 border-t border-stone-100 flex items-center justify-between gap-2">
+                                    <span class="font-serif font-medium text-sm text-stone-900" x-text="'₹' + Number(currentPrice).toLocaleString('en-IN')"></span>
 
                                     <button 
                                         @click={`$store.cart.add({ id: '${product.id}', variant_id: selectedVariantId, name: '${safeName}', price: currentPrice, volume: selectedLabel, image_url: '${safeImageUrl}' })`}
                                         :disabled="currentStock <= 0"
-                                        class="px-3 py-1.5 uppercase text-[9px] font-mono font-bold tracking-wider rounded-xs transition-colors border"
-                                        :class="currentStock <= 0 ? 'bg-gray-50 text-gray-300 border-gray-200 cursor-not-allowed' : 'bg-black text-white border-black hover:bg-neutral-800'"
+                                        class="px-3.5 py-1.5 uppercase text-[9px] font-bold tracking-wider rounded-2xs transition-colors border"
+                                        :class="currentStock <= 0 ? 'bg-stone-50 text-stone-300 border-stone-200 cursor-not-allowed' : 'bg-black text-white border-black hover:bg-stone-800'"
                                     >
                                         <span x-show="currentStock <= 0">Out</span>
                                         <span x-show="currentStock > 0">+ Add</span>
@@ -240,7 +242,7 @@ const escapeAttr = (str) => {
     </section>
 
     <!-- FULL CATALOG SECTION -->
-    <section id="shop" class="py-20 sm:py-28 px-6 max-w-[1400px] mx-auto" 
+    <section id="shop" class="py-16 sm:py-24 px-6 max-w-[1400px] mx-auto" 
              x-data={sectionXData} 
              x-init="
                 const updateFilter = () => {
@@ -265,31 +267,31 @@ const escapeAttr = (str) => {
                 window.addEventListener('hashchange', updateFilter);
              ">
         
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-12 border-b border-gray-200 pb-6 gap-6">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 border-b border-stone-200 pb-6 gap-6">
             <div>
-                <span class="text-[9px] font-mono text-gray-400 uppercase tracking-widest block mb-1">Catalog</span>
-                <h2 class="text-3xl sm:text-4xl font-serif font-light text-gray-900">All Objects</h2>
+                <span class="text-[10px] text-stone-400 font-bold uppercase tracking-widest block mb-1">Explore All</span>
+                <h2 class="text-3xl sm:text-4xl font-serif font-medium text-stone-900">All Collections</h2>
             </div>
             
             <!-- Category Tabs -->
-            <div class="flex flex-wrap gap-4 text-xs font-mono uppercase tracking-wider">
+            <div class="flex flex-wrap gap-2 text-xs font-medium">
                 <button @click="filter = 'All'; window.location.hash = 'shop'" 
-                        :class="filter === 'All' ? 'text-black border-b-2 border-black font-bold' : 'text-gray-400 hover:text-black'" 
-                        class="pb-1 transition-colors">
-                    All
+                        :class="filter === 'All' ? 'bg-black text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'" 
+                        class="px-4 py-2 rounded-full uppercase text-[10px] tracking-wider transition-colors">
+                    All Items
                 </button>
                 
                 {rawCategories.map(cat => (
                     <button @click={`filter = '${cat}'; window.location.hash = '${cat.toLowerCase()}'`} 
-                            :class={`filter === '${cat}' ? 'text-black border-b-2 border-black font-bold' : 'text-gray-400 hover:text-black'`} 
-                            class="pb-1 transition-colors">
-                        {cat === 'Accessories' ? 'Tech & Accessories' : cat}
+                            :class={`filter === '${cat}' ? 'bg-black text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'`} 
+                            class="px-4 py-2 rounded-full uppercase text-[10px] tracking-wider transition-colors">
+                        {cat === 'Accessories' ? 'Tech & Accessories' : (cat + ' Perfumes')}
                     </button>
                 ))}
             </div>
         </div>
 
-        <div class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-6 gap-y-12">
+        <div class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-5 gap-y-10">
             
             {(products || []).map((product) => {
                 const rawCategory = product.category || 'Classic';
@@ -312,7 +314,7 @@ const escapeAttr = (str) => {
                 
                 return (
                     <div 
-                        class="group flex flex-col bg-white border border-transparent hover:border-gray-200 p-3 transition-all duration-300 rounded-xs"
+                        class="group flex flex-col bg-white border border-stone-200/70 hover:border-stone-400 p-3.5 transition-all duration-300 rounded-sm shadow-2xs"
                         x-show={xShow}
                         x-data={`{
                             variants: ${variantsJson},
@@ -335,25 +337,25 @@ const escapeAttr = (str) => {
                         x-transition:enter-end="opacity-100"
                     >
                         <!-- Image Container -->
-                        <div class="aspect-[3/4] w-full bg-[#f6f6f6] relative mb-4 overflow-hidden flex items-center justify-center rounded-xs">
+                        <div class="aspect-[3/4] w-full bg-[#f7f6f3] relative mb-4 overflow-hidden flex items-center justify-center rounded-sm">
                             <a href={`/product/${product.id}`} class="absolute inset-0 z-10"></a>
 
-                            <span class="absolute top-2.5 left-2.5 text-[8px] font-mono uppercase tracking-widest px-2 py-0.5 border border-gray-200 bg-white text-gray-600 z-20">
+                            <span class={`absolute top-2.5 left-2.5 text-[8px] font-bold uppercase tracking-wider px-2 py-0.5 border z-20 rounded-2xs ${isAccessory ? 'bg-sky-50 text-sky-800 border-sky-100' : 'bg-amber-50 text-amber-800 border-amber-100'}`}>
                                 {isAccessory ? 'Accessory' : 'Fragrance'}
                             </span>
 
-                            <span x-show="currentStock <= 0" class="absolute top-2.5 right-2.5 bg-black text-white px-2 py-0.5 text-[8px] font-mono uppercase tracking-widest z-20">Sold Out</span>
+                            <span x-show="currentStock <= 0" class="absolute top-2.5 right-2.5 bg-red-600 text-white px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider z-20 rounded-2xs">Sold Out</span>
 
                             {imageUrl ? (
                                 <img 
                                     src={imageUrl} 
                                     alt={productName} 
-                                    class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-102"
+                                    class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-103"
                                     onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
                                 />
                             ) : null}
                             
-                            <span class={`font-serif italic text-2xl text-gray-300 px-4 text-center ${imageUrl ? 'hidden' : 'block'}`}>
+                            <span class={`font-serif italic text-2xl text-stone-300 px-4 text-center ${imageUrl ? 'hidden' : 'block'}`}>
                                 {productName.split(' ')[0]}
                             </span>
                         </div>
@@ -361,7 +363,7 @@ const escapeAttr = (str) => {
                         <!-- Product Metadata -->
                         <div class="flex-grow flex flex-col justify-between">
                             <div>
-                                <a href={`/product/${product.id}`} class="block font-serif text-base sm:text-lg font-medium text-gray-900 mb-1 hover:underline truncate">
+                                <a href={`/product/${product.id}`} class="block font-serif text-base sm:text-lg font-medium text-stone-900 mb-1 hover:underline truncate">
                                     {productName}
                                 </a>
                                 
@@ -372,8 +374,8 @@ const escapeAttr = (str) => {
                                             <button 
                                                 type="button"
                                                 @click="updateVariant(v.id)"
-                                                :class="selectedVariantId === v.id ? 'bg-black text-white border-black' : 'bg-white text-gray-500 border-gray-200 hover:border-black'"
-                                                class="px-2 py-1 text-[8px] font-mono uppercase border rounded-xs transition-all"
+                                                :class="selectedVariantId === v.id ? 'bg-stone-900 text-white border-stone-900' : 'bg-white text-stone-600 border-stone-200 hover:border-stone-900'"
+                                                class="px-2 py-0.5 text-[8px] font-bold uppercase border rounded-2xs transition-all"
                                                 x-text="v.variant_label"
                                             ></button>
                                         </template>
@@ -381,21 +383,21 @@ const escapeAttr = (str) => {
                                 </template>
 
                                 <template x-if="variants.length <= 1">
-                                    <div class="text-[9px] font-mono text-gray-400 uppercase tracking-wider mb-2">
+                                    <div class="text-[9px] font-mono text-stone-400 uppercase tracking-wider mb-2">
                                         <span x-text="selectedLabel"></span>
                                     </div>
                                 </template>
                             </div>
                             
                             <!-- Bottom Row -->
-                            <div class="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between gap-2">
-                                <span class="font-serif font-medium text-base text-gray-900" x-text="'₹' + Number(currentPrice).toLocaleString('en-IN')"></span>
+                            <div class="mt-3 pt-3 border-t border-stone-100 flex items-center justify-between gap-2">
+                                <span class="font-serif font-medium text-base text-stone-900" x-text="'₹' + Number(currentPrice).toLocaleString('en-IN')"></span>
 
                                 <button 
                                     @click={`$store.cart.add({ id: '${product.id}', variant_id: selectedVariantId, name: '${safeName}', price: currentPrice, volume: selectedLabel, image_url: '${safeImageUrl}' })`}
                                     :disabled="currentStock <= 0"
-                                    class="px-3.5 py-1.5 uppercase text-[9px] font-mono font-bold tracking-wider rounded-xs transition-colors border"
-                                    :class="currentStock <= 0 ? 'bg-gray-50 text-gray-300 border-gray-200 cursor-not-allowed' : 'bg-black text-white border-black hover:bg-neutral-800'"
+                                    class="px-3.5 py-1.5 uppercase text-[9px] font-bold tracking-wider rounded-2xs transition-colors border"
+                                    :class="currentStock <= 0 ? 'bg-stone-50 text-stone-300 border-stone-200 cursor-not-allowed' : 'bg-black text-white border-black hover:bg-stone-800'"
                                 >
                                     <span x-show="currentStock <= 0">Out</span>
                                     <span x-show="currentStock > 0">+ Add</span>
@@ -407,7 +409,7 @@ const escapeAttr = (str) => {
             })}
             
             <!-- Empty State -->
-            <div x-show="!categories.some(cat => filter === 'All' || (filter === 'Fragrances' && (cat === 'Classic' || cat === 'Premium')) || cat === filter)" style="display: none;" class="col-span-full py-16 text-center text-gray-400 font-serif italic text-base">
+            <div x-show="!categories.some(cat => filter === 'All' || (filter === 'Fragrances' && (cat === 'Classic' || cat === 'Premium')) || cat === filter)" style="display: none;" class="col-span-full py-16 text-center text-stone-400 font-serif italic text-base">
                 No items currently found in this category.
             </div>
 
