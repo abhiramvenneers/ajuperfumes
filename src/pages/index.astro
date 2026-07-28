@@ -207,9 +207,19 @@ const sliderProducts = (products || []).slice(0, 6);
         </div>
     </section>
 
-    <!-- FEATURED CURATIONS SLIDER -->
+    <!-- FEATURED CURATIONS AUTOMATIC SLIDER -->
     <section class="py-20 sm:py-24 bg-white border-b border-stone-100 overflow-hidden" 
              x-data="{
+                timer: null,
+                startAutoSlide() {
+                    this.stopAutoSlide();
+                    this.timer = setInterval(() => {
+                        this.scrollRight();
+                    }, 3500);
+                },
+                stopAutoSlide() {
+                    if (this.timer) clearInterval(this.timer);
+                },
                 scrollLeft() {
                     this.$refs.sliderContainer.scrollBy({ left: -320, behavior: 'smooth' });
                 },
@@ -222,7 +232,13 @@ const sliderProducts = (products || []).slice(0, 6);
                         el.scrollBy({ left: 320, behavior: 'smooth' });
                     }
                 }
-             }">
+             }"
+             x-init="startAutoSlide()"
+             @mouseenter="stopAutoSlide()"
+             @mouseleave="startAutoSlide()"
+             @touchstart="stopAutoSlide()"
+             @touchend="startAutoSlide()"
+    >
         <div class="max-w-[1400px] mx-auto px-6 lg:px-12">
             
             <div class="flex justify-between items-end mb-10 sm:mb-12">
