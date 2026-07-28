@@ -30,6 +30,53 @@ const escapeAttr = (str) => {
 
 <Layout title="Aju | Signature Fragrances & Modern Tech Accessories">
     
+    <!-- Custom CSS Animations for Marquee and Fade Transitions -->
+    <style is:inline>
+        @keyframes marquee {
+            0% { transform: translateX(0%); }
+            100% { transform: translateX(-50%); }
+        }
+        .animate-marquee-fast {
+            display: flex;
+            width: 200%;
+            animation: marquee 20s linear infinite;
+        }
+        .animate-marquee-slow {
+            display: flex;
+            width: 200%;
+            animation: marquee 35s linear infinite;
+        }
+        .animate-marquee-fast:hover, .animate-marquee-slow:hover {
+            animation-play-state: paused;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(24px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .animate-appear {
+            animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        .delay-1 { animation-delay: 0.1s; }
+        .delay-2 { animation-delay: 0.25s; }
+        .delay-3 { animation-delay: 0.4s; }
+        .delay-4 { animation-delay: 0.55s; }
+
+        @keyframes floatSlow {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-6px); }
+        }
+        .animate-float {
+            animation: floatSlow 5s ease-in-out infinite;
+        }
+    </style>
+
     <!-- Self-Healing Local Storage Script for returning browsers -->
     <script is:inline>
         (function() {
@@ -50,92 +97,114 @@ const escapeAttr = (str) => {
         })();
     </script>
 
-    <!-- Top Value Proposition Bar -->
-    <div class="bg-black text-white text-[10px] font-mono tracking-widest uppercase py-3 px-4 text-center border-b border-neutral-800">
-        <div class="max-w-[1400px] mx-auto flex flex-col sm:flex-row justify-between items-center gap-2">
-            <span>✨ Complimentary Pan-India Shipping On All Orders</span>
-            <span class="hidden md:inline text-neutral-400">Hand-Bottled Perfumes & Minimal Tech Objects</span>
-            <span>🔒 256-Bit Encrypted Razorpay Checkout</span>
+    <!-- TOP INFINITE MOVING MARQUEE BANNER -->
+    <div class="bg-black text-white text-[10px] font-mono tracking-[0.25em] uppercase py-3 overflow-hidden border-b border-neutral-800">
+        <div class="animate-marquee-fast whitespace-nowrap">
+            <div class="flex items-center gap-12 shrink-0">
+                <span>✨ COMPLIMENTARY PAN-INDIA SHIPPING ON ALL ORDERS</span>
+                <span class="text-neutral-500">•</span>
+                <span>HAND-BOTTLED SCENTS & MINIMAL TECH HARDWARE</span>
+                <span class="text-neutral-500">•</span>
+                <span>🔒 256-BIT ENCRYPTED RAZORPAY CHECKOUT</span>
+                <span class="text-neutral-500">•</span>
+                <span>AUTHENTIC OILS & HIGH-DURABILITY MATERIALS</span>
+                <span class="text-neutral-500">•</span>
+            </div>
+            <div class="flex items-center gap-12 shrink-0">
+                <span>✨ COMPLIMENTARY PAN-INDIA SHIPPING ON ALL ORDERS</span>
+                <span class="text-neutral-500">•</span>
+                <span>HAND-BOTTLED SCENTS & MINIMAL TECH HARDWARE</span>
+                <span class="text-neutral-500">•</span>
+                <span>🔒 256-BIT ENCRYPTED RAZORPAY CHECKOUT</span>
+                <span class="text-neutral-500">•</span>
+                <span>AUTHENTIC OILS & HIGH-DURABILITY MATERIALS</span>
+                <span class="text-neutral-500">•</span>
+            </div>
         </div>
     </div>
 
-    <!-- Editorial Professional Hero Section -->
+    <!-- Editorial Professional Hero Section with Entrance Animations -->
     <section class="bg-[#fcfbf8] text-gray-900 border-b border-stone-200/80 pt-16 pb-20 md:pt-24 md:pb-28 px-6 lg:px-12 relative overflow-hidden">
-        <div class="max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
+        
+        <!-- Subtle Ambient Glow -->
+        <div class="absolute -top-32 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-stone-200/40 blur-[120px] rounded-full pointer-events-none"></div>
+
+        <div class="max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center relative z-10">
             
-            <!-- Left Hero Column -->
+            <!-- Left Hero Column with Staggered Fade-In -->
             <div class="lg:col-span-7 space-y-8 text-center lg:text-left">
-                <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-stone-300 shadow-2xs">
+                
+                <div class="animate-appear opacity-0 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-stone-300 shadow-2xs">
                     <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                     <span class="text-[10px] font-mono uppercase tracking-[0.25em] text-stone-700 font-semibold">The House of Aju • 2026 Collection</span>
                 </div>
 
-                <h1 class="text-4xl sm:text-6xl lg:text-7xl font-serif font-medium tracking-tight text-stone-900 leading-[1.1]">
+                <h1 class="animate-appear opacity-0 delay-1 text-4xl sm:text-6xl lg:text-7xl font-serif font-medium tracking-tight text-stone-900 leading-[1.1]">
                     Fine Fragrances. <br class="hidden sm:inline" />
-                    <span class="italic font-light text-stone-600">Modern Hardware.</span>
+                    <span class="italic font-light text-stone-600 transition-all duration-700 hover:text-black">Modern Hardware.</span>
                 </h1>
 
-                <p class="text-stone-600 text-sm sm:text-base md:text-lg font-light max-w-xl mx-auto lg:mx-0 leading-relaxed">
+                <p class="animate-appear opacity-0 delay-2 text-stone-600 text-sm sm:text-base md:text-lg font-light max-w-xl mx-auto lg:mx-0 leading-relaxed">
                     A curated studio merging hand-compounded olfactory extracts with precision, high-durability mobile accessories. Engineered for daily elegance.
                 </p>
 
                 <!-- Dual Action Hero Buttons -->
-                <div class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start pt-2">
-                    <a href="#shop" @click="window.location.hash = 'classic'" class="bg-black text-white px-9 py-4 uppercase text-[11px] font-bold tracking-[0.2em] hover:bg-stone-800 transition-all rounded-xs shadow-xl text-center">
+                <div class="animate-appear opacity-0 delay-3 flex flex-col sm:flex-row gap-4 justify-center lg:justify-start pt-2">
+                    <a href="#shop" @click="window.location.hash = 'classic'" class="bg-black text-white px-9 py-4 uppercase text-[11px] font-bold tracking-[0.2em] hover:bg-stone-800 hover:scale-[1.02] active:scale-95 transition-all duration-300 rounded-xs shadow-xl text-center">
                         Shop Fragrances
                     </a>
-                    <a href="#shop" @click="window.location.hash = 'accessories'" class="bg-white border border-stone-300 text-stone-900 px-9 py-4 uppercase text-[11px] font-bold tracking-[0.2em] hover:border-black transition-all rounded-xs text-center shadow-2xs">
+                    <a href="#shop" @click="window.location.hash = 'accessories'" class="bg-white border border-stone-300 text-stone-900 px-9 py-4 uppercase text-[11px] font-bold tracking-[0.2em] hover:border-black hover:bg-stone-50 hover:scale-[1.02] active:scale-95 transition-all duration-300 rounded-xs text-center shadow-2xs">
                         Shop Tech & Accessories
                     </a>
                 </div>
 
                 <!-- Trust Indicators -->
-                <div class="pt-8 border-t border-stone-200/80 grid grid-cols-3 gap-4 text-center lg:text-left max-w-lg mx-auto lg:mx-0">
-                    <div>
-                        <p class="font-serif font-medium text-lg text-stone-900">100%</p>
+                <div class="animate-appear opacity-0 delay-4 pt-8 border-t border-stone-200/80 grid grid-cols-3 gap-4 text-center lg:text-left max-w-lg mx-auto lg:mx-0">
+                    <div class="group cursor-default">
+                        <p class="font-serif font-medium text-lg text-stone-900 group-hover:scale-105 transition-transform origin-left">100%</p>
                         <p class="text-[9px] uppercase tracking-widest text-stone-500 font-mono mt-0.5">Authentic Oils</p>
                     </div>
-                    <div>
-                        <p class="font-serif font-medium text-lg text-stone-900">24-48 Hours</p>
+                    <div class="group cursor-default">
+                        <p class="font-serif font-medium text-lg text-stone-900 group-hover:scale-105 transition-transform origin-left">24-48 Hours</p>
                         <p class="text-[9px] uppercase tracking-widest text-stone-500 font-mono mt-0.5">DTDC Dispatch</p>
                     </div>
-                    <div>
-                        <p class="font-serif font-medium text-lg text-stone-900">4.9 / 5.0</p>
+                    <div class="group cursor-default">
+                        <p class="font-serif font-medium text-lg text-stone-900 group-hover:scale-105 transition-transform origin-left">4.9 / 5.0</p>
                         <p class="text-[9px] uppercase tracking-widest text-stone-500 font-mono mt-0.5">Client Rating</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Right Visual Banner Card -->
-            <div class="lg:col-span-5 grid grid-cols-1 gap-6">
+            <!-- Right Visual Interactive Banner Cards -->
+            <div class="animate-appear opacity-0 delay-2 lg:col-span-5 grid grid-cols-1 gap-6">
                 
                 <!-- Fine Fragrances Department -->
-                <a href="#shop" @click="window.location.hash = 'classic'" class="group relative bg-stone-900 text-white p-8 rounded-sm overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-500 flex flex-col justify-between min-h-[220px]">
-                    <div class="absolute inset-0 bg-gradient-to-r from-stone-950 via-stone-900 to-transparent opacity-90 z-0"></div>
+                <a href="#shop" @click="window.location.hash = 'classic'" class="group relative bg-stone-900 text-white p-8 rounded-sm overflow-hidden shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all duration-500 flex flex-col justify-between min-h-[220px]">
+                    <div class="absolute inset-0 bg-gradient-to-r from-stone-950 via-stone-900 to-stone-800 opacity-90 group-hover:opacity-100 transition-opacity"></div>
                     
                     <div class="relative z-10 flex justify-between items-start">
-                        <span class="text-[9px] font-mono uppercase tracking-[0.3em] text-amber-400 font-bold bg-amber-950/60 px-2.5 py-1 border border-amber-800/50 rounded-xs">Department 01</span>
-                        <span class="text-white text-lg font-serif italic group-hover:translate-x-2 transition-transform">Explore →</span>
+                        <span class="text-[9px] font-mono uppercase tracking-[0.3em] text-amber-400 font-bold bg-amber-950/80 px-2.5 py-1 border border-amber-800/50 rounded-xs shadow-sm">Department 01</span>
+                        <span class="text-white text-lg font-serif italic group-hover:translate-x-2 transition-transform duration-300">Explore →</span>
                     </div>
 
                     <div class="relative z-10 mt-6">
                         <h3 class="font-serif text-2xl font-medium text-white mb-1 group-hover:text-amber-200 transition-colors">Artisanal Perfumery</h3>
-                        <p class="text-xs text-stone-400 font-light">Concentrated Extraits, Eaux de Parfum & Olfactory Objects</p>
+                        <p class="text-xs text-stone-400 font-light group-hover:text-stone-300 transition-colors">Concentrated Extraits, Eaux de Parfum & Olfactory Objects</p>
                     </div>
                 </a>
 
                 <!-- Tech & Accessories Department -->
-                <a href="#shop" @click="window.location.hash = 'accessories'" class="group relative bg-neutral-900 text-white p-8 rounded-sm overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-500 flex flex-col justify-between min-h-[220px]">
-                    <div class="absolute inset-0 bg-gradient-to-r from-neutral-950 via-neutral-900 to-transparent opacity-90 z-0"></div>
+                <a href="#shop" @click="window.location.hash = 'accessories'" class="group relative bg-neutral-900 text-white p-8 rounded-sm overflow-hidden shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all duration-500 flex flex-col justify-between min-h-[220px]">
+                    <div class="absolute inset-0 bg-gradient-to-r from-neutral-950 via-neutral-900 to-neutral-800 opacity-90 group-hover:opacity-100 transition-opacity"></div>
 
                     <div class="relative z-10 flex justify-between items-start">
-                        <span class="text-[9px] font-mono uppercase tracking-[0.3em] text-sky-400 font-bold bg-sky-950/60 px-2.5 py-1 border border-sky-800/50 rounded-xs">Department 02</span>
-                        <span class="text-white text-lg font-serif italic group-hover:translate-x-2 transition-transform">Explore →</span>
+                        <span class="text-[9px] font-mono uppercase tracking-[0.3em] text-sky-400 font-bold bg-sky-950/80 px-2.5 py-1 border border-sky-800/50 rounded-xs shadow-sm">Department 02</span>
+                        <span class="text-white text-lg font-serif italic group-hover:translate-x-2 transition-transform duration-300">Explore →</span>
                     </div>
 
                     <div class="relative z-10 mt-6">
                         <h3 class="font-serif text-2xl font-medium text-white mb-1 group-hover:text-sky-200 transition-colors">Tech & Everyday Hardware</h3>
-                        <p class="text-xs text-neutral-400 font-light">Durable Mobile Cases, Fast Chargers & Minimal Accessories</p>
+                        <p class="text-xs text-neutral-400 font-light group-hover:text-neutral-300 transition-colors">Durable Mobile Cases, Fast Chargers & Minimal Accessories</p>
                     </div>
                 </a>
 
@@ -169,10 +238,10 @@ const escapeAttr = (str) => {
                 </div>
                 
                 <div class="flex gap-2">
-                    <button @click="scrollLeft()" class="w-11 h-11 border border-stone-200 bg-white flex items-center justify-center text-stone-700 hover:text-black hover:border-black transition-colors rounded-xs shadow-2xs">
+                    <button @click="scrollLeft()" class="w-11 h-11 border border-stone-200 bg-white flex items-center justify-center text-stone-700 hover:text-black hover:border-black active:scale-90 transition-all rounded-xs shadow-2xs">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 19l-7-7 7-7"></path></svg>
                     </button>
-                    <button @click="scrollRight()" class="w-11 h-11 border border-stone-200 bg-white flex items-center justify-center text-stone-700 hover:text-black hover:border-black transition-colors rounded-xs shadow-2xs">
+                    <button @click="scrollRight()" class="w-11 h-11 border border-stone-200 bg-white flex items-center justify-center text-stone-700 hover:text-black hover:border-black active:scale-90 transition-all rounded-xs shadow-2xs">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5l7 7-7 7"></path></svg>
                     </button>
                 </div>
@@ -198,7 +267,7 @@ const escapeAttr = (str) => {
                     const safeImageUrl = escapeAttr(imageUrl);
 
                     return (
-                        <div class="snap-start w-[280px] sm:w-[310px] shrink-0 bg-white border border-stone-200/90 p-4 hover:border-stone-400 hover:shadow-lg transition-all duration-300 flex flex-col justify-between group rounded-xs"
+                        <div class="snap-start w-[280px] sm:w-[310px] shrink-0 bg-white border border-stone-200/90 p-4 hover:border-stone-400 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between group rounded-xs"
                              x-data={`{
                                 variants: ${variantsJson},
                                 selectedVariantId: '${defaultVariant.id || ""}',
@@ -216,8 +285,8 @@ const escapeAttr = (str) => {
                                 }
                              }`}>
                             
-                            <!-- Image Frame -->
-                            <div class="aspect-[3/4] w-full bg-[#f8f7f4] relative mb-4 overflow-hidden flex items-center justify-center rounded-2xs">
+                            <!-- Image Frame with Zoom Effect -->
+                            <div class="aspect-[3/4] w-full bg-[#f8f7f4] relative mb-4 overflow-hidden flex items-center justify-center rounded-2xs group/img">
                                 <a href={`/product/${product.id}`} class="absolute inset-0 z-10"></a>
                                 
                                 <span class={`absolute top-3 left-3 text-[8px] font-bold uppercase tracking-wider px-2.5 py-1 border z-20 rounded-2xs shadow-2xs ${isAccessory ? 'bg-sky-50 text-sky-800 border-sky-200' : 'bg-amber-50 text-amber-800 border-amber-200'}`}>
@@ -227,9 +296,9 @@ const escapeAttr = (str) => {
                                 <span x-show="currentStock <= 0" class="absolute top-3 right-3 bg-red-600 text-white px-2.5 py-1 text-[8px] font-bold uppercase tracking-wider z-20 rounded-2xs">Sold Out</span>
 
                                 {imageUrl ? (
-                                    <img src={imageUrl} alt={productName} class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                                    <img src={imageUrl} alt={productName} class="w-full h-full object-cover transition-transform duration-700 ease-out group-hover/img:scale-108" />
                                 ) : (
-                                    <span class="text-stone-300 font-serif italic text-2xl px-4 text-center">{productName.split(' ')[0]}</span>
+                                    <span class="text-stone-300 font-serif italic text-2xl px-4 text-center group-hover/img:scale-105 transition-transform duration-500">{productName.split(' ')[0]}</span>
                                 )}
                             </div>
 
@@ -247,8 +316,8 @@ const escapeAttr = (str) => {
                                                 <button 
                                                     type="button"
                                                     @click="updateVariant(v.id)"
-                                                    :class="selectedVariantId === v.id ? 'bg-stone-900 text-white border-stone-900' : 'bg-white text-stone-600 border-stone-200 hover:border-stone-900'"
-                                                    class="px-2.5 py-1 text-[8px] font-bold uppercase border rounded-2xs transition-all"
+                                                    :class="selectedVariantId === v.id ? 'bg-stone-900 text-white border-stone-900 scale-105' : 'bg-white text-stone-600 border-stone-200 hover:border-stone-900'"
+                                                    class="px-2.5 py-1 text-[8px] font-bold uppercase border rounded-2xs transition-all duration-200"
                                                     x-text="v.variant_label"
                                                 ></button>
                                             </template>
@@ -268,8 +337,8 @@ const escapeAttr = (str) => {
                                     <button 
                                         @click={`$store.cart.add({ id: '${product.id}', variant_id: selectedVariantId, name: '${safeName}', price: currentPrice, volume: selectedLabel, image_url: '${safeImageUrl}' })`}
                                         :disabled="currentStock <= 0"
-                                        class="px-4 py-2 uppercase text-[9px] font-bold tracking-wider rounded-2xs transition-colors border"
-                                        :class="currentStock <= 0 ? 'bg-stone-50 text-stone-300 border-stone-200 cursor-not-allowed' : 'bg-black text-white border-black hover:bg-stone-800'"
+                                        class="px-4 py-2 uppercase text-[9px] font-bold tracking-wider rounded-2xs transition-all duration-300 border active:scale-95"
+                                        :class="currentStock <= 0 ? 'bg-stone-50 text-stone-300 border-stone-200 cursor-not-allowed' : 'bg-black text-white border-black hover:bg-stone-800 hover:shadow-md'"
                                     >
                                         <span x-show="currentStock <= 0">Out</span>
                                         <span x-show="currentStock > 0">+ Add</span>
@@ -283,9 +352,40 @@ const escapeAttr = (str) => {
         </div>
     </section>
 
+    <!-- BRAND MARQUEE SEPARATOR STRIP -->
+    <div class="bg-stone-950 text-stone-400 py-4 border-y border-stone-800 overflow-hidden">
+        <div class="animate-marquee-slow whitespace-nowrap text-xs font-serif italic tracking-widest">
+            <div class="flex items-center gap-16 shrink-0">
+                <span>The House of Aju</span>
+                <span class="text-amber-500 font-sans not-italic">•</span>
+                <span>Tactile Luxury</span>
+                <span class="text-sky-500 font-sans not-italic">•</span>
+                <span>Uncompromised Utility</span>
+                <span class="text-emerald-500 font-sans not-italic">•</span>
+                <span>Small Batch Perfumery</span>
+                <span class="text-amber-500 font-sans not-italic">•</span>
+                <span>Precision Hardware</span>
+                <span class="text-sky-500 font-sans not-italic">•</span>
+            </div>
+            <div class="flex items-center gap-16 shrink-0">
+                <span>The House of Aju</span>
+                <span class="text-amber-500 font-sans not-italic">•</span>
+                <span>Tactile Luxury</span>
+                <span class="text-sky-500 font-sans not-italic">•</span>
+                <span>Uncompromised Utility</span>
+                <span class="text-emerald-500 font-sans not-italic">•</span>
+                <span>Small Batch Perfumery</span>
+                <span class="text-amber-500 font-sans not-italic">•</span>
+                <span>Precision Hardware</span>
+                <span class="text-sky-500 font-sans not-italic">•</span>
+            </div>
+        </div>
+    </div>
+
     <!-- BRAND STORY / CRAFTSMANSHIP SECTION -->
-    <section class="py-20 sm:py-28 bg-[#0a0a0a] text-white px-6 lg:px-12 border-b border-neutral-900">
-        <div class="max-w-[1200px] mx-auto grid grid-cols-1 md:grid-cols-2 gap-12 lg:gap-20 items-center">
+    <section class="py-20 sm:py-28 bg-[#0a0a0a] text-white px-6 lg:px-12 border-b border-neutral-900 relative overflow-hidden">
+        
+        <div class="max-w-[1200px] mx-auto grid grid-cols-1 md:grid-cols-2 gap-12 lg:gap-20 items-center relative z-10">
             
             <div class="space-y-6">
                 <span class="text-[10px] font-mono uppercase tracking-[0.3em] text-neutral-400 font-bold block">The House Philosophy</span>
@@ -297,24 +397,24 @@ const escapeAttr = (str) => {
                     Aju House was founded on a singular conviction: daily essential objects should provide both sensory pleasure and reliable performance. Every bottle in our fragrance collection is hand-compounded in small batches, while our hardware accessories are engineered for seamless fit and drop resistance.
                 </p>
                 <div class="pt-4 flex items-center gap-6 text-xs font-mono uppercase tracking-widest text-neutral-300">
-                    <span class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Small Batch</span>
+                    <span class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span> Small Batch</span>
                     <span class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Pan-India Courier</span>
                 </div>
             </div>
 
-            <div class="bg-neutral-900 border border-neutral-800 p-8 sm:p-12 rounded-sm space-y-6">
+            <div class="bg-neutral-900/80 border border-neutral-800 p-8 sm:p-12 rounded-sm space-y-6 backdrop-blur-sm hover:border-neutral-700 transition-colors duration-500 shadow-2xl">
                 <h3 class="font-serif text-2xl text-white font-medium">Why Choose Aju House?</h3>
                 <ul class="space-y-4 text-xs text-neutral-300 font-light leading-relaxed">
-                    <li class="flex items-start gap-3">
-                        <span class="text-emerald-400 font-bold font-mono">01.</span>
+                    <li class="flex items-start gap-3 group">
+                        <span class="text-emerald-400 font-bold font-mono group-hover:translate-x-1 transition-transform">01.</span>
                         <span><strong>Long-lasting Formulations:</strong> High perfume oil concentrations ensuring 8–12 hour scent projection.</span>
                     </li>
-                    <li class="flex items-start gap-3">
-                        <span class="text-emerald-400 font-bold font-mono">02.</span>
+                    <li class="flex items-start gap-3 group">
+                        <span class="text-emerald-400 font-bold font-mono group-hover:translate-x-1 transition-transform">02.</span>
                         <span><strong>Impact-Tested Hardware:</strong> Mobile cases and accessories selected for physical durability and tactile feel.</span>
                     </li>
-                    <li class="flex items-start gap-3">
-                        <span class="text-emerald-400 font-bold font-mono">03.</span>
+                    <li class="flex items-start gap-3 group">
+                        <span class="text-emerald-400 font-bold font-mono group-hover:translate-x-1 transition-transform">03.</span>
                         <span><strong>Complimentary Pan-India Delivery:</strong> Free standard shipping on prepaid orders via DTDC courier.</span>
                     </li>
                 </ul>
@@ -323,7 +423,7 @@ const escapeAttr = (str) => {
         </div>
     </section>
 
-    <!-- FULL MASTER CATALOG SECTION -->
+    <!-- FULL MASTER CATALOG SECTION WITH SMOOTH CATEGORY TRANSITIONS -->
     <section id="shop" class="py-20 sm:py-28 px-6 lg:px-12 max-w-[1400px] mx-auto" 
              x-data={sectionXData} 
              x-init="
@@ -358,15 +458,15 @@ const escapeAttr = (str) => {
             <!-- Category Tabs -->
             <div class="flex flex-wrap gap-2 text-xs font-medium">
                 <button @click="filter = 'All'; window.location.hash = 'shop'" 
-                        :class="filter === 'All' ? 'bg-black text-white shadow-sm' : 'bg-stone-100 text-stone-700 hover:bg-stone-200'" 
-                        class="px-5 py-2.5 rounded-full uppercase text-[10px] tracking-wider transition-colors font-bold">
+                        :class="filter === 'All' ? 'bg-black text-white shadow-md scale-105' : 'bg-stone-100 text-stone-700 hover:bg-stone-200'" 
+                        class="px-5 py-2.5 rounded-full uppercase text-[10px] tracking-wider transition-all duration-300 font-bold active:scale-95">
                     All Products
                 </button>
                 
                 {rawCategories.map(cat => (
                     <button @click={`filter = '${cat}'; window.location.hash = '${cat.toLowerCase()}'`} 
-                            :class={`filter === '${cat}' ? 'bg-black text-white shadow-sm' : 'bg-stone-100 text-stone-700 hover:bg-stone-200'`} 
-                            class="px-5 py-2.5 rounded-full uppercase text-[10px] tracking-wider transition-colors font-bold">
+                            :class={`filter === '${cat}' ? 'bg-black text-white shadow-md scale-105' : 'bg-stone-100 text-stone-700 hover:bg-stone-200'`} 
+                            class="px-5 py-2.5 rounded-full uppercase text-[10px] tracking-wider transition-all duration-300 font-bold active:scale-95">
                         {cat === 'Accessories' ? 'Tech & Accessories' : (cat + ' Perfumes')}
                     </button>
                 ))}
@@ -396,7 +496,7 @@ const escapeAttr = (str) => {
                 
                 return (
                     <div 
-                        class="group flex flex-col bg-white border border-stone-200/80 hover:border-stone-400 p-4 transition-all duration-300 rounded-xs shadow-2xs hover:shadow-xl"
+                        class="group flex flex-col bg-white border border-stone-200/80 hover:border-stone-400 p-4 transition-all duration-500 rounded-xs shadow-2xs hover:shadow-xl hover:-translate-y-1.5"
                         x-show={xShow}
                         x-data={`{
                             variants: ${variantsJson},
@@ -414,12 +514,12 @@ const escapeAttr = (str) => {
                                 }
                             }
                         }`}
-                        x-transition:enter="transition-opacity duration-300"
-                        x-transition:enter-start="opacity-0"
-                        x-transition:enter-end="opacity-100"
+                        x-transition:enter="transition ease-out duration-500 transform"
+                        x-transition:enter-start="opacity-0 translate-y-6 scale-95"
+                        x-transition:enter-end="opacity-100 translate-y-0 scale-100"
                     >
-                        <!-- Image Container -->
-                        <div class="aspect-[3/4] w-full bg-[#f8f7f4] relative mb-4 overflow-hidden flex items-center justify-center rounded-2xs">
+                        <!-- Image Container with Zoom -->
+                        <div class="aspect-[3/4] w-full bg-[#f8f7f4] relative mb-4 overflow-hidden flex items-center justify-center rounded-2xs group/img">
                             <a href={`/product/${product.id}`} class="absolute inset-0 z-10"></a>
 
                             <span class={`absolute top-3 left-3 text-[8px] font-bold uppercase tracking-wider px-2.5 py-1 border z-20 rounded-2xs shadow-2xs ${isAccessory ? 'bg-sky-50 text-sky-800 border-sky-200' : 'bg-amber-50 text-amber-800 border-amber-200'}`}>
@@ -432,12 +532,12 @@ const escapeAttr = (str) => {
                                 <img 
                                     src={imageUrl} 
                                     alt={productName} 
-                                    class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                                    class="w-full h-full object-cover transition-transform duration-700 ease-out group-hover/img:scale-108"
                                     onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
                                 />
                             ) : null}
                             
-                            <span class={`font-serif italic text-2xl text-stone-300 px-4 text-center ${imageUrl ? 'hidden' : 'block'}`}>
+                            <span class={`font-serif italic text-2xl text-stone-300 px-4 text-center group-hover/img:scale-105 transition-transform duration-500 ${imageUrl ? 'hidden' : 'block'}`}>
                                 {productName.split(' ')[0]}
                             </span>
                         </div>
@@ -456,8 +556,8 @@ const escapeAttr = (str) => {
                                             <button 
                                                 type="button"
                                                 @click="updateVariant(v.id)"
-                                                :class="selectedVariantId === v.id ? 'bg-stone-900 text-white border-stone-900' : 'bg-white text-stone-600 border-stone-200 hover:border-stone-900'"
-                                                class="px-2.5 py-1 text-[8px] font-bold uppercase border rounded-2xs transition-all"
+                                                :class="selectedVariantId === v.id ? 'bg-stone-900 text-white border-stone-900 scale-105' : 'bg-white text-stone-600 border-stone-200 hover:border-stone-900'"
+                                                class="px-2.5 py-1 text-[8px] font-bold uppercase border rounded-2xs transition-all duration-200"
                                                 x-text="v.variant_label"
                                             ></button>
                                         </template>
@@ -478,8 +578,8 @@ const escapeAttr = (str) => {
                                 <button 
                                     @click={`$store.cart.add({ id: '${product.id}', variant_id: selectedVariantId, name: '${safeName}', price: currentPrice, volume: selectedLabel, image_url: '${safeImageUrl}' })`}
                                     :disabled="currentStock <= 0"
-                                    class="px-4 py-2 uppercase text-[9px] font-bold tracking-wider rounded-2xs transition-colors border"
-                                    :class="currentStock <= 0 ? 'bg-stone-50 text-stone-300 border-stone-200 cursor-not-allowed' : 'bg-black text-white border-black hover:bg-stone-800'"
+                                    class="px-4 py-2 uppercase text-[9px] font-bold tracking-wider rounded-2xs transition-all duration-300 border active:scale-95"
+                                    :class="currentStock <= 0 ? 'bg-stone-50 text-stone-300 border-stone-200 cursor-not-allowed' : 'bg-black text-white border-black hover:bg-stone-800 hover:shadow-md'"
                                 >
                                     <span x-show="currentStock <= 0">Out</span>
                                     <span x-show="currentStock > 0">+ Add</span>
@@ -502,8 +602,8 @@ const escapeAttr = (str) => {
     <section class="bg-stone-50 border-t border-stone-200/80 py-16 px-6 lg:px-12">
         <div class="max-w-[1400px] mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
             
-            <div class="flex items-start gap-4">
-                <div class="w-10 h-10 rounded-full bg-white border border-stone-200 flex items-center justify-center text-stone-800 shrink-0">
+            <div class="flex items-start gap-4 group">
+                <div class="w-10 h-10 rounded-full bg-white border border-stone-200 flex items-center justify-center text-stone-800 shrink-0 group-hover:scale-110 group-hover:border-black transition-all">
                     🚚
                 </div>
                 <div>
@@ -512,8 +612,8 @@ const escapeAttr = (str) => {
                 </div>
             </div>
 
-            <div class="flex items-start gap-4">
-                <div class="w-10 h-10 rounded-full bg-white border border-stone-200 flex items-center justify-center text-stone-800 shrink-0">
+            <div class="flex items-start gap-4 group">
+                <div class="w-10 h-10 rounded-full bg-white border border-stone-200 flex items-center justify-center text-stone-800 shrink-0 group-hover:scale-110 group-hover:border-black transition-all">
                     📦
                 </div>
                 <div>
@@ -522,8 +622,8 @@ const escapeAttr = (str) => {
                 </div>
             </div>
 
-            <div class="flex items-start gap-4">
-                <div class="w-10 h-10 rounded-full bg-white border border-stone-200 flex items-center justify-center text-stone-800 shrink-0">
+            <div class="flex items-start gap-4 group">
+                <div class="w-10 h-10 rounded-full bg-white border border-stone-200 flex items-center justify-center text-stone-800 shrink-0 group-hover:scale-110 group-hover:border-black transition-all">
                     🔒
                 </div>
                 <div>
@@ -532,8 +632,8 @@ const escapeAttr = (str) => {
                 </div>
             </div>
 
-            <div class="flex items-start gap-4">
-                <div class="w-10 h-10 rounded-full bg-white border border-stone-200 flex items-center justify-center text-stone-800 shrink-0">
+            <div class="flex items-start gap-4 group">
+                <div class="w-10 h-10 rounded-full bg-white border border-stone-200 flex items-center justify-center text-stone-800 shrink-0 group-hover:scale-110 group-hover:border-black transition-all">
                     💬
                 </div>
                 <div>
