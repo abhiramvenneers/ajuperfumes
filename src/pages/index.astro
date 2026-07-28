@@ -17,10 +17,6 @@ const rawCategories = Array.from(new Set((products || []).map(p => {
 }))).sort();
 
 const categoryList = rawCategories.map(c => `'${c}'`).join(', ');
-const sectionXData = `{ filter: 'All', searchQuery: '', categories: [${categoryList}] }`;
-
-// Select top 6 products as featured gallery sliding entries
-const sliderProducts = (products || []).slice(0, 6);
 
 const escapeAttr = (str) => {
     if (!str) return '';
@@ -30,6 +26,39 @@ const escapeAttr = (str) => {
         .replace(/"/g, "&quot;")
         .replace(/\r?\n|\r/g, " ");
 };
+
+const itemsForSearch = (products || []).map(p => {
+    const cat = (p.category || 'Classic').trim();
+    const categoryNormalized = cat.charAt(0).toUpperCase() + cat.slice(1).toLowerCase();
+    return {
+        cat: categoryNormalized,
+        name: escapeAttr(p.name || ''),
+        notes: escapeAttr(p.notes || '')
+    };
+});
+
+const itemsJson = JSON.stringify(itemsForSearch);
+
+const sectionXData = `{
+    filter: 'All', 
+    searchQuery: '', 
+    categories: [${categoryList}],
+    items: ${itemsJson},
+    isMatch(cat, name, notes) {
+        const q = (this.searchQuery || '').toLowerCase().trim();
+        const f = this.filter;
+        const catMatch = f === 'All' || f === cat || (f === 'Fragrances' && (cat === 'Classic' || cat === 'Premium'));
+        if (!catMatch) return false;
+        if (!q) return true;
+        return name.toLowerCase().includes(q) || cat.toLowerCase().includes(q) || notes.toLowerCase().includes(q);
+    },
+    get hasMatches() {
+        return (this.items || []).some(i => this.isMatch(i.cat, i.name, i.notes));
+    }
+}`;
+
+// Select top 6 products as featured gallery sliding entries
+const sliderProducts = (products || []).slice(0, 6);
 ---
 
 <Layout title="Aju | Signature Fragrances & Modern Tech Accessories">
@@ -476,12 +505,10 @@ const escapeAttr = (str) => {
                 const safeImageUrl = escapeAttr(imageUrl);
                 const safeNotes = escapeAttr(product.notes || '');
 
-                let xShow = `((filter === 'All' || filter === '${categoryNormalized}' || (filter === 'Fragrances' && ('${categoryNormalized}' === 'Classic' || '${categoryNormalized}' === 'Premium'))) && ('${safeName}'.toLowerCase().includes(searchQuery.toLowerCase().trim()) || '${categoryNormalized}'.toLowerCase().includes(searchQuery.toLowerCase().trim()) || '${safeNotes}'.toLowerCase().includes(searchQuery.toLowerCase().trim())))`;
-
                 return (
                     <div 
                         class="group flex flex-col bg-white border border-stone-200/80 hover:border-stone-400 p-4 transition-all duration-500 rounded-xs shadow-2xs hover:shadow-xl hover:-translate-y-1.5"
-                        x-show={xShow}
+                        x-show={`isMatch('${categoryNormalized}', '${safeName}', '${safeNotes}')`}
                         x-data={`{
                             variants: ${variantsJson},
                             selectedVariantId: '${defaultVariant.id || ""}',
@@ -574,12 +601,57 @@ const escapeAttr = (str) => {
                 );
             })}
             
-            <!-- Empty State / No Search Results -->
-            <div x-show="!categories.some(cat => filter === 'All' || (filter === 'Fragrances' && (cat === 'Classic' || cat === 'Premium')) || cat === filter)" style="display: none;" class="col-span-full py-16 text-center text-stone-400 font-serif italic text-base">
-                <p x-show="!searchQuery">No items currently found in this category.</p>
-                <div x-show="searchQuery" style="display: none;" class="space-y-3">
-                    <p>No products matching "<span class="font-sans not-italic text-stone-900 font-semibold" x-text="searchQuery"></span>"</p>
-                    <button @click="searchQuery = ''; filter = 'All'; window.location.hash = 'shop'" class="inline-block text-xs font-mono uppercase tracking-widest text-black underline font-bold hover:text-stone-600 transition-colors">Clear Search & View All</button>
+            <!-- Empty State / No Search or Filter Results -->
+            <div x-show="!hasMatches" style="display: none;" class="col-span-full py-12 sm:py-20 px-4 text-center">
+                <div class="max-w-md mx-auto bg-stone-50/80 border border-stone-200/80 rounded-sm p-8 sm:p-12 shadow-2xs">
+                    
+                    <div class="w-14 h-14 bg-white border border-stone-200 rounded-full flex items-center justify-center mx-auto mb-5 text-stone-400 shadow-2xs">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
+                    </div>
+
+                    <!-- Heading when searching -->
+                    <template x-if="searchQuery">
+                        <div>
+                            <h3 class="font-serif text-xl sm:text-2xl font-medium text-stone-900 mb-2">No matching items</h3>
+                            <p class="text-xs text-stone-500 font-light leading-relaxed mb-6">
+                                We couldn't find any products matching "<span class="font-semibold text-stone-900" x-text="searchQuery"></span>" 
+                                <span x-show="filter !== 'All'" x-text="'in the ' + filter + ' collection'"></span>.
+                            </p>
+                            <div class="flex flex-col sm:flex-row gap-3 justify-center">
+                                <button 
+                                    @click="searchQuery = ''" 
+                                    class="bg-black text-white text-[10px] font-bold uppercase tracking-[0.2em] px-6 py-3 rounded-2xs hover:bg-stone-800 transition-colors shadow-sm"
+                                >
+                                    Clear Search
+                                </button>
+                                <button 
+                                    @click="searchQuery = ''; filter = 'All'; window.location.hash = 'shop'" 
+                                    class="border border-stone-300 text-stone-800 text-[10px] font-bold uppercase tracking-[0.2em] px-6 py-3 rounded-2xs hover:border-black transition-colors"
+                                >
+                                    Show All Products
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Heading when no items in category -->
+                    <template x-if="!searchQuery">
+                        <div>
+                            <h3 class="font-serif text-xl sm:text-2xl font-medium text-stone-900 mb-2">Collection Empty</h3>
+                            <p class="text-xs text-stone-500 font-light leading-relaxed mb-6">
+                                There are currently no items available in this category.
+                            </p>
+                            <button 
+                                @click="filter = 'All'; window.location.hash = 'shop'" 
+                                class="bg-black text-white text-[10px] font-bold uppercase tracking-[0.2em] px-6 py-3 rounded-2xs hover:bg-stone-800 transition-colors shadow-sm"
+                            >
+                                View All Products
+                            </button>
+                        </div>
+                    </template>
+
                 </div>
             </div>
 
