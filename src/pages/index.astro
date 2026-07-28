@@ -124,90 +124,51 @@ const escapeAttr = (str) => {
     </div>
 
     <!-- Editorial Professional Hero Section with Entrance Animations -->
-    <section class="bg-[#fcfbf8] text-gray-900 border-b border-stone-200/80 pt-16 pb-20 md:pt-24 md:pb-28 px-6 lg:px-12 relative overflow-hidden">
+    <section class="bg-[#fcfbf8] text-gray-900 border-b border-stone-200/80 pt-20 pb-24 md:pt-28 md:pb-32 px-6 lg:px-12 relative overflow-hidden">
         
         <!-- Subtle Ambient Glow -->
         <div class="absolute -top-32 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-stone-200/40 blur-[120px] rounded-full pointer-events-none"></div>
 
-        <div class="max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center relative z-10">
+        <div class="max-w-4xl mx-auto text-center space-y-8 relative z-10">
             
-            <!-- Left Hero Column with Staggered Fade-In -->
-            <div class="lg:col-span-7 space-y-8 text-center lg:text-left">
-                
-                <div class="animate-appear opacity-0 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-stone-300 shadow-2xs">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span class="text-[10px] font-mono uppercase tracking-[0.25em] text-stone-700 font-semibold">The House of Aju • 2026 Collection</span>
-                </div>
-
-                <h1 class="animate-appear opacity-0 delay-1 text-4xl sm:text-6xl lg:text-7xl font-serif font-medium tracking-tight text-stone-900 leading-[1.1]">
-                    Fine Fragrances. <br class="hidden sm:inline" />
-                    <span class="italic font-light text-stone-600 transition-all duration-700 hover:text-black">Modern Hardware.</span>
-                </h1>
-
-                <p class="animate-appear opacity-0 delay-2 text-stone-600 text-sm sm:text-base md:text-lg font-light max-w-xl mx-auto lg:mx-0 leading-relaxed">
-                    A curated studio merging hand-compounded olfactory extracts with precision, high-durability mobile accessories. Engineered for daily elegance.
-                </p>
-
-                <!-- Dual Action Hero Buttons -->
-                <div class="animate-appear opacity-0 delay-3 flex flex-col sm:flex-row gap-4 justify-center lg:justify-start pt-2">
-                    <a href="#shop" @click="window.location.hash = 'classic'" class="bg-black text-white px-9 py-4 uppercase text-[11px] font-bold tracking-[0.2em] hover:bg-stone-800 hover:scale-[1.02] active:scale-95 transition-all duration-300 rounded-xs shadow-xl text-center">
-                        Shop Fragrances
-                    </a>
-                    <a href="#shop" @click="window.location.hash = 'accessories'" class="bg-white border border-stone-300 text-stone-900 px-9 py-4 uppercase text-[11px] font-bold tracking-[0.2em] hover:border-black hover:bg-stone-50 hover:scale-[1.02] active:scale-95 transition-all duration-300 rounded-xs text-center shadow-2xs">
-                        Shop Tech & Accessories
-                    </a>
-                </div>
-
-                <!-- Trust Indicators -->
-                <div class="animate-appear opacity-0 delay-4 pt-8 border-t border-stone-200/80 grid grid-cols-3 gap-4 text-center lg:text-left max-w-lg mx-auto lg:mx-0">
-                    <div class="group cursor-default">
-                        <p class="font-serif font-medium text-lg text-stone-900 group-hover:scale-105 transition-transform origin-left">100%</p>
-                        <p class="text-[9px] uppercase tracking-widest text-stone-500 font-mono mt-0.5">Authentic Oils</p>
-                    </div>
-                    <div class="group cursor-default">
-                        <p class="font-serif font-medium text-lg text-stone-900 group-hover:scale-105 transition-transform origin-left">24-48 Hours</p>
-                        <p class="text-[9px] uppercase tracking-widest text-stone-500 font-mono mt-0.5">DTDC Dispatch</p>
-                    </div>
-                    <div class="group cursor-default">
-                        <p class="font-serif font-medium text-lg text-stone-900 group-hover:scale-105 transition-transform origin-left">4.9 / 5.0</p>
-                        <p class="text-[9px] uppercase tracking-widest text-stone-500 font-mono mt-0.5">Client Rating</p>
-                    </div>
-                </div>
+            <div class="animate-appear opacity-0 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-stone-300 shadow-2xs">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span class="text-[10px] font-mono uppercase tracking-[0.25em] text-stone-700 font-semibold">The House of Aju • 2026 Collection</span>
             </div>
 
-            <!-- Right Visual Interactive Banner Cards -->
-            <div class="animate-appear opacity-0 delay-2 lg:col-span-5 grid grid-cols-1 gap-6">
-                
-                <!-- Fine Fragrances Department -->
-                <a href="#shop" @click="window.location.hash = 'classic'" class="group relative bg-stone-900 text-white p-8 rounded-sm overflow-hidden shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all duration-500 flex flex-col justify-between min-h-[220px]">
-                    <div class="absolute inset-0 bg-gradient-to-r from-stone-950 via-stone-900 to-stone-800 opacity-90 group-hover:opacity-100 transition-opacity"></div>
-                    
-                    <div class="relative z-10 flex justify-between items-start">
-                        <span class="text-[9px] font-mono uppercase tracking-[0.3em] text-amber-400 font-bold bg-amber-950/80 px-2.5 py-1 border border-amber-800/50 rounded-xs shadow-sm">Department 01</span>
-                        <span class="text-white text-lg font-serif italic group-hover:translate-x-2 transition-transform duration-300">Explore →</span>
-                    </div>
+            <h1 class="animate-appear opacity-0 delay-1 text-4xl sm:text-6xl lg:text-7xl font-serif font-medium tracking-tight text-stone-900 leading-[1.1]">
+                Fine Fragrances. <br class="hidden sm:inline" />
+                <span class="italic font-light text-stone-600 transition-all duration-700 hover:text-black">Modern Hardware.</span>
+            </h1>
 
-                    <div class="relative z-10 mt-6">
-                        <h3 class="font-serif text-2xl font-medium text-white mb-1 group-hover:text-amber-200 transition-colors">Artisanal Perfumery</h3>
-                        <p class="text-xs text-stone-400 font-light group-hover:text-stone-300 transition-colors">Concentrated Extraits, Eaux de Parfum & Olfactory Objects</p>
-                    </div>
+            <p class="animate-appear opacity-0 delay-2 text-stone-600 text-sm sm:text-base md:text-lg font-light max-w-xl mx-auto leading-relaxed">
+                A curated studio merging hand-compounded olfactory extracts with precision, high-durability mobile accessories. Engineered for daily elegance.
+            </p>
+
+            <!-- Dual Action Hero Buttons -->
+            <div class="animate-appear opacity-0 delay-3 flex flex-col sm:flex-row gap-4 justify-center pt-2">
+                <a href="#shop" @click="window.location.hash = 'classic'" class="bg-black text-white px-9 py-4 uppercase text-[11px] font-bold tracking-[0.2em] hover:bg-stone-800 hover:scale-[1.02] active:scale-95 transition-all duration-300 rounded-xs shadow-xl text-center">
+                    Shop Fragrances
                 </a>
-
-                <!-- Tech & Accessories Department -->
-                <a href="#shop" @click="window.location.hash = 'accessories'" class="group relative bg-neutral-900 text-white p-8 rounded-sm overflow-hidden shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all duration-500 flex flex-col justify-between min-h-[220px]">
-                    <div class="absolute inset-0 bg-gradient-to-r from-neutral-950 via-neutral-900 to-neutral-800 opacity-90 group-hover:opacity-100 transition-opacity"></div>
-
-                    <div class="relative z-10 flex justify-between items-start">
-                        <span class="text-[9px] font-mono uppercase tracking-[0.3em] text-sky-400 font-bold bg-sky-950/80 px-2.5 py-1 border border-sky-800/50 rounded-xs shadow-sm">Department 02</span>
-                        <span class="text-white text-lg font-serif italic group-hover:translate-x-2 transition-transform duration-300">Explore →</span>
-                    </div>
-
-                    <div class="relative z-10 mt-6">
-                        <h3 class="font-serif text-2xl font-medium text-white mb-1 group-hover:text-sky-200 transition-colors">Tech & Everyday Hardware</h3>
-                        <p class="text-xs text-neutral-400 font-light group-hover:text-neutral-300 transition-colors">Durable Mobile Cases, Fast Chargers & Minimal Accessories</p>
-                    </div>
+                <a href="#shop" @click="window.location.hash = 'accessories'" class="bg-white border border-stone-300 text-stone-900 px-9 py-4 uppercase text-[11px] font-bold tracking-[0.2em] hover:border-black hover:bg-stone-50 hover:scale-[1.02] active:scale-95 transition-all duration-300 rounded-xs text-center shadow-2xs">
+                    Shop Tech & Accessories
                 </a>
+            </div>
 
+            <!-- Trust Indicators -->
+            <div class="animate-appear opacity-0 delay-4 pt-10 border-t border-stone-200/80 grid grid-cols-3 gap-4 text-center max-w-md mx-auto">
+                <div class="group cursor-default">
+                    <p class="font-serif font-medium text-lg text-stone-900 group-hover:scale-105 transition-transform">100%</p>
+                    <p class="text-[9px] uppercase tracking-widest text-stone-500 font-mono mt-0.5">Authentic Oils</p>
+                </div>
+                <div class="group cursor-default">
+                    <p class="font-serif font-medium text-lg text-stone-900 group-hover:scale-105 transition-transform">24-48 Hours</p>
+                    <p class="text-[9px] uppercase tracking-widest text-stone-500 font-mono mt-0.5">DTDC Dispatch</p>
+                </div>
+                <div class="group cursor-default">
+                    <p class="font-serif font-medium text-lg text-stone-900 group-hover:scale-105 transition-transform">4.9 / 5.0</p>
+                    <p class="text-[9px] uppercase tracking-widest text-stone-500 font-mono mt-0.5">Client Rating</p>
+                </div>
             </div>
 
         </div>
