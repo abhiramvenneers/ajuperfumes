@@ -4,7 +4,7 @@ import Layout from '../layouts/Layout.astro';
 
 <Layout title="Account | Aju Perfumes">
     
-    <!-- Register Alpine data component in a standalone script to prevent Astro template compiler crashes -->
+    <!-- Ultra-safe standard Alpine component registration -->
     <script is:inline>
         document.addEventListener('alpine:init', () => {
             Alpine.data('authComponent', () => ({
@@ -65,7 +65,7 @@ import Layout from '../layouts/Layout.astro';
                                 throw error;
                             }
                             
-                            // Success - Sync global state and redirect to Homepage
+                            // Success - Sync global state and redirect
                             if (window.Alpine && window.Alpine.store('auth')) {
                                 window.Alpine.store('auth').user = data.user;
                                 window.Alpine.store('auth').email = data.user.email;
@@ -153,16 +153,18 @@ import Layout from '../layouts/Layout.astro';
 
     <div class="min-h-[90vh] flex items-center justify-center px-4 sm:px-6 lg:px-8 bg-[#fafafa] pt-20 pb-12">
         
-        <!-- Connected cleanly using x-data="authComponent" -->
-        <div x-data="authComponent" class="w-full max-w-md bg-white p-8 sm:p-12 border border-gray-100 shadow-2xl shadow-gray-200/50">
+        <div x-data="authComponent" class="w-full max-w-md bg-white p-8 sm:p-12 border border-gray-100 shadow-2xl shadow-gray-200/50 rounded-sm">
             
-            <!-- Header -->
+            <!-- Header (Safe Structure) -->
             <div class="text-center mb-10">
-                <h1 class="text-3xl font-serif font-medium text-gray-900 tracking-tight" x-text="isLogin ? 'Welcome Back' : 'Create Account'"></h1>
-                <p class="text-xs text-gray-500 uppercase tracking-widest mt-3 font-bold" x-text="isLogin ? 'Access your signature scents' : 'Join the House of Aju'"></p>
+                <h1 class="text-3xl font-serif font-medium text-gray-900 tracking-tight" x-show="isLogin">Welcome Back</h1>
+                <h1 class="text-3xl font-serif font-medium text-gray-900 tracking-tight" x-show="!isLogin" style="display: none;">Create Account</h1>
+                
+                <p class="text-xs text-gray-500 uppercase tracking-widest mt-3 font-bold" x-show="isLogin">Access your signature scents</p>
+                <p class="text-xs text-gray-500 uppercase tracking-widest mt-3 font-bold" x-show="!isLogin" style="display: none;">Join the House of Aju</p>
             </div>
 
-            <!-- Dynamic Message Box (Errors or Success) -->
+            <!-- Dynamic Message Box -->
             <div x-show="message" 
                  x-transition
                  :class="isError ? 'bg-red-50 text-red-600 border-red-100' : 'bg-green-50 text-green-600 border-green-100'"
@@ -208,13 +210,14 @@ import Layout from '../layouts/Layout.astro';
                     >
                 </div>
 
-                <!-- Action Button -->
+                <!-- Action Button (Safe Structure) -->
                 <button 
                     type="submit" 
                     :disabled="isLoading"
                     class="w-full bg-black text-white py-4 uppercase text-[10px] font-bold tracking-[0.2em] hover:bg-gray-800 transition-colors disabled:opacity-50 flex items-center justify-center gap-3 shadow-xl rounded-sm"
                 >
-                    <span x-show="!isLoading" x-text="isLogin ? 'Sign In' : 'Create Account'"></span>
+                    <span x-show="!isLoading && isLogin">Sign In</span>
+                    <span x-show="!isLoading && !isLogin" style="display: none;">Create Account</span>
                     <span x-show="isLoading" style="display: none;" class="flex items-center gap-2">
                         <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                         Processing...
@@ -239,14 +242,15 @@ import Layout from '../layouts/Layout.astro';
                 Google
             </button>
 
-            <!-- Toggle View -->
+            <!-- Toggle View (Safe Structure) -->
             <div class="mt-8 text-center">
                 <button 
                     type="button"
                     @click="isLogin = !isLogin; message = ''; isError = false;" 
                     class="text-xs text-gray-500 font-medium hover:text-black transition-colors"
                 >
-                    <span x-text="isLogin ? 'Don\'t have an account? Create one.' : 'Already have an account? Sign In.'"></span>
+                    <span x-show="isLogin">Need an account? Create one.</span>
+                    <span x-show="!isLogin" style="display: none;">Already have an account? Sign In.</span>
                 </button>
             </div>
 
