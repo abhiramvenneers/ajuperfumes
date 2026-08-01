@@ -72,12 +72,14 @@ const sliderProducts = (products || []).slice(0, 6);
         .animate-marquee-fast {
             display: flex;
             width: 200%;
-            animation: marquee 20s linear infinite;
+            animation: marquee 18s linear infinite;
+            will-change: transform;
         }
         .animate-marquee-slow {
             display: flex;
             width: 200%;
-            animation: marquee 35s linear infinite;
+            animation: marquee 32s linear infinite;
+            will-change: transform;
         }
         .animate-marquee-fast:hover, .animate-marquee-slow:hover {
             animation-play-state: paused;
@@ -86,7 +88,7 @@ const sliderProducts = (products || []).slice(0, 6);
         @keyframes fadeInUp {
             from {
                 opacity: 0;
-                transform: translateY(24px);
+                transform: translateY(18px);
             }
             to {
                 opacity: 1;
@@ -94,19 +96,15 @@ const sliderProducts = (products || []).slice(0, 6);
             }
         }
         .animate-appear {
-            animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
         .delay-1 { animation-delay: 0.1s; }
-        .delay-2 { animation-delay: 0.25s; }
-        .delay-3 { animation-delay: 0.4s; }
-        .delay-4 { animation-delay: 0.55s; }
+        .delay-2 { animation-delay: 0.2s; }
+        .delay-3 { animation-delay: 0.3s; }
+        .delay-4 { animation-delay: 0.4s; }
 
-        @keyframes floatSlow {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-6px); }
-        }
-        .animate-float {
-            animation: floatSlow 5s ease-in-out infinite;
+        .touch-callout-none {
+            touch-action: manipulation;
         }
     </style>
 
@@ -130,10 +128,10 @@ const sliderProducts = (products || []).slice(0, 6);
         })();
     </script>
 
-    <!-- TOP INFINITE MOVING MARQUEE BANNER -->
-    <div class="bg-black text-white text-[10px] font-mono tracking-[0.25em] uppercase py-3 overflow-hidden border-b border-neutral-800">
+    <!-- TOP INFINITE MOVING MARQUEE BANNER (Optimized for Mobile) -->
+    <div class="bg-black text-white text-[9px] sm:text-[10px] font-mono tracking-[0.2em] sm:tracking-[0.25em] uppercase py-2.5 overflow-hidden border-b border-neutral-800 select-none">
         <div class="animate-marquee-fast whitespace-nowrap">
-            <div class="flex items-center gap-12 shrink-0">
+            <div class="flex items-center gap-8 sm:gap-12 shrink-0">
                 <span>✨ COMPLIMENTARY PAN-INDIA SHIPPING ON ALL ORDERS</span>
                 <span class="text-neutral-500">•</span>
                 <span>HAND-BOTTLED SCENTS & MINIMAL TECH HARDWARE</span>
@@ -143,7 +141,7 @@ const sliderProducts = (products || []).slice(0, 6);
                 <span>AUTHENTIC OILS & HIGH-DURABILITY MATERIALS</span>
                 <span class="text-neutral-500">•</span>
             </div>
-            <div class="flex items-center gap-12 shrink-0">
+            <div class="flex items-center gap-8 sm:gap-12 shrink-0">
                 <span>✨ COMPLIMENTARY PAN-INDIA SHIPPING ON ALL ORDERS</span>
                 <span class="text-neutral-500">•</span>
                 <span>HAND-BOTTLED SCENTS & MINIMAL TECH HARDWARE</span>
@@ -156,72 +154,72 @@ const sliderProducts = (products || []).slice(0, 6);
         </div>
     </div>
 
-    <!-- Editorial Professional Hero Section with Entrance Animations -->
-    <section class="bg-[#fcfbf8] text-gray-900 border-b border-stone-200/80 pt-20 pb-24 md:pt-28 md:pb-32 px-6 lg:px-12 relative overflow-hidden">
+    <!-- Editorial Professional Hero Section (Mobile Optimized) -->
+    <section class="bg-[#fcfbf8] text-gray-900 border-b border-stone-200/80 pt-10 pb-12 sm:pt-20 sm:pb-24 md:pt-28 md:pb-32 px-4 sm:px-6 lg:px-12 relative overflow-hidden">
         
-        <!-- Subtle Ambient Glow -->
-        <div class="absolute -top-32 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-stone-200/40 blur-[120px] rounded-full pointer-events-none"></div>
+        <!-- Ambient Glow -->
+        <div class="absolute -top-32 left-1/2 -translate-x-1/2 w-[350px] sm:w-[600px] h-[200px] sm:h-[300px] bg-stone-200/40 blur-[90px] sm:blur-[120px] rounded-full pointer-events-none"></div>
 
-        <div class="max-w-4xl mx-auto text-center space-y-8 relative z-10">
+        <div class="max-w-4xl mx-auto text-center space-y-6 sm:space-y-8 relative z-10">
             
-            <div class="animate-appear opacity-0 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-stone-300 shadow-2xs">
+            <div class="animate-appear opacity-0 inline-flex items-center gap-2 px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full bg-white border border-stone-300 shadow-2xs">
                 <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span class="text-[10px] font-mono uppercase tracking-[0.25em] text-stone-700 font-semibold">The House of Aju • 2026 Collection</span>
+                <span class="text-[9px] sm:text-[10px] font-mono uppercase tracking-[0.2em] sm:tracking-[0.25em] text-stone-700 font-semibold">The House of Aju • 2026</span>
             </div>
 
-            <h1 class="animate-appear opacity-0 delay-1 text-4xl sm:text-6xl lg:text-7xl font-serif font-medium tracking-tight text-stone-900 leading-[1.1]">
-                Fine Fragrances. <br class="hidden sm:inline" />
+            <h1 class="animate-appear opacity-0 delay-1 text-3xl xs:text-4xl sm:text-6xl lg:text-7xl font-serif font-medium tracking-tight text-stone-900 leading-[1.15]">
+                Fine Fragrances. <br />
                 <span class="italic font-light text-stone-600 transition-all duration-700 hover:text-black">Modern Hardware.</span>
             </h1>
 
-            <p class="animate-appear opacity-0 delay-2 text-stone-600 text-sm sm:text-base md:text-lg font-light max-w-xl mx-auto leading-relaxed">
-                A curated studio merging hand-compounded olfactory extracts with precision, high-durability mobile accessories. Engineered for daily elegance.
+            <p class="animate-appear opacity-0 delay-2 text-stone-600 text-xs sm:text-base md:text-lg font-light max-w-xl mx-auto leading-relaxed px-2">
+                A curated studio merging hand-compounded olfactory extracts with precision, high-durability mobile accessories.
             </p>
 
-            <!-- Dual Action Hero Buttons -->
-            <div class="animate-appear opacity-0 delay-3 flex flex-col sm:flex-row gap-4 justify-center pt-2">
-                <a href="#shop" @click="window.location.hash = 'classic'" class="bg-black text-white px-9 py-4 uppercase text-[11px] font-bold tracking-[0.2em] hover:bg-stone-800 hover:scale-[1.02] active:scale-95 transition-all duration-300 rounded-xs shadow-xl text-center">
+            <!-- Dual Action Hero Buttons (Full-width on Mobile) -->
+            <div class="animate-appear opacity-0 delay-3 flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center pt-1 px-2 w-full max-w-md mx-auto">
+                <a href="#shop" @click="window.location.hash = 'classic'" class="w-full sm:w-auto bg-black text-white px-8 py-3.5 sm:py-4 uppercase text-[10px] sm:text-[11px] font-bold tracking-[0.2em] hover:bg-stone-800 active:scale-95 transition-all duration-200 rounded-xs shadow-xl text-center touch-callout-none">
                     Shop Fragrances
                 </a>
-                <a href="#shop" @click="window.location.hash = 'accessories'" class="bg-white border border-stone-300 text-stone-900 px-9 py-4 uppercase text-[11px] font-bold tracking-[0.2em] hover:border-black hover:bg-stone-50 hover:scale-[1.02] active:scale-95 transition-all duration-300 rounded-xs text-center shadow-2xs">
+                <a href="#shop" @click="window.location.hash = 'accessories'" class="w-full sm:w-auto bg-white border border-stone-300 text-stone-900 px-8 py-3.5 sm:py-4 uppercase text-[10px] sm:text-[11px] font-bold tracking-[0.2em] hover:border-black hover:bg-stone-50 active:scale-95 transition-all duration-200 rounded-xs text-center shadow-2xs touch-callout-none">
                     Shop Tech & Accessories
                 </a>
             </div>
 
             <!-- Trust Indicators -->
-            <div class="animate-appear opacity-0 delay-4 pt-10 border-t border-stone-200/80 grid grid-cols-3 gap-4 text-center max-w-md mx-auto">
+            <div class="animate-appear opacity-0 delay-4 pt-6 sm:pt-10 border-t border-stone-200/80 grid grid-cols-3 gap-2 sm:gap-4 text-center max-w-md mx-auto px-2">
                 <div class="group cursor-default">
-                    <p class="font-serif font-medium text-lg text-stone-900 group-hover:scale-105 transition-transform">100%</p>
-                    <p class="text-[9px] uppercase tracking-widest text-stone-500 font-mono mt-0.5">Authentic Oils</p>
+                    <p class="font-serif font-medium text-base sm:text-lg text-stone-900">100%</p>
+                    <p class="text-[8px] sm:text-[9px] uppercase tracking-wider text-stone-500 font-mono mt-0.5">Authentic</p>
                 </div>
                 <div class="group cursor-default">
-                    <p class="font-serif font-medium text-lg text-stone-900 group-hover:scale-105 transition-transform">24-48 Hours</p>
-                    <p class="text-[9px] uppercase tracking-widest text-stone-500 font-mono mt-0.5">DTDC Dispatch</p>
+                    <p class="font-serif font-medium text-base sm:text-lg text-stone-900">24-48h</p>
+                    <p class="text-[8px] sm:text-[9px] uppercase tracking-wider text-stone-500 font-mono mt-0.5">DTDC Dispatch</p>
                 </div>
                 <div class="group cursor-default">
-                    <p class="font-serif font-medium text-lg text-stone-900 group-hover:scale-105 transition-transform">4.9 / 5.0</p>
-                    <p class="text-[9px] uppercase tracking-widest text-stone-500 font-mono mt-0.5">Client Rating</p>
+                    <p class="font-serif font-medium text-base sm:text-lg text-stone-900">4.9 / 5.0</p>
+                    <p class="text-[8px] sm:text-[9px] uppercase tracking-wider text-stone-500 font-mono mt-0.5">Client Rating</p>
                 </div>
             </div>
 
         </div>
     </section>
 
-    <!-- FEATURED CURATIONS AUTOMATIC SLIDER -->
-    <section class="py-20 sm:py-24 bg-white border-b border-stone-100 overflow-hidden" 
+    <!-- FEATURED CURATIONS AUTOMATIC SLIDER (Mobile Swipe Peak) -->
+    <section class="py-12 sm:py-24 bg-white border-b border-stone-100 overflow-hidden" 
              x-data="{
                 timer: null,
                 startAutoSlide() {
                     this.stopAutoSlide();
                     this.timer = setInterval(() => {
                         this.scrollRight();
-                    }, 1500);
+                    }, 3500);
                 },
                 stopAutoSlide() {
                     if (this.timer) clearInterval(this.timer);
                 },
                 scrollLeft() {
-                    this.$refs.sliderContainer.scrollBy({ left: -320, behavior: 'smooth' });
+                    this.$refs.sliderContainer.scrollBy({ left: -260, behavior: 'smooth' });
                 },
                 scrollRight() {
                     const el = this.$refs.sliderContainer;
@@ -229,7 +227,7 @@ const sliderProducts = (products || []).slice(0, 6);
                     if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 30) {
                         el.scrollTo({ left: 0, behavior: 'smooth' });
                     } else {
-                        el.scrollBy({ left: 320, behavior: 'smooth' });
+                        el.scrollBy({ left: 260, behavior: 'smooth' });
                     }
                 }
              }"
@@ -239,26 +237,26 @@ const sliderProducts = (products || []).slice(0, 6);
              @touchstart="stopAutoSlide()"
              @touchend="startAutoSlide()"
     >
-        <div class="max-w-[1400px] mx-auto px-6 lg:px-12">
+        <div class="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-12">
             
-            <div class="flex justify-between items-end mb-10 sm:mb-12">
+            <div class="flex justify-between items-end mb-6 sm:mb-12">
                 <div>
-                    <span class="text-[10px] text-stone-400 font-bold uppercase tracking-widest block mb-1">Signature Curation</span>
-                    <h2 class="text-3xl sm:text-4xl font-serif font-medium tracking-tight text-stone-900">Featured Offerings</h2>
+                    <span class="text-[9px] sm:text-[10px] text-stone-400 font-bold uppercase tracking-widest block mb-1">Signature Curation</span>
+                    <h2 class="text-2xl sm:text-4xl font-serif font-medium tracking-tight text-stone-900">Featured Offerings</h2>
                 </div>
                 
-                <div class="flex gap-2">
-                    <button @click="scrollLeft()" class="w-11 h-11 border border-stone-200 bg-white flex items-center justify-center text-stone-700 hover:text-black hover:border-black active:scale-90 transition-all rounded-xs shadow-2xs">
+                <div class="flex gap-1.5 sm:gap-2">
+                    <button @click="scrollLeft()" aria-label="Previous" class="w-9 h-9 sm:w-11 sm:h-11 border border-stone-200 bg-white flex items-center justify-center text-stone-700 hover:text-black active:scale-90 transition-all rounded-xs shadow-2xs">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 19l-7-7 7-7"></path></svg>
                     </button>
-                    <button @click="scrollRight()" class="w-11 h-11 border border-stone-200 bg-white flex items-center justify-center text-stone-700 hover:text-black hover:border-black active:scale-90 transition-all rounded-xs shadow-2xs">
+                    <button @click="scrollRight()" aria-label="Next" class="w-9 h-9 sm:w-11 sm:h-11 border border-stone-200 bg-white flex items-center justify-center text-stone-700 hover:text-black active:scale-90 transition-all rounded-xs shadow-2xs">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5l7 7-7 7"></path></svg>
                     </button>
                 </div>
             </div>
 
-            <!-- Horizontal Slider Container -->
-            <div x-ref="sliderContainer" class="flex gap-6 overflow-x-auto no-scrollbar snap-x snap-mandatory scroll-smooth pb-6">
+            <!-- Horizontal Slider Container with Peaking Next Card on Mobile -->
+            <div x-ref="sliderContainer" class="flex gap-4 sm:gap-6 overflow-x-auto no-scrollbar snap-x snap-mandatory scroll-smooth pb-4 sm:pb-6 -mx-4 px-4 sm:mx-0 sm:px-0">
                 {sliderProducts.map((product) => {
                     const rawCategory = product.category || 'Classic';
                     const categoryNormalized = rawCategory.toString().trim().charAt(0).toUpperCase() + rawCategory.toString().trim().slice(1).toLowerCase();
@@ -277,7 +275,7 @@ const sliderProducts = (products || []).slice(0, 6);
                     const safeImageUrl = escapeAttr(imageUrl);
 
                     return (
-                        <div class="snap-start w-[280px] sm:w-[310px] shrink-0 bg-white border border-stone-200/90 p-4 hover:border-stone-400 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between group rounded-xs"
+                        <div class="snap-start w-[220px] xs:w-[250px] sm:w-[310px] shrink-0 bg-white border border-stone-200/90 p-3 sm:p-4 hover:border-stone-400 hover:shadow-xl transition-all duration-300 flex flex-col justify-between group rounded-xs"
                              x-data={`{
                                 variants: ${variantsJson},
                                 selectedVariantId: '${defaultVariant.id || ""}',
@@ -295,39 +293,39 @@ const sliderProducts = (products || []).slice(0, 6);
                                 }
                              }`}>
                             
-                            <!-- Image Frame with Zoom Effect -->
-                            <div class="aspect-[3/4] w-full bg-[#f8f7f4] relative mb-4 overflow-hidden flex items-center justify-center rounded-2xs group/img">
+                            <!-- Image Frame -->
+                            <div class="aspect-[3/4] w-full bg-[#f8f7f4] relative mb-3 sm:mb-4 overflow-hidden flex items-center justify-center rounded-2xs group/img">
                                 <a href={`/product/${product.id}`} class="absolute inset-0 z-10"></a>
                                 
-                                <span class={`absolute top-3 left-3 text-[8px] font-bold uppercase tracking-wider px-2.5 py-1 border z-20 rounded-2xs shadow-2xs ${isAccessory ? 'bg-sky-50 text-sky-800 border-sky-200' : 'bg-amber-50 text-amber-800 border-amber-200'}`}>
+                                <span class={`absolute top-2 left-2 sm:top-3 sm:left-3 text-[7px] sm:text-[8px] font-bold uppercase tracking-wider px-2 py-0.5 sm:px-2.5 sm:py-1 border z-20 rounded-2xs shadow-2xs ${isAccessory ? 'bg-sky-50 text-sky-800 border-sky-200' : 'bg-amber-50 text-amber-800 border-amber-200'}`}>
                                     {isAccessory ? 'Accessory' : 'Fragrance'}
                                 </span>
 
-                                <span x-show="currentStock <= 0" class="absolute top-3 right-3 bg-red-600 text-white px-2.5 py-1 text-[8px] font-bold uppercase tracking-wider z-20 rounded-2xs">Sold Out</span>
+                                <span x-show="currentStock <= 0" class="absolute top-2 right-2 sm:top-3 sm:right-3 bg-red-600 text-white px-2 py-0.5 sm:px-2.5 sm:py-1 text-[7px] sm:text-[8px] font-bold uppercase tracking-wider z-20 rounded-2xs">Sold Out</span>
 
                                 {imageUrl ? (
                                     <img src={imageUrl} alt={productName} class="w-full h-full object-cover transition-transform duration-700 ease-out group-hover/img:scale-108" />
                                 ) : (
-                                    <span class="text-stone-300 font-serif italic text-2xl px-4 text-center group-hover/img:scale-105 transition-transform duration-500">{productName.split(' ')[0]}</span>
+                                    <span class="text-stone-300 font-serif italic text-xl sm:text-2xl px-3 text-center">{productName.split(' ')[0]}</span>
                                 )}
                             </div>
 
                             <!-- Details -->
                             <div class="text-left flex-grow flex flex-col justify-between">
                                 <div>
-                                    <a href={`/product/${product.id}`} class="block font-serif text-lg font-medium text-stone-900 truncate hover:underline mb-1">
+                                    <a href={`/product/${product.id}`} class="block font-serif text-base sm:text-lg font-medium text-stone-900 truncate hover:underline mb-0.5">
                                         {productName}
                                     </a>
                                     
                                     <!-- Variant Selector -->
                                     <template x-if="variants.length > 1">
-                                        <div class="flex flex-wrap gap-1.5 my-2.5">
+                                        <div class="flex flex-wrap gap-1 my-2">
                                             <template x-for="v in variants" :key="v.id">
                                                 <button 
                                                     type="button"
                                                     @click="updateVariant(v.id)"
-                                                    :class="selectedVariantId === v.id ? 'bg-stone-900 text-white border-stone-900 scale-105' : 'bg-white text-stone-600 border-stone-200 hover:border-stone-900'"
-                                                    class="px-2.5 py-1 text-[8px] font-bold uppercase border rounded-2xs transition-all duration-200"
+                                                    :class="selectedVariantId === v.id ? 'bg-stone-900 text-white border-stone-900' : 'bg-white text-stone-600 border-stone-200 hover:border-stone-900'"
+                                                    class="px-2 py-0.5 text-[7px] sm:text-[8px] font-bold uppercase border rounded-2xs transition-all"
                                                     x-text="v.variant_label"
                                                 ></button>
                                             </template>
@@ -335,20 +333,20 @@ const sliderProducts = (products || []).slice(0, 6);
                                     </template>
 
                                     <template x-if="variants.length <= 1">
-                                        <div class="text-[9px] font-mono text-stone-400 uppercase tracking-wider mb-2">
+                                        <div class="text-[8px] sm:text-[9px] font-mono text-stone-400 uppercase tracking-wider mb-2">
                                             <span x-text="selectedLabel"></span>
                                         </div>
                                     </template>
                                 </div>
 
-                                <div class="mt-4 pt-3 border-t border-stone-100 flex items-center justify-between gap-2">
-                                    <span class="font-serif font-medium text-base text-stone-900" x-text="'₹' + Number(currentPrice).toLocaleString('en-IN')"></span>
+                                <div class="mt-2 sm:mt-4 pt-2.5 sm:pt-3 border-t border-stone-100 flex items-center justify-between gap-1.5">
+                                    <span class="font-serif font-medium text-sm sm:text-base text-stone-900" x-text="'₹' + Number(currentPrice).toLocaleString('en-IN')"></span>
 
                                     <button 
                                         @click={`$store.cart.add({ id: '${product.id}', variant_id: selectedVariantId, name: '${safeName}', price: currentPrice, volume: selectedLabel, image_url: '${safeImageUrl}' })`}
                                         :disabled="currentStock <= 0"
-                                        class="px-4 py-2 uppercase text-[9px] font-bold tracking-wider rounded-2xs transition-all duration-300 border active:scale-95"
-                                        :class="currentStock <= 0 ? 'bg-stone-50 text-stone-300 border-stone-200 cursor-not-allowed' : 'bg-black text-white border-black hover:bg-stone-800 hover:shadow-md'"
+                                        class="px-3 py-1.5 sm:px-4 sm:py-2 uppercase text-[8px] sm:text-[9px] font-bold tracking-wider rounded-2xs transition-all duration-200 border active:scale-95 touch-callout-none"
+                                        :class="currentStock <= 0 ? 'bg-stone-50 text-stone-300 border-stone-200 cursor-not-allowed' : 'bg-black text-white border-black hover:bg-stone-800'"
                                     >
                                         <span x-show="currentStock <= 0">Out</span>
                                         <span x-show="currentStock > 0">+ Add</span>
@@ -359,13 +357,14 @@ const sliderProducts = (products || []).slice(0, 6);
                     );
                 })}
             </div>
+            <p class="text-center text-[9px] text-stone-400 font-mono uppercase tracking-widest mt-2 sm:hidden">Swipe left / right to view items</p>
         </div>
     </section>
 
     <!-- BRAND MARQUEE SEPARATOR STRIP -->
-    <div class="bg-stone-950 text-stone-400 py-4 border-y border-stone-800 overflow-hidden">
-        <div class="animate-marquee-slow whitespace-nowrap text-xs font-serif italic tracking-widest">
-            <div class="flex items-center gap-16 shrink-0">
+    <div class="bg-stone-950 text-stone-400 py-3.5 border-y border-stone-800 overflow-hidden select-none">
+        <div class="animate-marquee-slow whitespace-nowrap text-[11px] sm:text-xs font-serif italic tracking-widest">
+            <div class="flex items-center gap-10 sm:gap-16 shrink-0">
                 <span>The House of Aju</span>
                 <span class="text-amber-500 font-sans not-italic">•</span>
                 <span>Tactile Luxury</span>
@@ -377,7 +376,7 @@ const sliderProducts = (products || []).slice(0, 6);
                 <span>Precision Hardware</span>
                 <span class="text-sky-500 font-sans not-italic">•</span>
             </div>
-            <div class="flex items-center gap-16 shrink-0">
+            <div class="flex items-center gap-10 sm:gap-16 shrink-0">
                 <span>The House of Aju</span>
                 <span class="text-amber-500 font-sans not-italic">•</span>
                 <span>Tactile Luxury</span>
@@ -393,38 +392,38 @@ const sliderProducts = (products || []).slice(0, 6);
     </div>
 
     <!-- BRAND STORY / CRAFTSMANSHIP SECTION -->
-    <section class="py-20 sm:py-28 bg-[#0a0a0a] text-white px-6 lg:px-12 border-b border-neutral-900 relative overflow-hidden">
+    <section class="py-14 sm:py-28 bg-[#0a0a0a] text-white px-4 sm:px-6 lg:px-12 border-b border-neutral-900 relative overflow-hidden">
         
-        <div class="max-w-[1200px] mx-auto grid grid-cols-1 md:grid-cols-2 gap-12 lg:gap-20 items-center relative z-10">
+        <div class="max-w-[1200px] mx-auto grid grid-cols-1 md:grid-cols-2 gap-10 lg:gap-20 items-center relative z-10">
             
-            <div class="space-y-6">
-                <span class="text-[10px] font-mono uppercase tracking-[0.3em] text-neutral-400 font-bold block">The House Philosophy</span>
-                <h2 class="text-3xl sm:text-5xl font-serif font-light text-white leading-tight">
+            <div class="space-y-4 sm:space-y-6">
+                <span class="text-[9px] sm:text-[10px] font-mono uppercase tracking-[0.3em] text-neutral-400 font-bold block">The House Philosophy</span>
+                <h2 class="text-2xl sm:text-5xl font-serif font-light text-white leading-tight">
                     Tactile Luxury. <br />
                     <span class="italic text-neutral-400 font-normal">Uncompromised Utility.</span>
                 </h2>
-                <p class="text-neutral-400 text-sm leading-relaxed font-light">
+                <p class="text-neutral-400 text-xs sm:text-sm leading-relaxed font-light">
                     Aju House was founded on a singular conviction: daily essential objects should provide both sensory pleasure and reliable performance. Every bottle in our fragrance collection is hand-compounded in small batches, while our hardware accessories are engineered for seamless fit and drop resistance.
                 </p>
-                <div class="pt-4 flex items-center gap-6 text-xs font-mono uppercase tracking-widest text-neutral-300">
+                <div class="pt-2 flex items-center gap-4 sm:gap-6 text-[10px] sm:text-xs font-mono uppercase tracking-widest text-neutral-300">
                     <span class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span> Small Batch</span>
-                    <span class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Pan-India Courier</span>
+                    <span class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Express Dispatch</span>
                 </div>
             </div>
 
-            <div class="bg-neutral-900/80 border border-neutral-800 p-8 sm:p-12 rounded-sm space-y-6 backdrop-blur-sm hover:border-neutral-700 transition-colors duration-500 shadow-2xl">
-                <h3 class="font-serif text-2xl text-white font-medium">Why Choose Aju House?</h3>
-                <ul class="space-y-4 text-xs text-neutral-300 font-light leading-relaxed">
+            <div class="bg-neutral-900/80 border border-neutral-800 p-6 sm:p-12 rounded-sm space-y-4 sm:space-y-6 backdrop-blur-sm shadow-2xl">
+                <h3 class="font-serif text-xl sm:text-2xl text-white font-medium">Why Choose Aju House?</h3>
+                <ul class="space-y-3 sm:space-y-4 text-xs text-neutral-300 font-light leading-relaxed">
                     <li class="flex items-start gap-3 group">
-                        <span class="text-emerald-400 font-bold font-mono group-hover:translate-x-1 transition-transform">01.</span>
+                        <span class="text-emerald-400 font-bold font-mono">01.</span>
                         <span><strong>Long-lasting Formulations:</strong> High perfume oil concentrations ensuring 8–12 hour scent projection.</span>
                     </li>
                     <li class="flex items-start gap-3 group">
-                        <span class="text-emerald-400 font-bold font-mono group-hover:translate-x-1 transition-transform">02.</span>
+                        <span class="text-emerald-400 font-bold font-mono">02.</span>
                         <span><strong>Impact-Tested Hardware:</strong> Mobile cases and accessories selected for physical durability and tactile feel.</span>
                     </li>
                     <li class="flex items-start gap-3 group">
-                        <span class="text-emerald-400 font-bold font-mono group-hover:translate-x-1 transition-transform">03.</span>
+                        <span class="text-emerald-400 font-bold font-mono">03.</span>
                         <span><strong>Complimentary Pan-India Delivery:</strong> Free standard shipping on prepaid orders via DTDC courier.</span>
                     </li>
                 </ul>
@@ -433,8 +432,8 @@ const sliderProducts = (products || []).slice(0, 6);
         </div>
     </section>
 
-    <!-- FULL MASTER CATALOG SECTION WITH SEARCH & CATEGORY TRANSITIONS -->
-    <section id="shop" class="py-20 sm:py-28 px-6 lg:px-12 max-w-[1400px] mx-auto" 
+    <!-- FULL MASTER CATALOG SECTION WITH SEARCH & MOBILE SCROLLABLE CHIPS -->
+    <section id="shop" class="py-14 sm:py-28 px-4 sm:px-6 lg:px-12 max-w-[1400px] mx-auto" 
              x-data={sectionXData} 
              x-init="
                 const updateFilter = () => {
@@ -459,41 +458,41 @@ const sliderProducts = (products || []).slice(0, 6);
                 window.addEventListener('hashchange', updateFilter);
              ">
         
-        <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-12 border-b border-stone-200 pb-8 gap-6">
+        <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8 sm:mb-12 border-b border-stone-200 pb-6 sm:pb-8 gap-4 sm:gap-6">
             <div>
-                <span class="text-[10px] text-stone-400 font-bold uppercase tracking-widest block mb-1">Catalog Overview</span>
-                <h2 class="text-3xl sm:text-4xl md:text-5xl font-serif font-medium text-stone-900">Master Collection</h2>
+                <span class="text-[9px] sm:text-[10px] text-stone-400 font-bold uppercase tracking-widest block mb-1">Catalog Overview</span>
+                <h2 class="text-2xl sm:text-4xl md:text-5xl font-serif font-medium text-stone-900">Master Collection</h2>
             </div>
             
-            <!-- Search & Filter Bar Controls -->
-            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full lg:w-auto">
+            <!-- Search & Filter Controls (Mobile Touch Optimized) -->
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto">
                 
                 <!-- Search Input Field -->
-                <div class="relative min-w-[240px] sm:w-64">
+                <div class="relative w-full sm:w-64">
                     <input 
                         type="text" 
                         x-model="searchQuery" 
-                        placeholder="Search products..." 
-                        class="w-full pl-10 pr-9 py-2.5 text-xs bg-stone-50 border border-stone-200 rounded-full focus:outline-none focus:border-black focus:bg-white transition-all shadow-2xs"
+                        placeholder="Search fragrances, models..." 
+                        class="w-full pl-9 pr-8 py-2.5 text-xs bg-stone-50 border border-stone-200 rounded-full focus:outline-none focus:border-black focus:bg-white transition-all shadow-2xs"
                     >
-                    <svg class="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                    <button x-show="searchQuery" @click="searchQuery = ''" style="display: none;" class="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-black p-1">
+                    <svg class="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    <button x-show="searchQuery" @click="searchQuery = ''" style="display: none;" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-black p-1">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                     </button>
                 </div>
 
-                <!-- Category Tabs -->
-                <div class="flex flex-wrap gap-2 text-xs font-medium">
+                <!-- Category Chips: Horizontally Scrollable on Mobile -->
+                <div class="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 -mx-4 px-4 sm:mx-0 sm:px-0 whitespace-nowrap text-xs font-medium">
                     <button @click="filter = 'All'; window.location.hash = 'shop'" 
                             :class="filter === 'All' ? 'bg-black text-white shadow-md scale-105' : 'bg-stone-100 text-stone-700 hover:bg-stone-200'" 
-                            class="px-5 py-2.5 rounded-full uppercase text-[10px] tracking-wider transition-all duration-300 font-bold active:scale-95">
+                            class="px-4 py-2 sm:px-5 sm:py-2.5 rounded-full uppercase text-[9px] sm:text-[10px] tracking-wider transition-all duration-200 font-bold shrink-0 active:scale-95 touch-callout-none">
                         All
                     </button>
                     
                     {rawCategories.map(cat => (
                         <button @click={`filter = '${cat}'; window.location.hash = '${cat.toLowerCase()}'`} 
                                 :class={`filter === '${cat}' ? 'bg-black text-white shadow-md scale-105' : 'bg-stone-100 text-stone-700 hover:bg-stone-200'`} 
-                                class="px-5 py-2.5 rounded-full uppercase text-[10px] tracking-wider transition-all duration-300 font-bold active:scale-95">
+                                class="px-4 py-2 sm:px-5 sm:py-2.5 rounded-full uppercase text-[9px] sm:text-[10px] tracking-wider transition-all duration-200 font-bold shrink-0 active:scale-95 touch-callout-none">
                             {cat === 'Accessories' ? 'Tech & Accessories' : (cat + ' Perfumes')}
                         </button>
                     ))}
@@ -501,7 +500,8 @@ const sliderProducts = (products || []).slice(0, 6);
             </div>
         </div>
 
-        <div class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-6 gap-y-12">
+        <!-- Catalog Product Grid (2 Columns on Mobile with Closer Gaps) -->
+        <div class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-3 gap-y-6 sm:gap-x-6 sm:gap-y-12">
             
             {(products || []).map((product) => {
                 const rawCategory = product.category || 'Classic';
@@ -523,7 +523,7 @@ const sliderProducts = (products || []).slice(0, 6);
 
                 return (
                     <div 
-                        class="group flex flex-col bg-white border border-stone-200/80 hover:border-stone-400 p-4 transition-all duration-500 rounded-xs shadow-2xs hover:shadow-xl hover:-translate-y-1.5"
+                        class="group flex flex-col bg-white border border-stone-200/80 hover:border-stone-400 p-2.5 sm:p-4 transition-all duration-300 rounded-xs shadow-2xs hover:shadow-xl"
                         x-show={`isMatch('${categoryNormalized}', '${safeName}', '${safeNotes}')`}
                         x-data={`{
                             variants: ${variantsJson},
@@ -541,19 +541,19 @@ const sliderProducts = (products || []).slice(0, 6);
                                 }
                             }
                         }`}
-                        x-transition:enter="transition ease-out duration-500 transform"
-                        x-transition:enter-start="opacity-0 translate-y-6 scale-95"
+                        x-transition:enter="transition ease-out duration-300 transform"
+                        x-transition:enter-start="opacity-0 translate-y-4 scale-95"
                         x-transition:enter-end="opacity-100 translate-y-0 scale-100"
                     >
-                        <!-- Image Container with Zoom -->
-                        <div class="aspect-[3/4] w-full bg-[#f8f7f4] relative mb-4 overflow-hidden flex items-center justify-center rounded-2xs group/img">
+                        <!-- Image Container -->
+                        <div class="aspect-[3/4] w-full bg-[#f8f7f4] relative mb-2.5 sm:mb-4 overflow-hidden flex items-center justify-center rounded-2xs group/img">
                             <a href={`/product/${product.id}`} class="absolute inset-0 z-10"></a>
 
-                            <span class={`absolute top-3 left-3 text-[8px] font-bold uppercase tracking-wider px-2.5 py-1 border z-20 rounded-2xs shadow-2xs ${isAccessory ? 'bg-sky-50 text-sky-800 border-sky-200' : 'bg-amber-50 text-amber-800 border-amber-200'}`}>
+                            <span class={`absolute top-2 left-2 sm:top-3 sm:left-3 text-[7px] sm:text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 sm:px-2.5 sm:py-1 border z-20 rounded-2xs shadow-2xs ${isAccessory ? 'bg-sky-50 text-sky-800 border-sky-200' : 'bg-amber-50 text-amber-800 border-amber-200'}`}>
                                 {isAccessory ? 'Accessory' : 'Fragrance'}
                             </span>
 
-                            <span x-show="currentStock <= 0" class="absolute top-3 right-3 bg-red-600 text-white px-2.5 py-1 text-[8px] font-bold uppercase tracking-wider z-20 rounded-2xs">Sold Out</span>
+                            <span x-show="currentStock <= 0" class="absolute top-2 right-2 sm:top-3 sm:right-3 bg-red-600 text-white px-1.5 py-0.5 sm:px-2.5 sm:py-1 text-[7px] sm:text-[8px] font-bold uppercase tracking-wider z-20 rounded-2xs">Sold Out</span>
 
                             {imageUrl ? (
                                 <img 
@@ -564,7 +564,7 @@ const sliderProducts = (products || []).slice(0, 6);
                                 />
                             ) : null}
                             
-                            <span class={`font-serif italic text-2xl text-stone-300 px-4 text-center group-hover/img:scale-105 transition-transform duration-500 ${imageUrl ? 'hidden' : 'block'}`}>
+                            <span class={`font-serif italic text-xl sm:text-2xl text-stone-300 px-2 text-center group-hover/img:scale-105 transition-transform duration-500 ${imageUrl ? 'hidden' : 'block'}`}>
                                 {productName.split(' ')[0]}
                             </span>
                         </div>
@@ -572,19 +572,19 @@ const sliderProducts = (products || []).slice(0, 6);
                         <!-- Product Metadata -->
                         <div class="flex-grow flex flex-col justify-between">
                             <div>
-                                <a href={`/product/${product.id}`} class="block font-serif text-lg font-medium text-stone-900 mb-1 hover:underline truncate">
+                                <a href={`/product/${product.id}`} class="block font-serif text-sm sm:text-lg font-medium text-stone-900 mb-0.5 hover:underline truncate">
                                     {productName}
                                 </a>
                                 
                                 <!-- Variant Selector -->
                                 <template x-if="variants.length > 1">
-                                    <div class="flex flex-wrap gap-1.5 my-2.5">
+                                    <div class="flex flex-wrap gap-1 my-1.5 sm:my-2.5">
                                         <template x-for="v in variants" :key="v.id">
                                             <button 
                                                 type="button"
                                                 @click="updateVariant(v.id)"
-                                                :class="selectedVariantId === v.id ? 'bg-stone-900 text-white border-stone-900 scale-105' : 'bg-white text-stone-600 border-stone-200 hover:border-stone-900'"
-                                                class="px-2.5 py-1 text-[8px] font-bold uppercase border rounded-2xs transition-all duration-200"
+                                                :class="selectedVariantId === v.id ? 'bg-stone-900 text-white border-stone-900' : 'bg-white text-stone-600 border-stone-200 hover:border-stone-900'"
+                                                class="px-2 py-0.5 text-[7px] sm:text-[8px] font-bold uppercase border rounded-2xs transition-all duration-200"
                                                 x-text="v.variant_label"
                                             ></button>
                                         </template>
@@ -592,21 +592,21 @@ const sliderProducts = (products || []).slice(0, 6);
                                 </template>
 
                                 <template x-if="variants.length <= 1">
-                                    <div class="text-[9px] font-mono text-stone-400 uppercase tracking-wider mb-2">
+                                    <div class="text-[8px] sm:text-[9px] font-mono text-stone-400 uppercase tracking-wider mb-1 sm:mb-2">
                                         <span x-text="selectedLabel"></span>
                                     </div>
                                 </template>
                             </div>
                             
                             <!-- Bottom Row -->
-                            <div class="mt-4 pt-3 border-t border-stone-100 flex items-center justify-between gap-2">
-                                <span class="font-serif font-medium text-base text-stone-900" x-text="'₹' + Number(currentPrice).toLocaleString('en-IN')"></span>
+                            <div class="mt-2 sm:mt-4 pt-2.5 sm:pt-3 border-t border-stone-100 flex items-center justify-between gap-1">
+                                <span class="font-serif font-medium text-sm sm:text-base text-stone-900" x-text="'₹' + Number(currentPrice).toLocaleString('en-IN')"></span>
 
                                 <button 
                                     @click={`$store.cart.add({ id: '${product.id}', variant_id: selectedVariantId, name: '${safeName}', price: currentPrice, volume: selectedLabel, image_url: '${safeImageUrl}' })`}
                                     :disabled="currentStock <= 0"
-                                    class="px-4 py-2 uppercase text-[9px] font-bold tracking-wider rounded-2xs transition-all duration-300 border active:scale-95"
-                                    :class="currentStock <= 0 ? 'bg-stone-50 text-stone-300 border-stone-200 cursor-not-allowed' : 'bg-black text-white border-black hover:bg-stone-800 hover:shadow-md'"
+                                    class="px-2.5 py-1.5 sm:px-4 sm:py-2 uppercase text-[8px] sm:text-[9px] font-bold tracking-wider rounded-2xs transition-all duration-200 border active:scale-95 touch-callout-none"
+                                    :class="currentStock <= 0 ? 'bg-stone-50 text-stone-300 border-stone-200 cursor-not-allowed' : 'bg-black text-white border-black hover:bg-stone-800'"
                                 >
                                     <span x-show="currentStock <= 0">Out</span>
                                     <span x-show="currentStock > 0">+ Add</span>
@@ -618,33 +618,32 @@ const sliderProducts = (products || []).slice(0, 6);
             })}
             
             <!-- Empty State / No Search or Filter Results -->
-            <div x-show="!hasMatches" style="display: none;" class="col-span-full py-12 sm:py-20 px-4 text-center">
-                <div class="max-w-md mx-auto bg-stone-50/80 border border-stone-200/80 rounded-sm p-8 sm:p-12 shadow-2xs">
+            <div x-show="!hasMatches" style="display: none;" class="col-span-full py-10 sm:py-20 px-2 text-center">
+                <div class="max-w-md mx-auto bg-stone-50/80 border border-stone-200/80 rounded-sm p-6 sm:p-12 shadow-2xs">
                     
-                    <div class="w-14 h-14 bg-white border border-stone-200 rounded-full flex items-center justify-center mx-auto mb-5 text-stone-400 shadow-2xs">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="w-12 h-12 sm:w-14 sm:h-14 bg-white border border-stone-200 rounded-full flex items-center justify-center mx-auto mb-4 text-stone-400 shadow-2xs">
+                        <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                         </svg>
                     </div>
 
-                    <!-- Heading when searching -->
                     <template x-if="searchQuery">
                         <div>
-                            <h3 class="font-serif text-xl sm:text-2xl font-medium text-stone-900 mb-2">No matching items</h3>
-                            <p class="text-xs text-stone-500 font-light leading-relaxed mb-6">
+                            <h3 class="font-serif text-lg sm:text-2xl font-medium text-stone-900 mb-2">No matching items</h3>
+                            <p class="text-xs text-stone-500 font-light leading-relaxed mb-6 px-2">
                                 We couldn't find any products matching "<span class="font-semibold text-stone-900" x-text="searchQuery"></span>" 
-                                <span x-show="filter !== 'All'" x-text="'in the ' + filter + ' collection'"></span>.
+                                <span x-show="filter !== 'All'" x-text="'in ' + filter"></span>.
                             </p>
-                            <div class="flex flex-col sm:flex-row gap-3 justify-center">
+                            <div class="flex flex-col sm:flex-row gap-2.5 justify-center">
                                 <button 
                                     @click="searchQuery = ''" 
-                                    class="bg-black text-white text-[10px] font-bold uppercase tracking-[0.2em] px-6 py-3 rounded-2xs hover:bg-stone-800 transition-colors shadow-sm"
+                                    class="bg-black text-white text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.2em] px-5 py-3 rounded-2xs hover:bg-stone-800 transition-colors shadow-sm"
                                 >
                                     Clear Search
                                 </button>
                                 <button 
                                     @click="searchQuery = ''; filter = 'All'; window.location.hash = 'shop'" 
-                                    class="border border-stone-300 text-stone-800 text-[10px] font-bold uppercase tracking-[0.2em] px-6 py-3 rounded-2xs hover:border-black transition-colors"
+                                    class="border border-stone-300 text-stone-800 text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.2em] px-5 py-3 rounded-2xs hover:border-black transition-colors"
                                 >
                                     Show All Products
                                 </button>
@@ -652,16 +651,15 @@ const sliderProducts = (products || []).slice(0, 6);
                         </div>
                     </template>
 
-                    <!-- Heading when no items in category -->
                     <template x-if="!searchQuery">
                         <div>
-                            <h3 class="font-serif text-xl sm:text-2xl font-medium text-stone-900 mb-2">Collection Empty</h3>
+                            <h3 class="font-serif text-lg sm:text-2xl font-medium text-stone-900 mb-2">Collection Empty</h3>
                             <p class="text-xs text-stone-500 font-light leading-relaxed mb-6">
                                 There are currently no items available in this category.
                             </p>
                             <button 
                                 @click="filter = 'All'; window.location.hash = 'shop'" 
-                                class="bg-black text-white text-[10px] font-bold uppercase tracking-[0.2em] px-6 py-3 rounded-2xs hover:bg-stone-800 transition-colors shadow-sm"
+                                class="bg-black text-white text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.2em] px-5 py-3 rounded-2xs hover:bg-stone-800 transition-colors shadow-sm"
                             >
                                 View All Products
                             </button>
@@ -675,46 +673,46 @@ const sliderProducts = (products || []).slice(0, 6);
     </section>
 
     <!-- GUARANTEES & CLIENT ASSURANCE BAR -->
-    <section class="bg-stone-50 border-t border-stone-200/80 py-16 px-6 lg:px-12">
-        <div class="max-w-[1400px] mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+    <section class="bg-stone-50 border-t border-stone-200/80 py-12 sm:py-16 px-4 sm:px-6 lg:px-12">
+        <div class="max-w-[1400px] mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
             
-            <div class="flex items-start gap-4 group">
-                <div class="w-10 h-10 rounded-full bg-white border border-stone-200 flex items-center justify-center text-stone-800 shrink-0 group-hover:scale-110 group-hover:border-black transition-all">
+            <div class="flex items-start gap-3.5">
+                <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white border border-stone-200 flex items-center justify-center text-stone-800 shrink-0 text-sm sm:text-base">
                     🚚
                 </div>
                 <div>
-                    <h4 class="font-serif font-medium text-stone-900 text-base">Complimentary Shipping</h4>
-                    <p class="text-xs text-stone-500 font-light mt-1 leading-relaxed">Free standard courier dispatch across India on all prepaid purchases.</p>
+                    <h4 class="font-serif font-medium text-stone-900 text-sm sm:text-base">Complimentary Shipping</h4>
+                    <p class="text-xs text-stone-500 font-light mt-0.5 leading-relaxed">Free standard courier dispatch across India on all prepaid purchases.</p>
                 </div>
             </div>
 
-            <div class="flex items-start gap-4 group">
-                <div class="w-10 h-10 rounded-full bg-white border border-stone-200 flex items-center justify-center text-stone-800 shrink-0 group-hover:scale-110 group-hover:border-black transition-all">
+            <div class="flex items-start gap-3.5">
+                <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white border border-stone-200 flex items-center justify-center text-stone-800 shrink-0 text-sm sm:text-base">
                     📦
                 </div>
                 <div>
-                    <h4 class="font-serif font-medium text-stone-900 text-base">DTDC Courier Network</h4>
-                    <p class="text-xs text-stone-500 font-light mt-1 leading-relaxed">Dispatched within 24 to 48 hours with digital consignment tracking.</p>
+                    <h4 class="font-serif font-medium text-stone-900 text-sm sm:text-base">DTDC Courier Network</h4>
+                    <p class="text-xs text-stone-500 font-light mt-0.5 leading-relaxed">Dispatched within 24 to 48 hours with digital consignment tracking.</p>
                 </div>
             </div>
 
-            <div class="flex items-start gap-4 group">
-                <div class="w-10 h-10 rounded-full bg-white border border-stone-200 flex items-center justify-center text-stone-800 shrink-0 group-hover:scale-110 group-hover:border-black transition-all">
+            <div class="flex items-start gap-3.5">
+                <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white border border-stone-200 flex items-center justify-center text-stone-800 shrink-0 text-sm sm:text-base">
                     🔒
                 </div>
                 <div>
-                    <h4 class="font-serif font-medium text-stone-900 text-base">Secure Razorpay Gateway</h4>
-                    <p class="text-xs text-stone-500 font-light mt-1 leading-relaxed">1-Tap UPI (GPay, PhonePe, Paytm), Debit/Credit Cards & Netbanking.</p>
+                    <h4 class="font-serif font-medium text-stone-900 text-sm sm:text-base">Secure Razorpay Gateway</h4>
+                    <p class="text-xs text-stone-500 font-light mt-0.5 leading-relaxed">1-Tap UPI (GPay, PhonePe, Paytm), Debit/Credit Cards & Netbanking.</p>
                 </div>
             </div>
 
-            <div class="flex items-start gap-4 group">
-                <div class="w-10 h-10 rounded-full bg-white border border-stone-200 flex items-center justify-center text-stone-800 shrink-0 group-hover:scale-110 group-hover:border-black transition-all">
+            <div class="flex items-start gap-3.5">
+                <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white border border-stone-200 flex items-center justify-center text-stone-800 shrink-0 text-sm sm:text-base">
                     💬
                 </div>
                 <div>
-                    <h4 class="font-serif font-medium text-stone-900 text-base">Direct Concierge Care</h4>
-                    <p class="text-xs text-stone-500 font-light mt-1 leading-relaxed">Questions? Reach out on WhatsApp (+91 8075304432) anytime.</p>
+                    <h4 class="font-serif font-medium text-stone-900 text-sm sm:text-base">Direct Concierge Care</h4>
+                    <p class="text-xs text-stone-500 font-light mt-0.5 leading-relaxed">Questions? Reach out on WhatsApp (+91 8075304432) anytime.</p>
                 </div>
             </div>
 
