@@ -152,10 +152,22 @@ const dynamicCategories = Array.from(new Set((dbProducts || []).map(p => {
                 }
             });
 
-            // Auth Store
+            // Auth Store with Smart Display Name Extractor
             Alpine.store('auth', {
                 user: null,
                 email: '',
+                get name() {
+                    if (!this.user) return '';
+                    const meta = this.user.user_metadata || {};
+                    if (meta.firstName) return meta.firstName;
+                    if (meta.name) return meta.name.split(' ')[0];
+                    if (meta.full_name) return meta.full_name.split(' ')[0];
+                    if (this.email) {
+                        const prefix = this.email.split('@')[0];
+                        return prefix.charAt(0).toUpperCase() + prefix.slice(1);
+                    }
+                    return 'Account';
+                },
                 logout() {
                     window.dispatchEvent(new CustomEvent('app:logout'));
                 }
@@ -180,8 +192,24 @@ const dynamicCategories = Array.from(new Set((dbProducts || []).map(p => {
                         authStore.user = session?.user || null;
                         authStore.email = session?.user?.email || '';
                         
-                        if (session?.user?.user_metadata?.cart) {
-                            cartStore.mergeCloudCart(session.user.user_metadata.cart);
+                        if (session?.user) {
+                            // Single-time New User Sign Up Welcome Detector
+                            const createdAt = new Date(session.user.created_at || Date.now()).getTime();
+                            const now = Date.now();
+                            const welcomedKey = 'welcomed_user_' + session.user.id;
+                            
+                            if ((now - createdAt) < 30000 && !localStorage.getItem(welcomedKey)) {
+                                localStorage.setItem(welcomedKey, 'true');
+                                const meta = session.user.user_metadata || {};
+                                const rawName = meta.firstName || meta.name || meta.full_name || session.user.email.split('@')[0];
+                                const firstName = rawName.split(' ')[0];
+                                const cleanName = firstName.charAt(0).toUpperCase() + firstName.slice(1);
+                                localStorage.setItem('pendingWelcomeGreeting', cleanName);
+                            }
+
+                            if (session.user.user_metadata?.cart) {
+                                cartStore.mergeCloudCart(session.user.user_metadata.cart);
+                            }
                         }
                         
                         clearInterval(checkAlpine);
@@ -252,10 +280,10 @@ const dynamicCategories = Array.from(new Set((dbProducts || []).map(p => {
                 
                 <div class="flex items-center gap-2 sm:gap-6">
                     
-                    <!-- Account Icon (Logged In State) -->
+                    <!-- Account Icon / User Name Display (Logged In State) -->
                     <div x-show="$store.auth.user" style="display: none;" class="relative group">
                         <button aria-label="Account" class="p-2 flex items-center gap-2 text-gray-900 hover:text-gray-500 transition-colors">
-                            <span class="hidden md:block uppercase tracking-widest text-[10px] font-bold">Account</span>
+                            <span class="hidden md:block uppercase tracking-widest text-[10px] font-bold" x-text="$store.auth.name"></span>
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
                         </button>
                         <div class="hidden md:block absolute right-0 mt-4 w-56 bg-white border border-gray-100 shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50">
@@ -338,7 +366,7 @@ const dynamicCategories = Array.from(new Set((dbProducts || []).map(p => {
                     
                     <div x-show="$store.auth.user" style="display: none;" class="space-y-3 mb-6">
                         <a href="/account" @click="isMenuOpen = false" class="block font-medium uppercase tracking-wider hover:text-gray-500 transition-colors mb-1">
-                            My Account / Orders
+                            <span x-text="$store.auth.name + '\'s Account & Orders'"></span>
                         </a>
                         <span class="flex items-center font-medium text-gray-400 uppercase tracking-wider truncate mb-1" x-text="$store.auth.email"></span>
                         <button @click="$store.auth.logout()" class="flex items-center font-medium uppercase tracking-wider text-red-600 hover:text-red-400 transition-colors">
@@ -436,6 +464,65 @@ const dynamicCategories = Array.from(new Set((dbProducts || []).map(p => {
                 </div>
                 <p class="text-[9px] text-gray-500 uppercase tracking-widest text-center mb-4">Complimentary shipping on all orders.</p>
                 <a href="/checkout" class="block text-center w-full bg-black text-white py-3.5 uppercase text-[10px] font-bold tracking-[0.2em] hover:bg-gray-800 transition-colors shadow-lg active:scale-98">Secure Checkout</a>
+            </div>
+        </div>
+
+        <!-- Single-Time New User Welcome Greeting Modal -->
+        <div 
+            x-data="{ 
+                showWelcome: false, 
+                welcomeName: '',
+                init() {
+                    const checkWelcome = () => {
+                        const pending = localStorage.getItem('pendingWelcomeGreeting');
+                        if (pending) {
+                            this.welcomeName = pending;
+                            this.showWelcome = true;
+                            localStorage.removeItem('pendingWelcomeGreeting');
+                        }
+                    };
+                    checkWelcome();
+                    setTimeout(checkWelcome, 500);
+                }
+            }"
+            x-show="showWelcome"
+            x-transition:enter="transition ease-out duration-400 transform"
+            x-transition:enter-start="opacity-0 scale-90"
+            x-transition:enter-end="opacity-100 scale-100"
+            x-transition:leave="transition ease-in duration-300 transform"
+            x-transition:leave-start="opacity-100 scale-100"
+            x-transition:leave-end="opacity-0 scale-90"
+            class="fixed inset-0 bg-black/60 z-[110] backdrop-blur-sm flex items-center justify-center p-4"
+            style="display: none;"
+        >
+            <div 
+                @click.away="showWelcome = false"
+                class="bg-white max-w-md w-full p-8 sm:p-10 rounded-2xl shadow-2xl border border-stone-200 text-center relative overflow-hidden"
+            >
+                <button @click="showWelcome = false" aria-label="Close welcome" class="absolute top-4 right-4 text-stone-400 hover:text-black p-2 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+
+                <div class="w-16 h-16 bg-amber-50 border border-amber-200/80 rounded-full flex items-center justify-center mx-auto mb-6 text-2xl shadow-2xs">
+                    ✨
+                </div>
+
+                <span class="text-[10px] font-mono uppercase tracking-[0.3em] text-stone-500 font-bold block mb-2">Welcome To Aju House</span>
+                
+                <h3 class="font-serif text-2xl sm:text-3xl font-medium text-stone-900 mb-3">
+                    Greetings, <span x-text="welcomeName"></span>!
+                </h3>
+
+                <p class="text-xs sm:text-sm text-stone-600 font-light leading-relaxed mb-8">
+                    Your client profile has been registered. Explore our hand-bottled fragrances and minimal tech hardware with complimentary Pan-India shipping.
+                </p>
+
+                <button 
+                    @click="showWelcome = false"
+                    class="w-full bg-black text-white py-4 uppercase text-[10px] font-bold tracking-[0.25em] hover:bg-stone-800 transition-all rounded-xs shadow-xl active:scale-98"
+                >
+                    Start Exploring
+                </button>
             </div>
         </div>
 

@@ -9,6 +9,7 @@ import Layout from '../layouts/Layout.astro';
         document.addEventListener('alpine:init', () => {
             Alpine.data('authComponent', () => ({
                 isLogin: true,
+                firstName: '',
                 email: '',
                 password: '',
                 isLoading: false,
@@ -34,6 +35,7 @@ import Layout from '../layouts/Layout.astro';
                     
                     const cleanEmail = (this.email || '').trim().toLowerCase();
                     const cleanPassword = this.password ? this.password.trim() : '';
+                    const cleanFirstName = (this.firstName || '').trim();
 
                     if (!cleanEmail || !cleanPassword) {
                         this.message = 'Please provide both email address and password.';
@@ -81,6 +83,11 @@ import Layout from '../layouts/Layout.astro';
                             const { data, error } = await client.auth.signUp({
                                 email: cleanEmail,
                                 password: cleanPassword,
+                                options: {
+                                    data: {
+                                        firstName: cleanFirstName
+                                    }
+                                }
                             });
 
                             if (error) throw error;
@@ -91,21 +98,25 @@ import Layout from '../layouts/Layout.astro';
                             if (alreadyExists) {
                                 this.message = 'An account with this email address already exists. Please sign in using your existing password.';
                                 this.isError = true;
-                            } else if (data.session) {
-                                // If email confirmation is disabled on Supabase, sign in user immediately
-                                if (window.Alpine && window.Alpine.store('auth')) {
-                                    window.Alpine.store('auth').user = data.user;
-                                    window.Alpine.store('auth').email = data.user.email;
-                                }
-                                this.message = 'Account created successfully! Redirecting...';
-                                this.isError = false;
-                                setTimeout(() => { window.location.href = '/'; }, 800);
                             } else {
-                                // Email confirmation required
-                                this.message = 'Account created successfully! Please check your email inbox for an activation/verification link before signing in.';
-                                this.isError = false;
-                                this.isLogin = true; // Switch to login view
-                                this.password = '';
+                                // Store single-time welcome greeting name
+                                const welcomeName = cleanFirstName || (cleanEmail.split('@')[0].charAt(0).toUpperCase() + cleanEmail.split('@')[0].slice(1));
+                                localStorage.setItem('pendingWelcomeGreeting', welcomeName);
+
+                                if (data.session) {
+                                    if (window.Alpine && window.Alpine.store('auth')) {
+                                        window.Alpine.store('auth').user = data.user;
+                                        window.Alpine.store('auth').email = data.user.email;
+                                    }
+                                    this.message = 'Account created successfully! Redirecting...';
+                                    this.isError = false;
+                                    setTimeout(() => { window.location.href = '/'; }, 800);
+                                } else {
+                                    this.message = 'Account created successfully! Please check your email inbox for an activation/verification link before signing in.';
+                                    this.isError = false;
+                                    this.isLogin = true;
+                                    this.password = '';
+                                }
                             }
                         }
                     } catch (err) {
@@ -161,6 +172,17 @@ import Layout from '../layouts/Layout.astro';
             </div>
 
             <form @submit.prevent="handleAuth" class="space-y-6">
+                <!-- First Name Input (Visible only during Sign Up) -->
+                <div x-show="!isLogin" style="display: none;">
+                    <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">First Name</label>
+                    <input 
+                        type="text" 
+                        x-model="firstName" 
+                        placeholder="Your First Name"
+                        class="w-full p-4 text-sm bg-gray-50/50 border border-gray-200 focus:border-black focus:ring-0 outline-none transition-colors rounded-sm"
+                    >
+                </div>
+
                 <!-- Email Input -->
                 <div>
                     <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Email Address</label>
