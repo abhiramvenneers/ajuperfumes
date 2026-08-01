@@ -4,157 +4,167 @@ import Layout from '../layouts/Layout.astro';
 
 <Layout title="Account | Aju Perfumes">
     
-    <!-- Register Alpine data component in a standalone script to prevent Astro template compiler crashes -->
+    <!-- Robust Alpine Data Component Registration -->
     <script is:inline>
-        document.addEventListener('alpine:init', () => {
-            Alpine.data('authComponent', () => ({
-                isLogin: true,
-                firstName: '',
-                email: '',
-                password: '',
-                isLoading: false,
-                message: '',
-                isError: false,
+        (function() {
+            const registerAuth = () => {
+                if (window.Alpine) {
+                    window.Alpine.data('authComponent', () => ({
+                        isLogin: true,
+                        firstName: '',
+                        email: '',
+                        password: '',
+                        isLoading: false,
+                        message: '',
+                        isError: false,
 
-                async getClient() {
-                    let attempts = 0;
-                    while (!window.supabase && attempts < 50) {
-                        await new Promise(r => setTimeout(r, 50));
-                        attempts++;
-                    }
-                    if (!window.supabase) {
-                        throw new Error('Supabase client failed to load. Please refresh the page.');
-                    }
-                    return window.supabase;
-                },
-                
-                async handleAuth() {
-                    this.isLoading = true;
-                    this.message = '';
-                    this.isError = false;
-                    
-                    const cleanEmail = (this.email || '').trim().toLowerCase();
-                    const cleanPassword = this.password ? this.password.trim() : '';
-                    const cleanFirstName = (this.firstName || '').trim();
-
-                    if (!cleanEmail || !cleanPassword) {
-                        this.message = 'Please provide both email address and password.';
-                        this.isError = true;
-                        this.isLoading = false;
-                        return;
-                    }
-
-                    try {
-                        const client = await this.getClient();
-
-                        if (this.isLogin) {
-                            // LOG IN LOGIC
-                            const { data, error } = await client.auth.signInWithPassword({
-                                email: cleanEmail,
-                                password: cleanPassword,
-                            });
-
-                            if (error) {
-                                const errStr = error.message.toLowerCase();
-                                if (errStr.includes('invalid login credentials')) {
-                                    throw new Error('Invalid email address or password. If you do not have an account yet, click "Create Account" below.');
-                                }
-                                if (errStr.includes('email not confirmed')) {
-                                    throw new Error('Your email address has not been confirmed yet. Please check your email inbox (and spam folder) for the verification link.');
-                                }
-                                throw error;
+                        async getClient() {
+                            let attempts = 0;
+                            while (!window.supabase && attempts < 50) {
+                                await new Promise(r => setTimeout(r, 50));
+                                attempts++;
                             }
-                            
-                            // Success - Sync global state and redirect to Homepage
-                            if (window.Alpine && window.Alpine.store('auth')) {
-                                window.Alpine.store('auth').user = data.user;
-                                window.Alpine.store('auth').email = data.user.email;
+                            if (!window.supabase) {
+                                throw new Error('Supabase client failed to load. Please refresh the page.');
                             }
-                            
-                            this.message = 'Signed in successfully! Redirecting...';
+                            return window.supabase;
+                        },
+                        
+                        async handleAuth() {
+                            this.isLoading = true;
+                            this.message = '';
                             this.isError = false;
                             
-                            setTimeout(() => {
-                                window.location.href = '/';
-                            }, 500);
+                            const cleanEmail = (this.email || '').trim().toLowerCase();
+                            const cleanPassword = this.password ? this.password.trim() : '';
+                            const cleanFirstName = (this.firstName || '').trim();
 
-                        } else {
-                            // SIGN UP LOGIC
-                            const { data, error } = await client.auth.signUp({
-                                email: cleanEmail,
-                                password: cleanPassword,
-                                options: {
-                                    data: {
-                                        firstName: cleanFirstName
-                                    }
-                                }
-                            });
-
-                            if (error) throw error;
-                            
-                            // Check if account already exists
-                            const alreadyExists = data.user && data.user.identities && data.user.identities.length === 0;
-                            
-                            if (alreadyExists) {
-                                this.message = 'An account with this email address already exists. Please sign in using your existing password.';
+                            if (!cleanEmail || !cleanPassword) {
+                                this.message = 'Please provide both email address and password.';
                                 this.isError = true;
-                            } else {
-                                // Store single-time welcome greeting name
-                                const welcomeName = cleanFirstName || (cleanEmail.split('@')[0].charAt(0).toUpperCase() + cleanEmail.split('@')[0].slice(1));
-                                localStorage.setItem('pendingWelcomeGreeting', welcomeName);
+                                this.isLoading = false;
+                                return;
+                            }
 
-                                if (data.session) {
+                            try {
+                                const client = await this.getClient();
+
+                                if (this.isLogin) {
+                                    // LOG IN LOGIC
+                                    const { data, error } = await client.auth.signInWithPassword({
+                                        email: cleanEmail,
+                                        password: cleanPassword,
+                                    });
+
+                                    if (error) {
+                                        const errStr = error.message.toLowerCase();
+                                        if (errStr.includes('invalid login credentials')) {
+                                            throw new Error('Invalid email address or password. If you do not have an account yet, click "Create Account" below.');
+                                        }
+                                        if (errStr.includes('email not confirmed')) {
+                                            throw new Error('Your email address has not been confirmed yet. Please check your email inbox (and spam folder) for the verification link.');
+                                        }
+                                        throw error;
+                                    }
+                                    
+                                    // Success - Sync global state and redirect to Homepage
                                     if (window.Alpine && window.Alpine.store('auth')) {
                                         window.Alpine.store('auth').user = data.user;
                                         window.Alpine.store('auth').email = data.user.email;
                                     }
-                                    this.message = 'Account created successfully! Redirecting...';
+                                    
+                                    this.message = 'Signed in successfully! Redirecting...';
                                     this.isError = false;
-                                    setTimeout(() => { window.location.href = '/'; }, 800);
+                                    
+                                    setTimeout(() => {
+                                        window.location.href = '/';
+                                    }, 500);
+
                                 } else {
-                                    this.message = 'Account created successfully! Please check your email inbox for an activation/verification link before signing in.';
-                                    this.isError = false;
-                                    this.isLogin = true;
-                                    this.password = '';
+                                    // SIGN UP LOGIC
+                                    const { data, error } = await client.auth.signUp({
+                                        email: cleanEmail,
+                                        password: cleanPassword,
+                                        options: {
+                                            data: {
+                                                firstName: cleanFirstName
+                                            }
+                                        }
+                                    });
+
+                                    if (error) throw error;
+                                    
+                                    // Check if account already exists
+                                    const alreadyExists = data.user && data.user.identities && data.user.identities.length === 0;
+                                    
+                                    if (alreadyExists) {
+                                        this.message = 'An account with this email address already exists. Please sign in using your existing password.';
+                                        this.isError = true;
+                                    } else {
+                                        // Store single-time welcome greeting name
+                                        const welcomeName = cleanFirstName || (cleanEmail.split('@')[0].charAt(0).toUpperCase() + cleanEmail.split('@')[0].slice(1));
+                                        localStorage.setItem('pendingWelcomeGreeting', welcomeName);
+
+                                        if (data.session) {
+                                            if (window.Alpine && window.Alpine.store('auth')) {
+                                                window.Alpine.store('auth').user = data.user;
+                                                window.Alpine.store('auth').email = data.user.email;
+                                            }
+                                            this.message = 'Account created successfully! Redirecting...';
+                                            this.isError = false;
+                                            setTimeout(() => { window.location.href = '/'; }, 800);
+                                        } else {
+                                            this.message = 'Account created successfully! Please check your email inbox for an activation/verification link before signing in.';
+                                            this.isError = false;
+                                            this.isLogin = true;
+                                            this.password = '';
+                                        }
+                                    }
                                 }
+                            } catch (err) {
+                                this.message = err.message || 'An unexpected error occurred.';
+                                this.isError = true;
+                            } finally {
+                                this.isLoading = false;
+                            }
+                        },
+
+                        async loginWithGoogle() {
+                            this.isLoading = true;
+                            this.message = '';
+                            this.isError = false;
+                            
+                            try {
+                                const client = await this.getClient();
+                                const { error } = await client.auth.signInWithOAuth({
+                                    provider: 'google',
+                                    options: {
+                                        redirectTo: window.location.origin
+                                    }
+                                });
+                                if (error) throw error;
+                            } catch (err) {
+                                this.message = err.message || 'Google sign in failed.';
+                                this.isError = true;
+                                this.isLoading = false;
                             }
                         }
-                    } catch (err) {
-                        this.message = err.message || 'An unexpected error occurred.';
-                        this.isError = true;
-                    } finally {
-                        this.isLoading = false;
-                    }
-                },
-
-                async loginWithGoogle() {
-                    this.isLoading = true;
-                    this.message = '';
-                    this.isError = false;
-                    
-                    try {
-                        const client = await this.getClient();
-                        const { error } = await client.auth.signInWithOAuth({
-                            provider: 'google',
-                            options: {
-                                redirectTo: window.location.origin
-                            }
-                        });
-                        if (error) throw error;
-                    } catch (err) {
-                        this.message = err.message || 'Google sign in failed.';
-                        this.isError = true;
-                        this.isLoading = false;
-                    }
+                    }));
                 }
-            }));
-        });
+            };
+
+            if (window.Alpine) {
+                registerAuth();
+            } else {
+                document.addEventListener('alpine:init', registerAuth);
+            }
+        })();
     </script>
 
     <div class="min-h-[90vh] flex items-center justify-center px-4 sm:px-6 lg:px-8 bg-[#fafafa] pt-20 pb-12">
         
         <!-- Connected cleanly using x-data="authComponent" -->
-        <div x-data="authComponent" class="w-full max-w-md bg-white p-8 sm:p-12 border border-gray-100 shadow-2xl shadow-gray-200/50">
+        <div x-data="authComponent" class="w-full max-w-md bg-white p-8 sm:p-12 border border-gray-100 shadow-2xl shadow-gray-200/50 rounded-sm">
             
             <!-- Header -->
             <div class="text-center mb-10">
@@ -246,7 +256,7 @@ import Layout from '../layouts/Layout.astro';
                     @click="isLogin = !isLogin; message = ''; isError = false;" 
                     class="text-xs text-gray-500 font-medium hover:text-black transition-colors"
                 >
-                    <span x-text="isLogin ? 'Don\'t have an account? Create one.' : 'Already have an account? Sign In.'"></span>
+                    <span x-text="isLogin ? 'Need an account? Create one.' : 'Already have an account? Sign In.'"></span>
                 </button>
             </div>
 
